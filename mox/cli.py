@@ -20,7 +20,7 @@ def _demo_tls(a):
 def _scan(a):
     s = scanner.scan(a.path, probe=a.probe)
     print(f"scan #{s['scan_id']}: {s['files_scanned']} files in {s['seconds']}s -> {s['findings']} findings "
-          f"({s['verify_first']} verify-first)")
+          f"({s['verify_first']} verify-first) -> {s['assets']} assets")
     print("planes: " + ", ".join(f"{k}={v}" for k, v in sorted(s["planes"].items())))
     for msg in ([s["probe_error"]] if s["probe_error"] else []) + s["errors"]:
         print("warning:", msg, file=sys.stderr)

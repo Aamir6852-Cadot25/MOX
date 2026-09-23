@@ -107,8 +107,10 @@ def scan(target: str | Path, probe: str | None = None, conn=None) -> dict:
         "confidence,detector,verify_first,nist_now,nist_2030,nist_2035,quantum_vulnerable,nist_source,"
         "nist_notes,meta) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", rows)
     conn.commit()
+    from .analyze import analyze
+    assets = analyze(scan_id, conn)
     if own:
         conn.close()
-    return {"scan_id": scan_id, "target": str(target), "files_scanned": ctx.files_scanned, "seconds": seconds,
+    return {"assets": len(assets), "scan_id": scan_id, "target": str(target), "files_scanned": ctx.files_scanned, "seconds": seconds,
             "planes": planes, "findings": len(findings), "verify_first": verify,
             "probe_error": probe_error, "errors": ctx.errors}

@@ -26,11 +26,11 @@ run.ps1  README.md  requirements.txt  .gitignore
 - [x] Test: detects AES ECB mode and 3DES/DES-CBC3
 
 ## Phase 2 — correlation + scoring + verdicts
-- [ ] Test: key + cert + p12 + container copy + TLS peer + nginx ref → 1 asset ("N findings → 1 asset")
-- [ ] Score stores every term (base, qv, mosca X/Y/Z, criticality, confidence, floor); tiers per §7
-- [ ] Test: Mosca per asset; disallowed floor ≥70; hybrid halving only on real X25519MLKEM768 endpoint
-- [ ] Hybrid = X25519MLKEM768 group found in a config (e.g. conf/nginx-edge.conf ssl_ecdh_curve) for that endpoint; never require a live PQ handshake
-- [ ] Test: verdict rules CONTAIN/ACCEPT/MIGRATE; replacement map; wave 1–5 assigned
+- [x] Test: key + cert + p12 + container copy + TLS peer + nginx ref → 1 asset ("N findings → 1 asset")
+- [x] Score stores every term (base, qv, mosca X/Y/Z, criticality, confidence, floor); tiers per §7
+- [x] Test: Mosca per asset; disallowed floor ≥70; hybrid halving only on real X25519MLKEM768 endpoint
+- [x] Hybrid = X25519MLKEM768 group found in a config (e.g. conf/nginx-edge.conf ssl_ecdh_curve) for that endpoint; never require a live PQ handshake
+- [x] Test: verdict rules CONTAIN/ACCEPT/MIGRATE; replacement map; wave 1–5 assigned
 
 ## Phase 3 — API + auth + UI (Login, Dashboard, Work queue, Asset detail)
 - [ ] Argon2id; `create-admin`; JWT httpOnly cookie; secret from MOX_SECRET or data/keys/secret
