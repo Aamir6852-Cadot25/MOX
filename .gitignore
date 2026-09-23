@@ -1,0 +1,9 @@
+node_modules/
+.venv/
+web/dist/
+__pycache__/
+.pytest_cache/
+data/mox.db
+data/keys/
+demo_target/
+*.bak

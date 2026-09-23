@@ -1,0 +1,63 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="ui.css">
+<style>
+body{background:radial-gradient(120% 90% at 20% 0%,#1d1a14 0%,#0e0d0b 60%,#0a0908 100%)}
+.top{background:rgba(18,15,10,.75);border-bottom-color:#2d271c}
+.tab.on{box-shadow:inset 0 -2px 0 #f39a3a;background:#2a2318}
+.sub{font-size:12px;color:#b8a78c;margin-left:6px}
+.wrap{padding:16px 20px;display:grid;grid-template-columns:1fr 380px;gap:16px}
+.panel{background:rgba(26,22,16,.92);border-color:#302819}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+.kpi{padding:13px 16px}.kpi .n{font-size:28px;font-weight:bold;font-family:"DejaVu Sans Mono"}.kpi .l{color:#a39680;font-size:11.5px;margin-top:3px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.sec{padding:14px 16px;position:relative}
+.sec .nm{font-weight:bold;font-size:14px;color:#f3ebdd}.sec .ct{color:#a39680;font-size:11px;margin-top:2px}
+.sec .ix{font-size:36px;font-weight:bold;font-family:"DejaVu Sans Mono";margin-top:8px}
+.sec .ix small{font-size:14px;color:#8d8170}
+.tr{height:8px;background:#2b2419;border-radius:5px;overflow:hidden;margin:8px 0}
+.tr div{height:100%}
+.mini{display:flex;justify-content:space-between;font-size:11.5px;color:#b8a78c}
+.flag{position:absolute;right:14px;top:14px;font-size:10px;font-weight:bold;padding:3px 8px;border-radius:12px}
+.hi{background:#3a1c1a;color:#ff8f86;border:1px solid #6b2b27}.md{background:#3a2e12;color:#f5c661;border:1px solid #6d5419}.lo{background:#16302a;color:#8fe0bb;border:1px solid #2c5a47}
+.side{display:flex;flex-direction:column;gap:14px}
+.side .panel{padding:14px 16px}
+.rk{display:grid;grid-template-columns:24px 1fr 60px;align-items:center;padding:8px 0;border-bottom:1px solid #2a2318;font-size:12.5px}
+.rk b{font-family:"DejaVu Sans Mono";text-align:right}
+.feed{font-family:"DejaVu Sans Mono";font-size:11.2px;color:#cbbfa9;padding:7px 0;border-bottom:1px solid #2a2318;display:flex;gap:8px}
+.ok{color:#5fd39d}
+.note{border:1px dashed #6d5419;border-radius:9px;padding:10px 12px;color:#e5c98d;font-size:11.8px;line-height:1.5;background:#1f190f}
+</style></head><body>
+<div class="top"><div class="logo"><span class="m" style="color:#f39a3a">MO</span><span class="x" style="color:#f3ebdd">X</span></div><div class="sub">Sectoral · <b style="color:#f3ebdd">NCIIPC posture view</b></div>
+<div class="tabs"><div class="tab on">National posture</div><div class="tab">Sectors</div><div class="tab">Attestations</div><div class="tab">Advisories</div></div>
+<div class="sp"></div><div class="chip" style="border-color:#3a3122;background:#16130e;color:#c9b99c">simulated attestations · demo</div><div class="chip ok" style="background:#10180f">0 inventories received</div></div>
+
+<div class="wrap"><div>
+ <div class="kpis">
+  <div class="panel kpi"><div class="n" style="color:#f3ebdd">42</div><div class="l">signed attestations received</div></div>
+  <div class="panel kpi"><div class="n" style="color:#f39a3a">6</div><div class="l">critical sectors reporting</div></div>
+  <div class="panel kpi"><div class="n" style="color:#ef6a60">1,906</div><div class="l">HNDL-exposed assets, nationally</div></div>
+  <div class="panel kpi"><div class="n ok">0</div><div class="l">file paths or hostnames disclosed</div></div></div>
+ <div class="grid">
+  <div class="panel sec"><span class="flag hi">WAVE 1</span><div class="nm">Power &amp; Energy</div><div class="ct">9 operators · 11 attestations</div><div class="ix" style="color:#ef6a60">28<small> /100</small></div><div class="tr"><div style="width:28%;background:#e5534b"></div></div><div class="mini"><span>CONTAIN-heavy: 44%</span><span>▲ 3 this qtr</span></div></div>
+  <div class="panel sec"><span class="flag hi">WAVE 1</span><div class="nm">Telecom</div><div class="ct">6 operators · 7 attestations</div><div class="ix" style="color:#ef6a60">33<small> /100</small></div><div class="tr"><div style="width:33%;background:#e5534b"></div></div><div class="mini"><span>HNDL tier-1: 412</span><span>▲ 5 this qtr</span></div></div>
+  <div class="panel sec"><span class="flag md">WAVE 2</span><div class="nm">Government services</div><div class="ct">8 operators · 9 attestations</div><div class="ix" style="color:#f0b43c">41<small> /100</small></div><div class="tr"><div style="width:41%;background:#f0b43c"></div></div><div class="mini"><span>incl. op-gov-017</span><span>▲ 7 this qtr</span></div></div>
+  <div class="panel sec"><span class="flag md">WAVE 2</span><div class="nm">Banking &amp; Finance</div><div class="ct">7 operators · 8 attestations</div><div class="ix" style="color:#f0b43c">52<small> /100</small></div><div class="tr"><div style="width:52%;background:#f0b43c"></div></div><div class="mini"><span>TLS 1.2 still: 18%</span><span>▲ 9 this qtr</span></div></div>
+  <div class="panel sec"><span class="flag md">WAVE 2</span><div class="nm">Transport</div><div class="ct">4 operators · 4 attestations</div><div class="ix" style="color:#f0b43c">47<small> /100</small></div><div class="tr"><div style="width:47%;background:#f0b43c"></div></div><div class="mini"><span>signalling fw: CONTAIN</span><span>▲ 2 this qtr</span></div></div>
+  <div class="panel sec"><span class="flag lo">WAVE 3</span><div class="nm">Strategic &amp; PSUs</div><div class="ct">3 operators · 3 attestations</div><div class="ix" style="color:#79d9ae">63<small> /100</small></div><div class="tr"><div style="width:63%;background:#5fd39d"></div></div><div class="mini"><span>hybrid KEX: 71%</span><span>▲ 4 this qtr</span></div></div>
+ </div>
+ <div class="note" style="margin-top:14px">Every number on this screen was computed on an operator's own premises and arrived as a signed attestation. NCIIPC can see which sectors are exposed — but not which server, which file, or which key.</div>
+</div>
+<div class="side">
+ <div class="panel"><div class="h" style="color:#f3ebdd">If RSA-2048 falls tomorrow</div><div class="dim" style="color:#a39680;margin:3px 0 8px">sectors ranked by HNDL-exposed assets</div>
+  <div class="rk"><span style="color:#ef6a60">1</span><span>Power &amp; Energy</span><b style="color:#ef6a60">621</b></div>
+  <div class="rk"><span style="color:#ef6a60">2</span><span>Telecom</span><b style="color:#ef6a60">412</b></div>
+  <div class="rk"><span style="color:#f0b43c">3</span><span>Government services</span><b style="color:#f0b43c">338</b></div>
+  <div class="rk"><span style="color:#f0b43c">4</span><span>Banking &amp; Finance</span><b style="color:#f0b43c">297</b></div>
+  <div class="rk"><span style="color:#f0b43c">5</span><span>Transport</span><b style="color:#f0b43c">154</b></div>
+  <div class="rk" style="border:0"><span style="color:#79d9ae">6</span><span>Strategic &amp; public</span><b style="color:#79d9ae">84</b></div></div>
+ <div class="panel"><div class="h" style="color:#f3ebdd">Incoming attestations</div>
+  <div class="feed"><span class="ok">✓</span>op-gov-017 · gov · idx 41 · 7a1f…04be</div>
+  <div class="feed"><span class="ok">✓</span>op-pwr-004 · power · idx 26 · c90e…11d3</div>
+  <div class="feed"><span class="ok">✓</span>op-bnk-012 · bank · idx 55 · 0b77…a8f2</div>
+  <div class="feed"><span class="ok">✓</span>op-tel-002 · telecom · idx 31 · 4e1c…9d0a</div>
+  <div class="feed" style="border:0"><span class="ok">✓</span>op-trn-003 · transport · idx 47 · 8a22…63be</div></div>
+</div></div></body></html>

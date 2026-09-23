@@ -1,0 +1,67 @@
+{
+  "version": "2026-09",
+  "status_values": ["approved", "deprecated", "disallowed", "not_approved", "pending", "hybrid"],
+  "sources": {
+    "131A": "NIST SP 800-131A Rev.2 (2019)",
+    "131A3": "NIST SP 800-131A Rev.3 initial public draft (2024) - proposed changes",
+    "8547": "NIST IR 8547 initial public draft (2024) - quantum transition timeline",
+    "186-5": "FIPS 186-5 (2023) Digital Signature Standard",
+    "52r2": "NIST SP 800-52 Rev.2 (TLS guidelines)",
+    "203": "FIPS 203 ML-KEM", "204": "FIPS 204 ML-DSA", "205": "FIPS 205 SLH-DSA",
+    "sha1": "NIST announcement: SHA-1 to be retired by 31 Dec 2030"
+  },
+  "algorithms": {
+    "RSA": { "quantum_vulnerable": true, "size_rules": [
+      { "min": 0,    "max": 2047, "now": "disallowed", "after_2030": "disallowed", "after_2035": "disallowed", "legacy_use": "verify/decrypt old data only", "source": "131A" },
+      { "min": 2048, "max": 3071, "now": "approved",   "after_2030": "deprecated", "after_2035": "disallowed", "legacy_use": "yes", "source": "131A, 8547", "notes": "112-bit security" },
+      { "min": 3072, "max": 99999,"now": "approved",   "after_2030": "approved",   "after_2035": "disallowed", "legacy_use": "yes", "source": "131A, 8547", "notes": ">=128-bit classical, still quantum-vulnerable" } ] },
+    "DH": { "quantum_vulnerable": true, "size_rules": [
+      { "min": 0,    "max": 2047, "now": "disallowed", "after_2030": "disallowed", "after_2035": "disallowed", "source": "131A" },
+      { "min": 2048, "max": 3071, "now": "approved",   "after_2030": "deprecated", "after_2035": "disallowed", "source": "131A, 8547" },
+      { "min": 3072, "max": 99999,"now": "approved",   "after_2030": "approved",   "after_2035": "disallowed", "source": "131A, 8547" } ] },
+    "DSA": { "quantum_vulnerable": true, "now": "disallowed", "after_2030": "disallowed", "after_2035": "disallowed", "legacy_use": "verify old signatures only", "source": "186-5", "notes": "not approved for signature generation since FIPS 186-5" },
+    "ECDSA": { "quantum_vulnerable": true, "curve_rules": {
+      "P-192": { "now": "disallowed", "after_2030": "disallowed", "after_2035": "disallowed", "source": "131A" },
+      "P-224": { "now": "approved", "after_2030": "deprecated", "after_2035": "disallowed", "source": "131A, 8547", "notes": "112-bit" },
+      "P-256": { "now": "approved", "after_2030": "approved", "after_2035": "disallowed", "source": "186-5, 8547" },
+      "P-384": { "now": "approved", "after_2030": "approved", "after_2035": "disallowed", "source": "186-5, 8547" },
+      "P-521": { "now": "approved", "after_2030": "approved", "after_2035": "disallowed", "source": "186-5, 8547" } } },
+    "ECDH": { "quantum_vulnerable": true, "curve_rules": {
+      "P-224": { "now": "approved", "after_2030": "deprecated", "after_2035": "disallowed", "source": "131A, 8547" },
+      "P-256": { "now": "approved", "after_2030": "approved", "after_2035": "disallowed", "source": "8547" },
+      "P-384": { "now": "approved", "after_2030": "approved", "after_2035": "disallowed", "source": "8547" },
+      "P-521": { "now": "approved", "after_2030": "approved", "after_2035": "disallowed", "source": "8547" } } },
+    "EdDSA": { "quantum_vulnerable": true, "now": "approved", "after_2030": "approved", "after_2035": "disallowed", "source": "186-5, 8547", "notes": "Ed25519 / Ed448" },
+    "X25519": { "quantum_vulnerable": true, "now": "not_approved", "after_2030": "not_approved", "after_2035": "not_approved", "source": "8547", "notes": "widely used key agreement, not in NIST SP 800-56A; quantum-vulnerable" },
+    "X25519MLKEM768": { "quantum_vulnerable": false, "now": "hybrid", "after_2030": "hybrid", "after_2035": "hybrid", "source": "203", "notes": "hybrid classical + ML-KEM-768 key exchange; transition-safe" },
+    "MD5": { "quantum_vulnerable": false, "now": "not_approved", "after_2030": "not_approved", "after_2035": "not_approved", "source": "131A", "notes": "collision-broken; never NIST-approved" },
+    "SHA-1": { "quantum_vulnerable": false, "now": "deprecated", "after_2030": "disallowed", "after_2035": "disallowed", "legacy_use": "verify old signatures; non-signature uses (HMAC/KDF) still allowed now", "source": "131A, sha1", "notes": "disallowed for new digital signatures" },
+    "SHA-224": { "quantum_vulnerable": false, "now": "approved", "after_2030": "approved", "after_2035": "approved", "source": "131A", "notes": "check SP 800-131A Rev.3 final for changes" },
+    "SHA-256": { "quantum_vulnerable": false, "now": "approved", "after_2030": "approved", "after_2035": "approved", "source": "131A" },
+    "SHA-384": { "quantum_vulnerable": false, "now": "approved", "after_2030": "approved", "after_2035": "approved", "source": "131A" },
+    "SHA-512": { "quantum_vulnerable": false, "now": "approved", "after_2030": "approved", "after_2035": "approved", "source": "131A" },
+    "SHA3": { "quantum_vulnerable": false, "now": "approved", "after_2030": "approved", "after_2035": "approved", "source": "131A" },
+    "HMAC-SHA256": { "quantum_vulnerable": false, "now": "approved", "after_2030": "approved", "after_2035": "approved", "source": "131A" },
+    "DES": { "quantum_vulnerable": false, "now": "disallowed", "after_2030": "disallowed", "after_2035": "disallowed", "source": "131A" },
+    "3DES": { "quantum_vulnerable": false, "now": "disallowed", "after_2030": "disallowed", "after_2035": "disallowed", "legacy_use": "decrypt old data only", "source": "131A", "notes": "TDEA encryption disallowed after 2023" },
+    "RC4": { "quantum_vulnerable": false, "now": "not_approved", "after_2030": "not_approved", "after_2035": "not_approved", "source": "131A" },
+    "AES": { "quantum_vulnerable": false, "size_rules": [
+      { "min": 128, "max": 128, "now": "approved", "after_2030": "approved", "after_2035": "approved", "source": "131A", "notes": "Grover only halves effective strength" },
+      { "min": 192, "max": 256, "now": "approved", "after_2030": "approved", "after_2035": "approved", "source": "131A" } ],
+      "mode_rules": {
+        "ECB": { "now": "deprecated", "after_2030": "disallowed", "after_2035": "disallowed", "source": "131A3", "notes": "leaks patterns for multi-block data; Rev.3 draft proposes retiring ECB for confidentiality" },
+        "GCM": { "now": "approved", "after_2030": "approved", "after_2035": "approved", "source": "131A" },
+        "CBC": { "now": "approved", "after_2030": "approved", "after_2035": "approved", "source": "131A" } } },
+    "ML-KEM": { "quantum_vulnerable": false, "now": "approved", "after_2030": "approved", "after_2035": "approved", "source": "203", "notes": "ML-KEM-512/768/1024; ML-KEM-768 public key 1,184 bytes" },
+    "ML-DSA": { "quantum_vulnerable": false, "now": "approved", "after_2030": "approved", "after_2035": "approved", "source": "204", "notes": "ML-DSA-44/65/87; ML-DSA-65 signature 3,309 bytes" },
+    "SLH-DSA": { "quantum_vulnerable": false, "now": "approved", "after_2030": "approved", "after_2035": "approved", "source": "205", "notes": "hash-based; good for long-lived firmware signing" },
+    "HQC": { "quantum_vulnerable": false, "now": "pending", "after_2030": "pending", "after_2035": "pending", "notes": "selected by NIST in 2025, standard not final" }
+  },
+  "protocols": {
+    "SSLv3":   { "now": "not_approved", "source": "52r2" },
+    "TLSv1":   { "now": "disallowed", "source": "52r2" },
+    "TLSv1.1": { "now": "disallowed", "source": "52r2" },
+    "TLSv1.2": { "now": "approved", "source": "52r2", "notes": "only with approved cipher suites" },
+    "TLSv1.3": { "now": "approved", "source": "52r2" }
+  }
+}

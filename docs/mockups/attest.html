@@ -1,0 +1,85 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="ui.css">
+<style>
+.wrap{display:grid;grid-template-columns:360px 1fr 360px;gap:16px;padding:16px 20px}
+.col{display:flex;flex-direction:column;gap:14px}
+.box{padding:15px 16px}
+.lt{font-size:11px;letter-spacing:1.1px;font-weight:bold}
+.it{display:flex;gap:9px;align-items:flex-start;padding:7px 0;border-bottom:1px solid #1b2924;font-size:12.3px}
+.it:last-child{border:0}
+.ic{width:18px;height:18px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;flex:none}
+.y{background:#173a2d;color:#7fe3b3}.n{background:#3a1c1a;color:#ff8f86}
+pre{font-family:"DejaVu Sans Mono",monospace;font-size:12.4px;line-height:1.62;color:#cfdcd6;white-space:pre}
+.k{color:#8cc9ff}.s{color:#9fe0b6}.nu{color:#f5c661}.c{color:#5d736b}
+.code{padding:16px 18px;height:520px;position:relative}
+.hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.big{font-size:30px;font-weight:bold;font-family:"DejaVu Sans Mono"}
+.kv{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #1b2924;font-size:12px}
+.kv span:last-child{font-family:"DejaVu Sans Mono";color:#e6efe9}
+.btn{background:#79d9ae;color:#08140f;text-align:center;font-weight:bold;border-radius:8px;padding:12px;margin-top:12px;font-size:13.5px}
+.chk{display:flex;gap:8px;align-items:center;padding:6px 0;font-size:12px}
+.ok{color:#5fd39d;font-weight:bold}
+.stamp{position:absolute;right:22px;top:58px;border:2px solid #5fd39d;color:#5fd39d;border-radius:8px;padding:6px 12px;font-weight:bold;transform:rotate(-6deg);font-size:12px;letter-spacing:1px;background:rgba(10,30,20,.6)}
+</style></head><body>
+<div class="top"><div class="logo"><span class="m">MO</span><span class="x">X</span></div>
+<div class="tgt">Target <b>gov-portal-legacy</b></div>
+<div class="tabs"><div class="tab">Overview</div><div class="tab">Risk field</div><div class="tab">Correlate</div><div class="tab">Queue</div><div class="tab">Remediate</div><div class="tab on">Attest</div></div>
+<div class="sp"></div><div class="chip">scan #0042 · 23 Sep 2026</div><div class="chip ok">Offline — 0 outbound calls</div></div>
+
+<div class="wrap">
+ <div class="col">
+  <div class="panel box" style="border-color:#2c5a47"><div class="lt min">LEAVES THE PREMISES</div><div class="dim" style="margin:4px 0 8px">Counts and proofs — never locations</div>
+   <div class="it"><div class="ic y">✓</div><div>Sector and scan date</div></div>
+   <div class="it"><div class="ic y">✓</div><div>Asset counts by risk tier</div></div>
+   <div class="it"><div class="ic y">✓</div><div>Verdict split — migrate / contain / accept</div></div>
+   <div class="it"><div class="ic y">✓</div><div>Readiness index (0–100)</div></div>
+   <div class="it"><div class="ic y">✓</div><div>Merkle root of the local CBOM</div></div>
+   <div class="it"><div class="ic y">✓</div><div>Scanner version + Ed25519 signature</div></div></div>
+  <div class="panel box" style="border-color:#6b2b27"><div class="lt red">NEVER LEAVES</div><div class="dim" style="margin:4px 0 8px">Stays in local SQLite, on-premises</div>
+   <div class="it"><div class="ic n">✕</div><div>File paths, hostnames, IP addresses</div></div>
+   <div class="it"><div class="ic n">✕</div><div>Which key is weak, and where it lives</div></div>
+   <div class="it"><div class="ic n">✕</div><div>Source code and configuration</div></div>
+   <div class="it"><div class="ic n">✕</div><div>The CBOM itself</div></div></div>
+ </div>
+
+ <div class="panel code"><div class="hdr"><div><div class="h">attestation.json</div><div class="dim">preview — exactly what will be sent</div></div><div class="chip">1.8 KB</div></div>
+  <div class="stamp">NO INVENTORY INSIDE</div>
+<pre>{
+  <span class="k">"schema"</span>: <span class="s">"mox.attestation/v1"</span>,
+  <span class="k">"sector"</span>: <span class="s">"government-services"</span>,
+  <span class="k">"scan_date"</span>: <span class="s">"2026-09-23"</span>,
+  <span class="k">"coverage"</span>: { <span class="k">"planes"</span>: <span class="nu">7</span>, <span class="k">"files"</span>: <span class="nu">1284</span> },
+  <span class="k">"assets"</span>: {
+    <span class="k">"total"</span>: <span class="nu">147</span>,
+    <span class="k">"hndl_exposed"</span>: <span class="nu">38</span>,
+    <span class="k">"quantum_vulnerable"</span>: <span class="nu">61</span>,
+    <span class="k">"safe_or_out_of_scope"</span>: <span class="nu">48</span>
+  },
+  <span class="k">"verdicts"</span>: { <span class="k">"migrate"</span>: <span class="nu">71</span>, <span class="k">"contain"</span>: <span class="nu">19</span>, <span class="k">"accept"</span>: <span class="nu">9</span> },
+  <span class="k">"readiness_index"</span>: <span class="nu">41</span>,
+  <span class="k">"hybrid_pq_certs"</span>: <span class="nu">0</span>,
+  <span class="k">"cbom_merkle_root"</span>: <span class="s">"7a1f9c…04be"</span>,
+  <span class="k">"scanner"</span>: <span class="s">"mox 0.9.2"</span>,
+  <span class="k">"signature"</span>: {
+    <span class="k">"alg"</span>: <span class="s">"Ed25519"</span>,
+    <span class="k">"key_id"</span>: <span class="s">"op-gov-017"</span>,
+    <span class="k">"sig"</span>: <span class="s">"b3d0…9e41"</span>
+  }
+}
+<span class="c">// no paths · no hosts · no key material · no code</span></pre></div>
+
+ <div class="col">
+  <div class="panel box"><div class="dim" style="font-size:11px;letter-spacing:1px">READINESS INDEX</div><div class="big amb">41<span class="dim" style="font-size:16px"> / 100</span></div>
+   <div style="height:10px;background:#1b2924;border-radius:6px;margin:10px 0 6px;overflow:hidden"><div style="width:41%;height:100%;background:linear-gradient(90deg,#e5534b,#f0b43c)"></div></div>
+   <div class="dim">Weighted by HNDL exposure, verdict mix and plane coverage</div></div>
+  <div class="panel box"><div class="h">Signing</div>
+   <div class="kv"><span class="dim">Algorithm</span><span>Ed25519</span></div>
+   <div class="kv"><span class="dim">Operator key</span><span>op-gov-017</span></div>
+   <div class="kv"><span class="dim">CBOM Merkle root</span><span>7a1f9c…04be</span></div>
+   <div class="kv" style="border:0"><span class="dim">Leaves</span><span class="min">19 fields, 0 paths</span></div></div>
+  <div class="panel box"><div class="h">Operator self-check</div>
+   <div class="chk"><span class="ok">✓</span> Root re-derived from local CBOM</div>
+   <div class="chk"><span class="ok">✓</span> No field contains a path or host</div>
+   <div class="chk"><span class="ok">✓</span> Signature verifies with op-gov-017</div>
+   <div class="btn">Export signed attestation</div></div>
+ </div>
+</div></body></html>

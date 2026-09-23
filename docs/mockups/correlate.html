@@ -1,0 +1,86 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="ui.css">
+<style>
+.wrap{display:grid;grid-template-columns:420px 1fr 350px;gap:16px;padding:16px 20px 0}
+.q{padding:14px 0 6px;height:660px}
+.q .hd{display:flex;justify-content:space-between;padding:0 16px 10px;border-bottom:1px solid #1d2b26}
+.row{display:grid;grid-template-columns:1fr 46px 44px 86px;align-items:center;padding:9px 16px;border-bottom:1px solid #16231f;font-size:12px}
+.row.sel{background:#1b2b25;box-shadow:inset 3px 0 0 #f0b43c}
+.row .nm{color:#e2ece7}.row .sub{color:#7f918a;font-size:10.5px;margin-top:2px}
+.pl{font-family:"DejaVu Sans Mono";font-size:11px;color:#9fb3ab;text-align:center;background:#12201b;border:1px solid #243630;border-radius:5px;padding:2px 0}
+.sc{font-family:"DejaVu Sans Mono";font-weight:bold;text-align:center}
+.main{padding:18px 20px;height:660px;position:relative}
+.kt{font-size:23px;font-weight:bold;color:#f2f7f4}
+.fp{font-family:"DejaVu Sans Mono";color:#8fa29a;font-size:12px;margin-top:5px}
+.banner{margin-top:14px;display:flex;align-items:center;gap:12px;background:#15241f;border:1px dashed #37574b;border-radius:9px;padding:10px 14px}
+.banner .big{white-space:nowrap;font-size:20px;font-weight:bold;color:#79d9ae;font-family:"DejaVu Sans Mono"}
+.node{position:absolute;background:#101b17;border:1px solid #2b3f38;border-radius:9px;padding:9px 12px;width:210px}
+.node .p{font-size:10px;letter-spacing:.8px;color:#79d9ae;font-weight:bold}
+.node .f{font-family:"DejaVu Sans Mono";font-size:11.5px;color:#e4eee9;margin-top:4px}
+.node .d{font-size:10.5px;color:#7f918a;margin-top:3px}
+.core{position:absolute;left:212px;top:372px;width:174px;height:100px;border-radius:12px;background:linear-gradient(180deg,#3a1d1b,#2a1614);border:1.5px solid #e5534b;text-align:center;padding-top:14px;box-shadow:0 0 38px rgba(229,83,75,.25)}
+.core .a{font-weight:bold;font-size:15px;color:#ffd9d6}.core .b{font-family:"DejaVu Sans Mono";font-size:11px;color:#f09a93;margin-top:5px}
+.side{display:flex;flex-direction:column;gap:14px}
+.side .panel{padding:14px 16px}
+.ver{font-size:26px;font-weight:bold;color:#ff8f86;letter-spacing:1px}
+.kv{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1b2924;font-size:12px}
+.kv span:last-child{color:#e6efe9;font-family:"DejaVu Sans Mono"}
+.dep{display:flex;align-items:center;gap:8px;padding:7px 0;font-size:12px;border-bottom:1px solid #1b2924}
+.dot{width:8px;height:8px;border-radius:50%}
+.btn{margin-top:12px;background:#f0b43c;color:#1a1305;text-align:center;font-weight:bold;border-radius:8px;padding:10px}
+.bar{display:flex;height:14px;border-radius:7px;overflow:hidden;margin:10px 0 8px}
+.leg{display:flex;justify-content:space-between;font-size:11.5px}
+</style></head><body>
+<div class="top"><div class="logo"><span class="m">MO</span><span class="x">X</span></div>
+<div class="tgt">Target <b>gov-portal-legacy</b></div>
+<div class="tabs"><div class="tab">Overview</div><div class="tab">Risk field</div><div class="tab on">Correlate</div><div class="tab">Queue</div><div class="tab">Remediate</div><div class="tab">Attest</div></div>
+<div class="sp"></div><div class="chip">1,284 files · 7 planes · 41 s</div><div class="chip ok">Offline — 0 outbound calls</div></div>
+
+<div class="wrap">
+ <div class="panel q">
+  <div class="hd"><div class="h">Work queue <span class="dim">· 99 vulnerable</span></div><div class="dim">risk ↓</div></div>
+  <div class="row sel"><div><div class="nm">RSA-2048 key 9f3c…e21a</div><div class="sub">signs citizen session tokens</div></div><div class="pl">4</div><div class="sc red">9.4</div><div><span class="pill MIG">MIGRATE</span></div></div>
+  <div class="row"><div><div class="nm">ECDH P-256 · ipsec/site-b</div><div class="sub">site-to-site VPN, 20-yr data</div></div><div class="pl">2</div><div class="sc red">8.9</div><div><span class="pill MIG">MIGRATE</span></div></div>
+  <div class="row"><div><div class="nm">RSA-1024 · bin/sync-agent</div><div class="sub">vendor binary, no source</div></div><div class="pl">1</div><div class="sc red">8.7</div><div><span class="pill CON">CONTAIN</span></div></div>
+  <div class="row"><div><div class="nm">RSA-2048 · certs/internal-ca</div><div class="sub">root of internal PKI</div></div><div class="pl">3</div><div class="sc red">8.5</div><div><span class="pill MIG">MIGRATE</span></div></div>
+  <div class="row"><div><div class="nm">DH-2048 · HSM partition 2</div><div class="sub">HSM firmware EOL 2031</div></div><div class="pl">2</div><div class="sc amb">7.8</div><div><span class="pill CON">CONTAIN</span></div></div>
+  <div class="row"><div><div class="nm">ECDSA P-256 · payments/Crypto.java</div><div class="sub">payment request signing</div></div><div class="pl">2</div><div class="sc amb">7.2</div><div><span class="pill MIG">MIGRATE</span></div></div>
+  <div class="row"><div><div class="nm">RSA-2048 · openssl 1.1.1k</div><div class="sub">transitive dependency</div></div><div class="pl">1</div><div class="sc amb">6.6</div><div><span class="pill MIG">MIGRATE</span></div></div>
+  <div class="row"><div><div class="nm">ECDSA P-256 · RTU gateway fw</div><div class="sub">field device, not patchable</div></div><div class="pl">1</div><div class="sc amb">6.1</div><div><span class="pill CON">CONTAIN</span></div></div>
+  <div class="row"><div><div class="nm">RSA-2048 · dev test fixture</div><div class="sub">test data, 7-day lifetime</div></div><div class="pl">1</div><div class="sc min">2.3</div><div><span class="pill ACC">ACCEPT</span></div></div>
+  <div class="row"><div><div class="nm">ECDH X25519 · metrics exporter</div><div class="sub">telemetry, no secrecy need</div></div><div class="pl">1</div><div class="sc min">1.9</div><div><span class="pill ACC">ACCEPT</span></div></div>
+  <div style="padding:12px 16px"><div class="h" style="font-size:12px">Verdict split</div>
+   <div class="bar"><div style="width:71.7%;background:#e5534b"></div><div style="width:19.2%;background:#f0b43c"></div><div style="width:9.1%;background:#5fd39d"></div></div>
+   <div class="leg"><span class="red">■ MIGRATE 71</span><span class="amb">■ CONTAIN 19</span><span class="min">■ ACCEPT 9</span></div></div>
+ </div>
+
+ <div class="panel main">
+  <div class="dim" style="font-size:11px;letter-spacing:1px">CORRELATED ASSET</div>
+  <div class="kt">RSA-2048 private key</div>
+  <div class="fp">SHA256:9f3c 41aa 07be … 6d02 e21a · PKCS#1 v1.5</div>
+  <div class="banner"><div class="big">4 → 1</div><div><b>Four findings on three planes are the same key.</b><br><span class="dim">Scanned separately, this reads as four low-priority items. Correlated, it is one critical asset.</span></div></div>
+  <svg width="598" height="814" style="position:absolute;left:0;top:0" viewBox="0 0 598 814"><g stroke="#3f6457" stroke-width="1.8" fill="none" stroke-dasharray="6 4"><path d="M228 300 C 262 300, 262 340, 262 372"/><path d="M370 300 C 336 300, 336 340, 336 372"/><path d="M228 568 C 262 568, 262 520, 262 472"/><path d="M370 568 C 336 568, 336 520, 336 472"/></g><g fill="#3f6457"><circle cx="262" cy="372" r="3.5"/><circle cx="336" cy="372" r="3.5"/><circle cx="262" cy="472" r="3.5"/><circle cx="336" cy="472" r="3.5"/></g></svg>
+  <div class="node" style="left:18px;top:268px"><div class="p">CERTIFICATES &amp; KEYS</div><div class="f">certs/api-gw.pem</div><div class="d">private key block · line 1</div></div>
+  <div class="node" style="left:370px;top:268px"><div class="p">CERTIFICATES &amp; KEYS</div><div class="f">keystore/app.jks</div><div class="d">alias "gateway" · exported 2019</div></div>
+  <div class="core"><div class="a">ONE KEY</div><div class="b">reused since 2019</div><div class="b" style="color:#c9d6d0">1,461 days old</div></div>
+  <div class="node" style="left:18px;top:536px"><div class="p">TLS / PROTOCOL</div><div class="f">api-gw.internal:443</div><div class="d">served in live handshake</div></div>
+  <div class="node" style="left:370px;top:536px"><div class="p">SOURCE CODE</div><div class="f">auth/token_signer.py:42</div><div class="d">signs citizen session tokens</div></div>
+  <div style="position:absolute;left:20px;right:20px;bottom:16px;display:flex;gap:10px">
+   <div class="chip" style="flex:1">planes: 3 of 7</div><div class="chip" style="flex:1">confidence: HIGH</div><div class="chip" style="flex:1">owner: platform-sec</div></div>
+ </div>
+
+ <div class="side">
+  <div class="panel"><div class="dim" style="font-size:11px;letter-spacing:1px">VERDICT</div><div class="ver">MIGRATE</div>
+   <div class="dim" style="margin-top:4px">Wave 1 of 5 · patch path exists in source</div>
+   <div class="kv" style="margin-top:10px"><span class="dim">Mosca X + Y &gt; Z</span><span>15 + 3 &gt; 10</span></div>
+   <div class="kv"><span class="dim">Exposure</span><span class="red">+8 yrs</span></div>
+   <div class="kv"><span class="dim">Risk score</span><span class="red">9.4 / 10</span></div>
+   <div class="kv"><span class="dim">Replace with</span><span class="min">ML-DSA-65 (hybrid)</span></div>
+   <div class="btn">Preview patch →</div></div>
+  <div class="panel"><div class="h">What breaks if this key rotates</div>
+   <div class="dep"><span class="dot" style="background:#e5534b"></span>citizen-login <span class="dim" style="margin-left:auto">verifies token</span></div>
+   <div class="dep"><span class="dot" style="background:#e5534b"></span>payments-api <span class="dim" style="margin-left:auto">mutual TLS</span></div>
+   <div class="dep"><span class="dot" style="background:#f0b43c"></span>sync-agent <span class="dim" style="margin-left:auto">pinned cert</span></div>
+   <div class="dep" style="border:0"><span class="dot" style="background:#5fd39d"></span>docs-portal <span class="dim" style="margin-left:auto">no dependency</span></div></div>
+  <div class="panel"><div class="h">Why not CONTAIN?</div><div class="dim" style="margin-top:6px;line-height:1.5">Source is in-house and patchable. CONTAIN is reserved for assets that <span style="color:#f5c661">cannot</span> be changed — vendor binaries, HSM firmware, field devices.</div></div>
+ </div>
+</div></body></html>
