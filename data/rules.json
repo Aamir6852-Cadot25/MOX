@@ -1,0 +1,47 @@
+{
+  "code": [
+    {"id": "rsa-py-keygen", "algorithm": "RSA", "langs": ["py"], "pattern": "\\b(?:rsa\\.generate_private_key|RSA\\.generate)\\s*\\(", "size": "(?:key_size\\s*=\\s*|[(,]\\s*)(\\d{3,5})\\b"},
+    {"id": "rsa-py-pkcs1", "algorithm": "RSA", "langs": ["py"], "pattern": "\\b(?:padding\\.PKCS1v15|pkcs1_15\\.new|PKCS1_v1_5\\.new|PKCS1_OAEP\\.new)"},
+    {"id": "rsa-java-getinstance", "algorithm": "RSA", "langs": ["java"], "pattern": "KeyPairGenerator\\.getInstance\\(\\s*\"RSA\"\\s*\\)", "size": "\\.initialize\\(\\s*(\\d{3,5})", "size_required": true},
+    {"id": "rsa-java-init", "algorithm": "RSA", "langs": ["java"], "pattern": "\\.initialize\\(\\s*(?:\\d{3,5})\\s*[,)]", "size": "\\.initialize\\(\\s*(\\d{3,5})", "file_requires": "getInstance\\(\\s*\"RSA\""},
+    {"id": "rsa-java-spec", "algorithm": "RSA", "langs": ["java"], "pattern": "RSAKeyGenParameterSpec\\s*\\(", "size": "\\(\\s*(\\d{3,5})"},
+    {"id": "rsa-java-cipher", "algorithm": "RSA", "langs": ["java"], "pattern": "Cipher\\.getInstance\\(\\s*\"RSA"},
+    {"id": "rsa-js-gen", "algorithm": "RSA", "langs": ["js", "ts"], "pattern": "generateKeyPairSync\\(\\s*['\"]rsa['\"]", "size": "modulusLength\\s*:\\s*(\\d{3,5})"},
+    {"id": "rsa-js-sign", "algorithm": "RSA", "langs": ["js", "ts"], "pattern": "create(?:Sign|Verify)\\(\\s*['\"]RSA-"},
+    {"id": "rsa-go", "algorithm": "RSA", "langs": ["go"], "pattern": "\\brsa\\.GenerateKey\\(", "size": "[(,]\\s*(\\d{3,5})\\b"},
+    {"id": "rsa-c", "algorithm": "RSA", "langs": ["c"], "pattern": "\\bRSA_generate_key(?:_ex)?\\s*\\(", "size": "[(,]\\s*(\\d{3,5})\\b"},
+    {"id": "rsa-cs", "algorithm": "RSA", "langs": ["cs"], "pattern": "\\b(?:RSACryptoServiceProvider|RSA\\.Create)\\s*\\(", "size": "\\(\\s*(\\d{3,5})"},
+    {"id": "md5-py", "algorithm": "MD5", "langs": ["py"], "pattern": "\\bhashlib\\.md5\\b"},
+    {"id": "md5-generic", "algorithm": "MD5", "pattern": "\\b(?:MD5_Init|md5\\.New|MD5\\.Create|MD5CryptoServiceProvider|EVP_md5)\\b|createHash\\(\\s*['\"]md5['\"]|MessageDigest\\.getInstance\\(\\s*\"MD5\"|[Mm]d5\\("},
+    {"id": "sha1-py", "algorithm": "SHA-1", "langs": ["py"], "pattern": "\\bhashlib\\.sha1\\b"},
+    {"id": "sha1-generic", "algorithm": "SHA-1", "pattern": "\\b(?:SHA1_Init|sha1\\.New|SHA1\\.Create|SHA1CryptoServiceProvider|EVP_sha1)\\b|createHash\\(\\s*['\"]sha1['\"]|MessageDigest\\.getInstance\\(\\s*\"SHA-?1\"|[Ss]ha1\\("},
+    {"id": "3des", "algorithm": "3DES", "pattern": "\\b(?:DESede|TripleDES\\w*|DES3|3DES|DES-EDE3|DES-CBC3\\w*|EVP_des_ede3\\w*)", "mode_re": "DESede/(\\w+)/"},
+    {"id": "des", "algorithm": "DES", "pattern": "(?<![A-Za-z0-9])DES(?![A-Za-z0-9-])|\\bDES_\\w+|\\bEVP_des_(?!ede3)|DESCryptoServiceProvider", "mode_re": "\"DES/(\\w+)/"},
+    {"id": "aes-ecb", "algorithm": "AES", "mode": "ECB", "pattern": "MODE_ECB|AES/ECB|CipherMode\\.ECB|EVP_aes_\\d+_ecb|aes-\\d+-ecb|modes\\.ECB\\(", "size": "(?:aes-|EVP_aes_)(\\d{3})"},
+    {"id": "aes-java-default", "algorithm": "AES", "mode": "ECB", "langs": ["java"], "pattern": "Cipher\\.getInstance\\(\\s*\"AES\"\\s*\\)"},
+    {"id": "rc4", "algorithm": "RC4", "pattern": "\\b(?:RC4|ARC4|ARCFOUR|EVP_rc4)\\b"},
+    {"id": "dh", "algorithm": "DH", "pattern": "\\b(?:dh\\.generate_parameters|DH_generate_parameters(?:_ex)?|DiffieHellman)\\b|KeyPairGenerator\\.getInstance\\(\\s*\"DH\"", "size": "[(,=]\\s*(\\d{3,5})\\b"},
+    {"id": "dsa", "algorithm": "DSA", "pattern": "\\b(?:dsa\\.generate_private_key|DSA\\.generate|DSA_generate_key)\\b|KeyPairGenerator\\.getInstance\\(\\s*\"DSA\"", "size": "[(,=]\\s*(\\d{3,5})\\b"},
+    {"id": "ecdsa-py", "algorithm": "ECDSA", "langs": ["py"], "pattern": "\\bec\\.generate_private_key\\b", "curve_re": "\\bec\\.(SECP\\d+R1)"},
+    {"id": "ecdsa-go", "algorithm": "ECDSA", "langs": ["go"], "pattern": "\\becdsa\\.(?:GenerateKey|Sign|SignASN1|Verify)\\b", "curve_re": "elliptic\\.(P\\d{3})"},
+    {"id": "ecdsa-java", "algorithm": "ECDSA", "langs": ["java"], "pattern": "ECGenParameterSpec\\s*\\(|withECDSA", "curve_re": "ECGenParameterSpec\\(\\s*\"([\\w-]+)\""},
+    {"id": "ecdsa-js", "algorithm": "ECDSA", "langs": ["js", "ts"], "pattern": "generateKeyPairSync\\(\\s*['\"]ec['\"]", "curve_re": "namedCurve\\s*:\\s*['\"]([\\w-]+)"},
+    {"id": "ecdh-js", "algorithm": "ECDH", "langs": ["js", "ts"], "pattern": "\\bcreateECDH\\(", "curve_re": "createECDH\\(\\s*['\"]([\\w-]+)"}
+  ],
+  "deps": {
+    "pycryptodome": "generic crypto library", "pycryptodomex": "generic crypto library", "pycrypto": "abandoned crypto library",
+    "cryptography": "crypto library", "pyopenssl": "OpenSSL bindings", "pyjwt": "JWT library (RSA/ECDSA signing)",
+    "node-forge": "JS crypto/TLS library", "jsonwebtoken": "JWT library (RSA/ECDSA signing)", "crypto-js": "JS crypto library",
+    "jsrsasign": "JS RSA/ECDSA library", "bcprov-jdk15on": "Bouncy Castle provider", "bcprov-jdk18on": "Bouncy Castle provider",
+    "bcpkix-jdk15on": "Bouncy Castle PKIX", "golang.org/x/crypto": "Go extended crypto"
+  },
+  "binaries": [
+    {"pattern": "RSA_generate_key(?:_ex)?", "algorithm": "RSA"},
+    {"pattern": "MD5_Init", "algorithm": "MD5"},
+    {"pattern": "SHA1_Init", "algorithm": "SHA-1"},
+    {"pattern": "DES_(?:ecb_encrypt|set_key\\w*|cbc_encrypt)", "algorithm": "DES"},
+    {"pattern": "EVP_des_ede3\\w*", "algorithm": "3DES"},
+    {"pattern": "RC4_set_key", "algorithm": "RC4"},
+    {"pattern": "OpenSSL \\d\\.\\d\\.\\d+[a-z]?", "algorithm": "@match"}
+  ]
+}

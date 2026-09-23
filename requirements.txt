@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+cryptography
+argon2-cffi
+pyjwt
+cyclonedx-python-lib[json-validation]
+pytest
+httpx
