@@ -39,10 +39,12 @@ def db_path() -> Path:
     return Path(os.environ.get("MOX_DB") or data_dir() / "mox.db")
 
 
-def connect(path=None) -> sqlite3.Connection:
+def connect(path=None, check_same_thread=True) -> sqlite3.Connection:
+    """check_same_thread=False only for one-request connections whose setup and teardown FastAPI may run on
+    different threadpool threads; such a connection is still used by one request at a time."""
     p = Path(path) if path else db_path()
     p.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(p)
+    conn = sqlite3.connect(p, check_same_thread=check_same_thread)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
     cols = {r["name"] for r in conn.execute("PRAGMA table_info(scans)")}

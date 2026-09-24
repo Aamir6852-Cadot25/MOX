@@ -25,7 +25,9 @@ def test_fixers_are_text_safe():
     conf = ("server {\n    ssl_protocols TLSv1 TLSv1.1 TLSv1.2;\n"
             "    ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:AES128-SHA:DES-CBC3-SHA;\n}\n")
     new = fix_text({"algorithm": "TLSv1", "file": "n.conf", "line": 2, "key_size": None, "plane": "configs"}, conf)
-    assert "ssl_protocols TLSv1.2;" in new and "DES-CBC3-SHA" not in new
+    # phase 15 (AUDIT C3): the hybrid group needs TLS 1.3, and static-RSA key transport goes when a FS suite remains
+    assert "ssl_protocols TLSv1.2 TLSv1.3;" in new and "DES-CBC3-SHA" not in new
+    assert "ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256;" in new
     assert "ssl_ecdh_curve X25519MLKEM768:X25519;" in new
 
 

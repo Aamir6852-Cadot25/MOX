@@ -3,17 +3,25 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api.js";
 
 const cls = (l) => (l.startsWith("+++") || l.startsWith("---") || l.startsWith("@@") ? "hdr" : l[0] === "+" ? "add" : l[0] === "-" ? "del" : "");
+const CLAIM = { "in-effect": ["In effect", "min"], "not-in-effect": ["Not in effect", "red"], "not-verified": ["Not verified", "amb"] };
+const RESULT = { cleared: "Finding cleared", "still-present": "Finding still present", "not-in-effect": "Applied, but not fully in effect" };
 const STEPS = [["Patch previewed", "Diff generated from the rule for this finding"], ["Analyst approved", "Approval and review note audited"],
   ["Applied with backup", "Original saved next to the file as .bak"], ["Re-scanned", "Same planes re-run on the changed file"]];
 
 function List() {
   const [rows, setRows] = useState(null);
-  useEffect(() => { api.fixes().then(setRows); }, []);
+  const [err, setErr] = useState("");
+  const load = () => { setErr(""); api.fixes().then(setRows).catch((e) => setErr(e.message)); };
+  useEffect(load, []);
+  if (err) return <div className="p-6"><div className="errbox">Could not load the fix list: {err}. <button className="linkbtn" onClick={load}>Retry</button></div></div>;
   if (!rows) return <div className="p-6 dim">Loading…</div>;
   return (
     <div className="p-5 max-w-[1100px] mx-auto"><div className="panel p-4">
       <div className="h mb-2">Auto-fixable findings <span className="dim font-normal">— from the latest scan</span></div>
-      {rows.length === 0 && <div className="dim">Nothing left to fix automatically.</div>}
+      {rows.length === 0 && (
+        <div className="dim">No finding in the latest scan has an automatic fix. The remaining MIGRATE assets need a manual
+          change; each asset page names the replacement. <Link className="link" to="/queue?verdict=MIGRATE">Open the MIGRATE queue</Link>,
+          change the code or config, then <Link className="link" to="/scan">re-scan</Link> to verify.</div>)}
       {rows.map((f) => (
         <Link key={f.id} to={`/fix/${f.id}`} className="kv" style={{ textDecoration: "none" }}>
           <span>{f.algorithm}{f.key_size ? `-${f.key_size}` : ""} · {f.file}:{f.line}</span><span className="link">Preview fix →</span>
@@ -28,14 +36,27 @@ export default function Fix({ onChanged }) {
   const nav = useNavigate();
   const [fix, setFix] = useState(null);
   const [err, setErr] = useState("");
+  const [errStatus, setErrStatus] = useState(0);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     setFix(null); setErr("");
-    if (findingId) api.fixPreview(+findingId).then(setFix).catch((e) => setErr(e.message));
+    if (findingId) api.fixPreview(+findingId).then(setFix).catch((e) => { setErr(e.message); setErrStatus(e.status); });
   }, [findingId]);
   if (!findingId) return <List />;
-  if (err) return <div className="p-6"><div className="panel p-4">{err}</div><Link to="/fix" className="dim text-[12px]">← All fixes</Link></div>;
+  if (err) return (
+    <div className="p-6 flex flex-col gap-3" style={{ maxWidth: 760 }}>
+      <div className="errbox">{errStatus === 422
+        ? <>MOX has no automatic fix for this location ({err}). Change it by hand using the replacement on the asset page,
+          then re-scan; the re-scan shows whether the finding cleared.</>
+        : <>Could not prepare the fix: {err}. Nothing was written to disk.</>}</div>
+      <div className="flex gap-2">
+        <button className="bp-btn" onClick={() => nav(-1)}>Back to the asset</button>
+        <Link className="bp-btn" to="/fix">Auto-fixable findings</Link>
+        <Link className="bp-btn" to="/scan">Re-scan</Link>
+      </div>
+    </div>
+  );
   if (!fix) return <div className="p-6 dim">Generating patch…</div>;
 
   const applied = fix.status !== "previewed";
@@ -52,12 +73,22 @@ export default function Fix({ onChanged }) {
           <div className="dim">Proposed change for 1 file · {fix.lines_changed} changed lines · nothing is written until you approve</div>
         </div>
         <div className="panel py-2"><div className="diff">{lines.map((l, i) => <div key={i} className={cls(l)}>{l || " "}</div>)}</div></div>
-        <div className="panel p-4 text-[13px]"><div className="h mb-1">Why this change</div>
-          <div className="dim">{interim
-            ? "RSA-3072 is only an interim step: it stays quantum-vulnerable. The comment marks the line for the ML-DSA-65 hybrid migration."
-            : fix.file.endsWith(".conf")
-              ? "Legacy protocols and ciphers are removed and the hybrid X25519MLKEM768 group is offered first, with X25519 as fallback."
-              : "MD5 and SHA-1 are broken for collision resistance; SHA-256 is a drop-in replacement for the digest."}</div></div>
+        {fix.claims?.length > 0 ? (
+          <div className="panel p-4 text-[13px]">
+            <div className="h mb-1">What this patch does{applied ? ", checked against the file on disk after the re-scan" : ", checked against the patched text before you approve"}</div>
+            {fix.claims.map((c) => (
+              <div key={c.claim} style={{ padding: "6px 0", borderBottom: "1px solid var(--line)" }}>
+                <div><b className={CLAIM[c.state][1]}>{CLAIM[c.state][0]}</b> {c.claim}{c.limit ? " (limit of this patch)" : ""}</div>
+                <div className="dim text-[12px]">{c.detail}</div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="panel p-4 text-[13px]"><div className="h mb-1">Why this change</div>
+            <div className="dim">{interim
+              ? "RSA-3072 is only an interim step: it stays quantum-vulnerable. The comment marks the line for the ML-DSA-65 hybrid migration."
+              : "MD5 and SHA-1 are broken for collision resistance; SHA-256 is a drop-in replacement for the digest. The re-scan confirms the line changed; it cannot confirm callers accept the longer digest."}</div></div>
+        )}
         {!applied && (
           <div className="panel p-4 flex gap-3 items-center">
             <input className="flex-1" placeholder="Review note (optional)" value={note} maxLength={200} onChange={(e) => setNote(e.target.value)} />
@@ -77,10 +108,12 @@ export default function Fix({ onChanged }) {
           ))}
           {applied && (
             <div className="panel p-3" style={{ borderColor: "#1B2A41" }}>
-              <div className="h">{fix.cleared ? "Finding cleared" : "Finding still present"}</div>
-              <div className="dim text-[12px]">{fix.cleared
-                ? `Re-scan of ${fix.file} no longer reports ${fix.algorithm}${fix.key_size ? `-${fix.key_size}` : ""} at this location. Assets, scores and the CBOM were refreshed.`
-                : "The re-scan still reports this finding; the backup is kept."}</div>
+              <div className={`h ${fix.status === "cleared" ? "" : "red"}`}>{RESULT[fix.status] || fix.status}</div>
+              <div className="dim text-[12px]">{fix.status === "still-present"
+                ? "The re-scan still reports this finding; the backup is kept."
+                : `Re-scan of ${fix.file} no longer reports ${fix.algorithm}${fix.key_size ? `-${fix.key_size}` : ""} at this location. Assets, scores and the CBOM were refreshed.`}
+                {fix.status === "not-in-effect" && " Part of the change cannot take effect as written; see the list on the left. It is not counted as a cleared fix."}
+                {(fix.claims || []).some((c) => c.state === "not-verified") && " Some effects depend on the server build and are marked not verified."}</div>
             </div>
           )}
         </div>

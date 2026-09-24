@@ -46,10 +46,32 @@ declared-unverified, so MOX uses +2, halfway between declared and textual.
 
 ### 1.2 Hybrid assets
 
-A certificate whose endpoint negotiates `X25519MLKEM768` stays Shor-class, because its signature can
-still be forged. What the hybrid removes is the harvest-now-decrypt-later threat, so the `hndl` tag is
-dropped and the quantum row says so in its note. The plain X25519 half is not scored as a separate
-weakness.
+An asset is `hybrid` only when its declared config can actually negotiate `X25519MLKEM768`. That group
+is TLS 1.3-only, so TLS 1.3 must be enabled in the same file. A group line the rest of the config makes
+unreachable (for example `ssl_protocols TLSv1.2;`) is recorded in `hybrid_ineffective` with its reason
+and never credited (docs/AUDIT.md, C3). Even when negotiable, the credit is "declared, not observed":
+MOX's offline probe cannot offer the group, and whether the server's TLS library supports it (OpenSSL
+3.5+) is not visible offline.
+
+There is no blanket HNDL discount for hybrid. The group itself is not harvestable. A separately listed
+classical fallback (`X25519MLKEM768:X25519`), TLS 1.2 ECDHE, or a static-RSA suite (`AES128-SHA`) is
+still negotiable by clients without ML-KEM, so each keeps `hndl` and is scored.
+
+### 1.2.1 Threat from declared purpose
+
+HNDL and forgery are read from the key's own evidence, never assumed (`mox/score.py: purpose`):
+
+| Evidence | Purpose | Threat |
+|---|---|---|
+| Terraform `key_usage = "SIGN_VERIFY"` in the same resource | sign | forgery |
+| Terraform `ENCRYPT_DECRYPT` / `KEY_AGREEMENT` | encrypt / key agreement | hndl |
+| X.509 certificate key | sign | forgery |
+| static-RSA TLS suite referencing the key (`AES128-SHA`) | key transport | hndl |
+| code line calling sign / verify / JWS | sign | forgery |
+| code line calling encrypt / OAEP / wrap | encrypt | hndl |
+| key generation, bare key spec, string in a binary | undetermined | neither: shown as "purpose not declared" |
+
+The dashboard HNDL tile counts only declared encryption and key-exchange paths.
 
 ### 1.3 Tiers
 
@@ -83,6 +105,16 @@ cryptographically relevant quantum computer exists. Which of the two applies is 
   X is how long signatures must stay trustworthy.
 - `classical`: already weak without any quantum computer.
 
+**Mosca applies only where an algorithm is identified.** A finding that names only a library or package
+(`node-forge`, `OpenSSL 1.1.1k` in a Dockerfile or a binary) has no entry in `data/nist_status.json`, so
+there is nothing to place on the quantum timeline. Such an asset gets `mosca.applies = false` and
+`exposure = null`, with the reason in words. It is not scored as 0: a fake 0 put every dependency exactly on
+the break-even line, and a two-year change of Z then flipped all of them from ACCEPT to MIGRATE
+(docs/AUDIT.md, C6). These assets are left off the risk field, and the dashboard says how many.
+
+**Z is an organisation setting**, changed only on the Settings screen with an explicit save. The screen
+shows the verdict split before and after. The asset page shows Z read-only.
+
 The Y calibration (two CMCS points per year) is an assumption. It is stated here so a reviewer can
 challenge it, and it can be changed in `migration_years()`.
 
@@ -108,10 +140,29 @@ The rule is applied in this order (`mox/verdict.py: wave`). Each asset carries i
 2. NIST status **disallowed today** → wave 1, whatever Mosca says. It is already classically broken.
 3. Tier Critical → wave 1.
 4. Mosca exposure > 0 → wave 2. Migration time already overruns the horizon.
-5. Otherwise → one wave after the tier (High 3, Medium 4, Low 4).
+5. Otherwise (including Mosca not applicable) → one wave after the tier (High 3, Medium 4, Low 4).
 
-The verdict never ACCEPTs a quantum-exposed asset on low risk alone. ACCEPT requires X ≤ 1, or a Low
-tier together with exposure ≤ 0.
+### 4.1 Verdict rule (`mox/verdict.py: decide`), applied in order
+
+1. **CONTAIN** if Y ≥ 5 (vendor, firmware, HSM or KMS coupling) or no location is patchable.
+2. **ACCEPT** if Mosca does not apply (no identified algorithm) and the tier is Low. The reason says
+   "not verified: MOX has not found a call into it", and the asset stays in Verify first.
+3. **ACCEPT** if X ≤ 1, or the tier is Low and exposure ≤ 0.
+4. **MIGRATE** otherwise.
+
+The verdict never ACCEPTs a quantum-exposed asset on low risk alone.
+
+Boundary cases on the demo target:
+
+| Case | Result |
+|---|---|
+| Dependency with no algorithm (`node-forge`), any Z | ACCEPT, rule 2. Z does not move it. |
+| ECDSA P-256 in source, Low tier, X 7, Y 2 | Z ≥ 9: exposure ≤ 0, ACCEPT. Z ≤ 8: exposure > 0, MIGRATE. This is the intended quantum sensitivity. |
+| RSA-2048 `infra/kms.tf`, Y 5 | CONTAIN at every Z, rule 1. |
+| Binaries or configs plane switched off | CONTAIN can reach 0, because only those planes hold the vendor or KMS locations. That is lost coverage, not a verdict rule. |
+
+Full scan, 22 assets: Z 9–12 gives 11 / 4 / 7, and Z 1–8 gives 12 / 4 / 6 (migrate / contain / accept).
+`tests/test_phase15.py` checks that all three verdicts are reachable for Z from 1 to 20.
 
 ## 5. Worked examples (demo target, Z = 10)
 

@@ -76,11 +76,17 @@ def _asset(key: str, fs: list[dict]) -> dict:
     primary = next((f for f in fps if _meta(f).get("kind") == "private_key"), None) or (fps or fs)[0]
     size = f"-{primary['key_size']}" if primary["key_size"] else ""
     name = PurePosixPath(primary["file"].split("!")[-1]).name if fps else f"{primary['file']}:{primary['line']}"
-    hybrid = [f["id"] for f in fs if f["algorithm"] == HYBRID and f["plane"] in ("configs", "tls")]
+    # Hybrid counts only where the declared config can negotiate it (TLS 1.3 enabled). A group line the rest
+    # of the config makes unreachable is recorded as ineffective with its reason, never credited.
+    configured = [f for f in fs if f["algorithm"] == HYBRID and f["plane"] in ("configs", "tls")]
+    hybrid = [f["id"] for f in configured if (_meta(f).get("tls") or {}).get("hybrid_effective")]
+    ineffective = sorted({(_meta(f).get("tls") or {}).get("hybrid_why") or "not negotiable"
+                          for f in configured if f["id"] not in hybrid})
     n = len(fs)
     return {"key": key, "fingerprint": primary["fingerprint"], "label": f"{primary['algorithm']}{size} {name}",
             "algorithm": primary["algorithm"], "key_size": primary["key_size"], "findings": fs,
             "finding_ids": [f["id"] for f in fs], "hybrid_finding_ids": hybrid, "hybrid": bool(hybrid),
+            "hybrid_ineffective": ineffective,
             "summary": f"{n} finding{'s' if n != 1 else ''} → 1 asset",
             "locations": [{"finding_id": f["id"], "plane": f["plane"], "file": f["file"], "line": f["line"]}
                           for f in fs]}

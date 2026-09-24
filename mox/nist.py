@@ -75,6 +75,16 @@ def lookup(algorithm: str, key_size: int | None = None, curve: str | None = None
     return {**_pick(rec), **out}
 
 
+def identified(algorithm: str | None) -> bool:
+    """True when the name is an algorithm or protocol the NIST table rates. A library or package name
+    ('node-forge', 'OpenSSL 1.1.1k') is not an algorithm: nothing is known about what it is used for."""
+    if not algorithm:
+        return False
+    t = table()
+    name = _ALIASES.get(algorithm.upper().replace(" ", ""), algorithm)
+    return name in t["protocols"] or any(k.upper() == name.upper() for k in t["algorithms"])
+
+
 def cite(source: str | None) -> list[str]:
     """Expand a table source key list ("131A, 8547") into full document names for the UI."""
     names = table()["sources"]

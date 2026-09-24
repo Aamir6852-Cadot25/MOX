@@ -17,7 +17,9 @@ DIST = ROOT / "web" / "dist"
 
 
 def _conn():
-    conn = db.connect()
+    # FastAPI enters and exits a sync generator dependency in separate threadpool calls, so close() can run on
+    # another thread; a same-thread-only connection then raised ProgrammingError and turned the response into a 500.
+    conn = db.connect(check_same_thread=False)
     try:
         yield conn
     finally:
@@ -93,16 +95,21 @@ def _asset(conn, row, full=False) -> dict:
     d["id"] = row["id"]
     d.pop("finding_ids", None)
     d.pop("hybrid_finding_ids", None)
+    locs = d.get("locations") or []
+    # "Open fix" is offered only where a fixer actually produces a patch for the file as it is now.
+    ok = flow.fixable(conn, [l["finding_id"] for l in locs if l["plane"] in ("code", "configs")])
+    d["fix_finding"] = next((l["finding_id"] for l in locs if l["finding_id"] in ok), None)
     if full:
+        for l in locs:
+            l["fixable"] = l["finding_id"] in ok
         d["findings"] = [dict(r) for r in conn.execute(
             "SELECT f.* FROM findings f JOIN asset_locations l ON l.finding_id=f.id"
             " WHERE l.asset_id=? ORDER BY f.file,f.line", (row["id"],))]
     else:
-        locs = d.pop("locations", None) or []
+        d.pop("locations", None)
         d.pop("findings", None)
         d["planes"] = sorted({l["plane"] for l in locs})  # plane tag on every queue row
         d["files"] = sorted({l["file"] for l in locs})
-        d["fix_finding"] = next((l["finding_id"] for l in locs if l["plane"] != "binaries"), None)
     return d
 
 
@@ -124,6 +131,7 @@ def _summary(scan, assets) -> dict:
             "kpi": {"files": scan["files_scanned"], "planes": len(planes), "seconds": scan["seconds"],
                     "assets": len(assets), "hndl": len(hndl), "quantum_vulnerable": len(qv),
                     "forgery": sum(1 for a in qv if exposed(a, "forgery")),
+                    "undetermined": sum(1 for a in qv if "undetermined" in a["breakdown"]["threats"]),
                     "readiness": attest.readiness({"total": len(assets), "hndl_exposed": len(hndl),
                                                    "quantum_vulnerable": len(qv)},
                                                   {"migrate": verdicts["MIGRATE"]}, len(planes)),
@@ -132,7 +140,8 @@ def _summary(scan, assets) -> dict:
             "stages": json.loads(scan["stages"] or "[]"),
             "field": [{"id": a["id"], "label": a["label"], "exposure": a["breakdown"]["mosca"]["exposure"],
                        "criticality": a["breakdown"]["criticality"], "tier": a["tier"], "score": a["score"]}
-                      for a in assets]}
+                      for a in assets if a["breakdown"]["mosca"]["exposure"] is not None],
+            "unplotted": sum(1 for a in assets if a["breakdown"]["mosca"]["exposure"] is None)}
 
 
 def create_app() -> FastAPI:
@@ -281,7 +290,7 @@ def create_app() -> FastAPI:
         scan = _latest(conn)
         if not scan:
             raise HTTPException(404, "no scan yet")
-        version = 1 + conn.execute("SELECT COUNT(*) FROM fixes WHERE status IN ('cleared','still-present')").fetchone()[0]
+        version = 1 + conn.execute("SELECT COUNT(*) FROM fixes WHERE status IN ('cleared','still-present','not-in-effect')").fetchone()[0]
         bom = cbom.build(conn, scan["id"], version)
         return bom, cbom.validate(bom)
 
@@ -309,7 +318,7 @@ def create_app() -> FastAPI:
         scan = _latest(conn)
         if not scan:
             raise HTTPException(404, "no scan yet")
-        return report.build(conn, scan)
+        return report.with_text(report.build(conn, scan))
 
     @app.get("/api/report")
     def report_data(u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):

@@ -6,7 +6,7 @@ import math
 import re
 
 from .correlate import _meta
-from .nist import cite
+from .nist import cite, identified
 
 DEFAULTS = {"threat_horizon": 10}
 
@@ -81,10 +81,9 @@ def _grover(f: dict) -> bool:
 
 
 def _scored_findings(asset: dict) -> list[dict]:
-    fs = asset["findings"]
-    if asset["hybrid"]:  # plain X25519 is the classical half of the hybrid group, not a separate weakness
-        fs = [f for f in fs if f["algorithm"] != "X25519"] or fs
-    return fs
+    # Every finding is scored. A separately listed X25519 (e.g. "X25519MLKEM768:X25519") is a classical
+    # fallback a non-PQ client will negotiate, not the internal half of the hybrid group, so it stays.
+    return asset["findings"]
 
 
 def quantum_class(asset: dict) -> str:
@@ -94,23 +93,50 @@ def quantum_class(asset: dict) -> str:
     return "grover" if any(_grover(f) for f in fs) else "none"
 
 
+_SIGN_USE = re.compile(r"sign|signature|verif|jws|jwt|pss|pkcs1_?v1_?5", re.I)
+_ENC_USE = re.compile(r"encrypt|decrypt|cipher|oaep|wrap|seal|kem|rsa/ecb|rsa/none", re.I)
+
+
+def purpose(f: dict) -> tuple[str, str]:
+    """What this key is declared to do, from its own evidence only: (purpose, where that was read).
+    purpose is sign / encrypt / key-agreement / key-transport / undetermined. Nothing is assumed."""
+    m = _meta(f)
+    if m.get("purpose"):
+        return m["purpose"], m.get("purpose_evidence") or f"{f['detector']} at {f['file']}:{f['line']}"
+    if f["plane"] == "certificates":
+        return "sign", "an X.509 certificate key signs; key transport through it is recorded as a separate cipher finding"
+    if f["plane"] == "code":
+        ev = f.get("evidence") or ""
+        s, e = bool(_SIGN_USE.search(ev)), bool(_ENC_USE.search(ev))
+        if s != e:
+            return ("sign" if s else "encrypt"), f"call on {f['file']}:{f['line']}: {ev.strip()[:80]}"
+    return "undetermined", "no usage declared at this location (key generation, a string match, or a bare key spec)"
+
+
 def threats(asset: dict) -> list[str]:
     """hndl: recorded ciphertext decrypted later. forgery: signatures forged once a CRQC exists.
-    classical: weak today without any quantum computer."""
+    classical: weak today without any quantum computer. undetermined: a Shor-class key whose purpose
+    (signing or encryption) is not declared anywhere MOX can read, so neither HNDL nor forgery is asserted."""
     out = set()
     for f in _scored_findings(asset):
         a, kind = f["algorithm"], _meta(f).get("kind", "")
-        if a in SIG_ALGS or (a == "RSA" and f["plane"] == "certificates"):
+        if a == "X25519MLKEM768":
+            continue  # the hybrid group itself is not harvestable; its classical fallbacks are separate findings
+        if a in SIG_ALGS:
             out.add("forgery")
         elif a in KEX_ALGS or a.startswith(("TLS", "SSL")) or kind in ("cipher", "protocol"):
             out.add("hndl")
-        elif a == "RSA":
-            out |= {"hndl", "forgery"}  # source/config RSA: may encrypt or sign; both until verified
+        elif a in ("RSA", "DH"):
+            p = purpose(f)[0]
+            out.add({"sign": "forgery", "encrypt": "hndl", "key-agreement": "hndl",
+                     "key-transport": "hndl"}.get(p, "undetermined"))
         if f["nist_now"] == "disallowed" or a in ("MD5", "SHA-1", "DES", "RC4"):
             out.add("classical")
-    if asset["hybrid"]:
-        out.discard("hndl")
-    return [t for t in ("hndl", "forgery", "classical") if t in out]
+    if out & {"hndl", "forgery"}:  # another location of the same key declared what it is for
+        out.discard("undetermined")
+    # No blanket discount for hybrid: HNDL is removed only when nothing classical is left to negotiate, which
+    # the findings above already express (a classical fallback group or static-RSA suite keeps "hndl").
+    return [t for t in ("hndl", "forgery", "undetermined", "classical") if t in out]
 
 
 def _worst(asset: dict) -> str:
@@ -131,8 +157,10 @@ def risk(asset: dict, crit: int) -> dict:
     terms = [
         {"term": "base", "op": "+", "value": base, "basis": status, "citation": cite(src)},
         {"term": "quantum", "op": "+", "value": qp, "basis": q,
-         "note": "hybrid key exchange removes harvest-now risk; signatures stay Shor-vulnerable"
-         if asset["hybrid"] else None},
+         "note": ("hybrid X25519MLKEM768 is negotiable per the config (declared, not observed: the offline probe "
+                  "cannot offer it); classical fallbacks are still scored")
+         if asset["hybrid"] else ("hybrid group configured but not negotiable: " + "; ".join(asset["hybrid_ineffective"]))
+         if asset.get("hybrid_ineffective") else None},
         {"term": "evidence", "op": "+", "value": evp, "basis": ev},
         {"term": "subtotal", "op": "=", "value": subtotal},
         {"term": "criticality", "op": "×", "value": CRIT_MULT[crit], "basis": crit},
@@ -192,13 +220,21 @@ def score_asset(asset: dict, settings: dict | None = None, override: dict | None
     c = cmcs(asset)
     x, x_basis = (ov["x"], "set by an analyst") if ov.get("x") is not None else shelf_life(files)
     y, z = migration_years(c["score"]), st["threat_horizon"]
+    # Mosca asks when a known algorithm breaks. With no identified algorithm (a library or package name only)
+    # there is nothing to put on that timeline, so exposure is left out rather than scored as 0.
+    applies = any(identified(f["algorithm"]) for f in _scored_findings(asset))
+    mosca = {"applies": applies, "x": x, "x_basis": x_basis, "y": y, "y_basis": f"CMCS {c['score']} / 2, rounded up",
+             "z": z, "exposure": x + y - z if applies else None,
+             "reason": None if applies else "no algorithm identified: only a library or package name was found"}
     return {"score": r["score"], "tier": tier(r["score"]),
             "breakdown": {"terms": r["terms"], "exact": r["exact"], "base_status": r["status"],
                           "quantum": r["quantum"], "quantum_vulnerable": r["quantum"] == "shor",
                           "evidence": r["evidence"], "evidence_label": EVIDENCE_LABEL[r["evidence"]],
                           "confidence": r["confidence"], "criticality": crit, "threats": threats(asset),
-                          "mosca": {"x": x, "x_basis": x_basis, "y": y, "y_basis": f"CMCS {c['score']} / 2, rounded up",
-                                    "z": z, "exposure": x + y - z},
+                          "purposes": [{"file": f["file"], "line": f["line"], "purpose": p, "evidence": why}
+                                       for f in asset["findings"] if f["algorithm"] in ("RSA", "DH")
+                                       and _meta(f).get("kind") != "cipher" for p, why in [purpose(f)]],
+                          "mosca": mosca,
                           "cmcs": c}}
 
 
@@ -206,4 +242,5 @@ def exposed(a: dict, threat: str) -> bool:
     """Quantum-exposed for one threat: Shor-breakable, that threat applies, and Mosca exposure > 0.
     'hndl' = harvest-now-decrypt-later; 'forgery' = signatures trusted past the quantum horizon."""
     b = a["breakdown"]
-    return b["quantum_vulnerable"] and threat in b.get("threats", []) and b["mosca"]["exposure"] > 0
+    e = b["mosca"]["exposure"]
+    return b["quantum_vulnerable"] and threat in b.get("threats", []) and e is not None and e > 0

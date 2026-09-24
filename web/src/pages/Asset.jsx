@@ -25,6 +25,8 @@ const THREAT = {
     "Traffic or data protected by this key can be recorded today and decrypted once a cryptographically relevant quantum computer exists."],
   forgery: ["Signature forgery after a quantum computer exists",
     "Nothing can be harvested; the risk is a forged signature being accepted once a quantum computer exists. It matters for as long as these signatures must be trusted."],
+  undetermined: ["Purpose not declared: HNDL or forgery not asserted",
+    "Shor-breakable, but no location says whether this key signs or encrypts, so MOX does not count it as harvest-now or forgery exposure. Find where the key is used; the next scan scores what it finds."],
   classical: ["Weak today, without any quantum computer",
     "Disallowed or broken under current NIST guidance. This needs no quantum computer to exploit."],
 };
@@ -64,12 +66,10 @@ function WhyScore({ a, onCrit }) {
   );
 }
 
-function MoscaCard({ a, horizon, onX, onZ }) {
+function MoscaCard({ a, onX }) {
   const m = a.breakdown.mosca;
   const [x, setX] = useState(m.x);
-  const [z, setZ] = useState(horizon ?? m.z);
   useEffect(() => setX(m.x), [m.x]);
-  useEffect(() => setZ(horizon ?? m.z), [horizon, m.z]);
   const deb = useRef(0);
   const edit = (set, save) => (e) => {
     const v = e.target.value === "" ? null : Math.max(0, Math.min(50, Math.round(+e.target.value)));
@@ -77,7 +77,18 @@ function MoscaCard({ a, horizon, onX, onZ }) {
     clearTimeout(deb.current);
     if (v != null) deb.current = setTimeout(() => save(v), 400);
   };
-  const X = x === "" ? m.x : x, Z = z === "" ? m.z : z, Y = m.y;
+  if (m.exposure == null)
+    return (
+      <>
+        <div className="card-h"><h2>Mosca check</h2><span className="note">not applicable</span></div>
+        <div className="card-b flex flex-col gap-2">
+          <div className="verdict-line">Mosca does not apply: {m.reason}. There is no algorithm to place on the
+            quantum timeline, so no exposure is computed. Find a call into it first; if one is found, the next scan scores it.</div>
+          <div className="hint">Z is <span className="mono">{m.z}</span> yrs for the organisation; <Link to="/settings">change it in Settings</Link>.</div>
+        </div>
+      </>
+    );
+  const X = x === "" ? m.x : x, Z = m.z, Y = m.y;
   const exp = X + Y - Z;
   const span = Math.max(X + Y, Z) * 1.08 || 1;
   const pct = (v) => `${(100 * v) / span}%`;
@@ -136,8 +147,8 @@ function MoscaCard({ a, horizon, onX, onZ }) {
           <div className="hint">{m.x_basis}</div>
           <div className="fr"><label>Y migration time</label><span className="mono" style={{ fontSize: 11 }}>{Y}</span><span className="u">yrs</span></div>
           <div className="hint">{m.y_basis}; see Migration complexity below</div>
-          <div className="fr"><label htmlFor="fz">Z quantum horizon, all assets</label>
-            <input id="fz" className="mono" type="number" min="1" max="50" value={z} onChange={edit(setZ, onZ)} /><span className="u">yrs</span></div>
+          <div className="fr"><label>Z quantum horizon</label><span className="mono" style={{ fontSize: 11 }}>{Z}</span><span className="u">yrs</span></div>
+          <div className="hint">Organisation-wide; it re-scores every asset. <Link to="/settings">Change it in Settings</Link>.</div>
         </div>
       </div>
     </>
@@ -174,24 +185,23 @@ export default function Asset({ onChanged }) {
   const { id } = useParams();
   const [a, setA] = useState(null);
   const [err, setErr] = useState("");
-  const [horizon, setHorizon] = useState(null);
-  const load = () => api.asset(id).then(setA).catch((e) => setErr(e.message));
+  const load = () => api.asset(id).then(setA).catch((e) => setErr(e.status === 404
+    ? `${e.message}. It may belong to an older scan`
+    : `${e.message}. Reload the page; if it persists, check the server log`));
   useEffect(() => {
     setA(null);
     load();
-    api.settings().then((s) => setHorizon(s.threat_horizon)).catch(() => {});
   }, [id]);
-  if (err) return <div className="p-6"><div className="errbox">Could not load asset {id}: {err}. It may belong to an older scan; open the <Link to="/queue">work queue</Link> for the latest assets.</div></div>;
+  if (err) return <div className="p-6"><div className="errbox">Could not load asset {id}: {err}. The <Link to="/queue">work queue</Link> lists the latest assets.</div></div>;
   if (!a) return <div className="p-6 hint">Loading asset {id}</div>;
 
   const b = a.breakdown, m = b.mosca;
   const first = a.findings[0];
   const save = async (body) => { setA(await api.override(a.id, { x: m.x, criticality: b.criticality, ...body })); onChanged(); };
-  const setZ = async (z) => { setHorizon(z); await api.setSettings({ threat_horizon: z }); await load(); onChanged(); };
   const planes = [...new Set(a.locations.map((l) => l.plane))];
   const nFiles = new Set(a.locations.map((l) => l.file)).size;
   const top = b.threats[0];
-  const fixable = a.locations.find((l) => l.plane !== "binaries");
+  const fixable = a.fix_finding ? { finding_id: a.fix_finding } : null; // server-checked: a fixer produces a patch
   const rep = a.replacements[0];
 
   return (
@@ -213,15 +223,25 @@ export default function Asset({ onChanged }) {
         </div>
 
         {top ? (
-          <div className={`alert${top === "forgery" ? " warn" : ""}`}>
+          <div className={`alert${top === "forgery" || top === "undetermined" ? " warn" : ""}`}>
             <div style={{ flex: 1 }}>
               {b.threats.map((t) => <div key={t} style={{ marginBottom: 4 }}><div className="ti">{THREAT[t][0]}</div><div className="de">{THREAT[t][1]}</div></div>)}
+              {b.purposes?.length > 0 && (
+                <div className="de" style={{ marginTop: 6 }}>Declared purpose, per location:{" "}
+                  {b.purposes.map((p, i) => <span key={i}>{i ? "; " : ""}<span className="mono">{p.file}{p.line ? `:${p.line}` : ""}</span> {p.purpose} ({p.evidence})</span>)}.
+                </div>)}
             </div>
             {fixable && a.verdict !== "ACCEPT" && <Link className="bp-btn" to={`/fix/${fixable.finding_id}`}>Open fix</Link>}
           </div>
         ) : (
-          <div className="alert calm"><div><div className="ti">No quantum or classical weakness recorded</div>
-            <div className="de">{a.reason}. Re-assess at the next scan.</div></div></div>
+          m.exposure == null ? (
+            <div className="alert warn"><div><div className="ti">No algorithm identified: use not verified</div>
+              <div className="de">MOX found this library or package but no call into it, so it cannot say which algorithm
+                is in use or whether it is quantum-vulnerable. {a.reason}.</div></div></div>
+          ) : (
+            <div className="alert calm"><div><div className="ti">No quantum or classical weakness recorded</div>
+              <div className="de">{a.reason}. Re-assess at the next scan.</div></div></div>
+          )
         )}
 
         <div className="bp-card">
@@ -235,7 +255,8 @@ export default function Asset({ onChanged }) {
                   <td>{l.plane}</td>
                   <td className="mono" style={{ color: "var(--ink)", wordBreak: "break-all" }}>{l.file}{l.line ? `:${l.line}` : ""}</td>
                   <td><span className="b plain">{CHANGE[l.plane] || "Review"}</span></td>
-                  <td>{l.plane !== "binaries" && <Link to={`/fix/${l.finding_id}`}>Fix</Link>}</td>
+                  <td>{l.fixable ? <Link to={`/fix/${l.finding_id}`}>Fix</Link>
+                    : <span className="hint" title="No automatic fix for this location: change it by hand; the next scan verifies it">manual</span>}</td>
                 </tr>
               ))}
             </tbody>
@@ -268,7 +289,7 @@ export default function Asset({ onChanged }) {
               {[
                 ["Fact", `${a.algorithm}${a.key_size ? ` key, ${a.key_size} bit` : ""}, seen in ${nFiles} file${nFiles === 1 ? "" : "s"}. Evidence: ${b.evidence_label.toLowerCase()}${b.evidence === "unverified" ? ": a library that can do this, use not proven" : b.evidence === "textual" ? ": a string match, not a parsed artefact" : ""}.`],
                 ["Normalised", `${a.algorithm}${a.key_size ? `-${a.key_size}` : ""}, ${QUANTUM[b.quantum]}${a.fingerprint ? `, SPKI ${a.fingerprint.slice(0, 8)}…` : ""}`],
-                ["Analysis", `NIST ${b.base_status.replace("_", " ")} now. Risk ${a.score} (${a.tier}). Mosca exposure ${signed(m.exposure)} yrs. CMCS ${b.cmcs.score}/10.`],
+                ["Analysis", `NIST ${b.base_status.replace("_", " ")} now. Risk ${a.score} (${a.tier}). Mosca exposure ${m.exposure == null ? "not applicable (no identified algorithm)" : `${signed(m.exposure)} yrs`}. CMCS ${b.cmcs.score}/10.`],
                 ["Recommendation", `${a.verdict}${rep ? `: ${rep.from} to ${rep.to}` : ""}, wave ${a.wave} of 5`],
               ].map(([k, v], i, all) => (
                 <div key={k}>
@@ -282,7 +303,7 @@ export default function Asset({ onChanged }) {
       </div>
 
       <aside className="rgt">
-        <MoscaCard a={a} horizon={horizon} onX={(x) => save({ x })} onZ={setZ} />
+        <MoscaCard a={a} onX={(x) => save({ x })} />
         <CmcsCard c={b.cmcs} />
         <div className="card-h"><h2>Recommended replacement</h2></div>
         <div className="card-b flex flex-col gap-2">
@@ -304,6 +325,9 @@ export default function Asset({ onChanged }) {
           </div>
           <div className="hint"><span className={`b ${VERDICT_B[a.verdict]}`}>{a.verdict}</span> {a.reason}.</div>
           {fixable && a.verdict !== "ACCEPT" && <Link className="bp-btn pri" style={{ justifyContent: "center" }} to={`/fix/${fixable.finding_id}`}>Open fix and verify</Link>}
+          {!fixable && a.verdict === "MIGRATE" && (
+            <div className="hint">No automatic fix for this asset. Change it by hand{rep ? <>: {rep.from} to <span className="mono">{rep.to}</span></> : null}.
+              Then run a scan from <Link to="/scan">New Scan</Link>; the re-scan shows whether it cleared.</div>)}
           <Link className="bp-btn" style={{ justifyContent: "center" }} to="/roadmap">Open roadmap</Link>
         </div>
       </aside>

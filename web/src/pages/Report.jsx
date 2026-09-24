@@ -21,11 +21,8 @@ export default function Report({ summary }) {
         <a className="btn" style={{ width: 220, textDecoration: "none" }} href="/api/report/download">Download Compliance Report (PDF)</a>
       </div>
       <Sec n={1} t="Auditor's Declaration"><div className="dim">[Placeholder — to be completed by the certifying auditor: name, organisation, accreditation number, date and signature.]</div></Sec>
-      <Sec n={2} t="Executive Summary">
-        MOX scanned {d.scan.files} files across {d.planes.length} planes and identified {c.assets} cryptographic assets ({d.scan.findings} raw findings).
-        {" "}{c.quantum_vulnerable} are quantum-vulnerable and {c.hndl} are exposed to harvest-now-decrypt-later risk.
-      </Sec>
-      <Sec n={3} t="Scope of Audit">Offline analysis of <b>{d.target}</b>: {d.scan.files} files in {d.scan.seconds} s. No network calls; no private key material stored.</Sec>
+      <Sec n={2} t="Executive Summary">{d.summary}</Sec>
+      <Sec n={3} t="Scope of Audit">{d.scope}</Sec>
       <Sec n={4} t="Tools Used">
         <div className="grid md:grid-cols-2 gap-x-6">
           <div>{d.planes.map(([n, t]) => <div key={n} className="kv"><span>{n}</span><span className="dim">{t}</span></div>)}</div>
@@ -47,7 +44,9 @@ export default function Report({ summary }) {
       <Sec n={7} t="Compliance / Closure Status">
         <div className="flex gap-2 flex-wrap items-center">
           {["MIGRATE", "CONTAIN", "ACCEPT"].map((k) => <span key={k} className={`pill ${k}`}>{k} {v[k]}</span>)}
-          <span className="dim ml-2">{c.fixes_cleared} verified fix(es) cleared</span>
+          <span className="dim ml-2">{c.fixes_cleared} fix(es) verified cleared by re-scan against this scan
+            {c.fixes_not_in_effect ? `; ${c.fixes_not_in_effect} applied but not fully in effect` : ""}
+            {c.unverified_accepts ? `; ${c.unverified_accepts} ACCEPT on unverified evidence` : ""}</span>
         </div>
       </Sec>
     </div>

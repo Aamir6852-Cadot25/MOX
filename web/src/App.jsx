@@ -13,6 +13,7 @@ import Sector from "./pages/Sector.jsx";
 import Audit from "./pages/Audit.jsx";
 import Report from "./pages/Report.jsx";
 import NewScan from "./pages/NewScan.jsx";
+import Settings from "./pages/Settings.jsx";
 import AirGapPill from "./components/AirGapPill.jsx";
 
 export default function App() {
@@ -20,7 +21,8 @@ export default function App() {
   const [summary, setSummary] = useState(null);
   const nav = useNavigate();
 
-  const refresh = () => api.latest().then(setSummary).catch(() => setSummary(null));
+  // A failed load is not "no scan": keep the error so no screen claims the database is empty.
+  const refresh = () => api.latest().then(setSummary).catch((e) => setSummary({ scan: null, error: e.message }));
   useEffect(() => {
     api.me().then(setUser).catch(() => setUser(null));
   }, []);
@@ -44,6 +46,7 @@ export default function App() {
     ["Remediate", [["/fix", "Fix"]]],
     ["Compliance", [["/cbom", "CBOM"], ["/roadmap", "Roadmap"]]],
     ["Reports", [["/attest", "Attest"], ["/report", "Compliance Report"], ["/sector", "Sector"], ["/audit", "Audit"]]],
+    ["Organisation", [["/settings", "Settings"]]],
   ];
   return (
     <div className="shell">
@@ -60,7 +63,9 @@ export default function App() {
       </aside>
       <div className="main">
         <div className="topbar">
-          <div className="dim">{scan ? <>Target <b className="mono" style={{ color: "var(--text)" }} title={scan.target}>{scan.target}</b></> : "No scan yet"}</div>
+          <div className="dim">{scan ? <>Target <b className="mono" style={{ color: "var(--text)" }} title={scan.target}>{scan.target}</b></>
+            : summary?.error ? <>Could not load the latest scan ({summary.error}). <button className="linkbtn" onClick={refresh}>Retry</button></>
+            : summary ? "No scan yet" : "Loading latest scan"}</div>
           <div className="sp" />
           {scan && <div className="chip">{scan.files_scanned} files · {Object.keys(scan.planes).length} planes · {scan.seconds} s</div>}
           <AirGapPill />
@@ -79,6 +84,7 @@ export default function App() {
         <Route path="/sector" element={<Sector />} />
         <Route path="/audit" element={<Audit />} />
         <Route path="/report" element={<Report summary={summary} />} />
+        <Route path="/settings" element={<Settings summary={summary} onChanged={refresh} />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
       </div>

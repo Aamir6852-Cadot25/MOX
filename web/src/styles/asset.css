@@ -11,6 +11,9 @@
 
 .split { display: flex; height: calc(100vh - 60px); min-height: 0; }
 .split .lft { flex: 1; min-width: 0; overflow-y: auto; padding: 16px 18px 20px; display: flex; flex-direction: column; gap: var(--gap); }
+/* The column scrolls; its cards must keep their full height. Without this, flex-shrink squeezed the
+   Locations card (overflow: hidden) to its header at 1366x768 and hid the N-findings-to-1-asset table. */
+.split .lft > * { flex-shrink: 0; }
 .split .rgt { width: var(--aside); flex: 0 0 var(--aside); border-left: 1px solid var(--line); background: var(--surface); overflow-y: auto; }
 .crumb { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--ink-4); }
 .crumb a { color: var(--ink-3); text-decoration: none; }

@@ -71,7 +71,10 @@ def test_evidence_grades():
 
 def test_quantum_classes_and_threats():
     q = lambda **kw: score_asset(asset(F(**kw)))["breakdown"]
-    assert q()["quantum"] == "shor" and q()["threats"] == ["hndl", "forgery"]
+    # phase 15 (AUDIT C4): RSA in code with no declared use is neither HNDL nor forgery until its use is found
+    assert q()["quantum"] == "shor" and q()["threats"] == ["undetermined"]
+    assert q(evidence="key.sign(payload)")["threats"] == ["forgery"]
+    assert q(evidence="cipher = PKCS1_OAEP.new(key); cipher.encrypt(m)")["threats"] == ["hndl"]
     assert q(plane="certificates", confidence="high")["threats"] == ["forgery"]
     assert q(algorithm="AES", key_size=128, quantum_vulnerable=0)["quantum"] == "grover"
     assert q(algorithm="AES", key_size=256, quantum_vulnerable=0)["quantum"] == "none"

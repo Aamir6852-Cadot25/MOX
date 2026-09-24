@@ -14,7 +14,8 @@ const PLANE_NAME = { code: "source", dependencies: "deps", configs: "config", ce
 const COLS = [
   ["asset", "Asset", (a) => a.label.toLowerCase(), 1],
   ["risk", "Risk", (a) => a.score, -1, "Risk score 0–75.6; open an asset for its arithmetic"],
-  ["mosca", "Mosca", (a) => a.breakdown.mosca.exposure, -1, "Mosca exposure in years, X + Y − Z; above 0 means quantum-exposed"],
+  ["mosca", "Mosca", (a) => a.breakdown.mosca.exposure ?? -Infinity, -1,
+    "Mosca exposure in years, X + Y − Z; above 0 means quantum-exposed. n/a: no algorithm identified"],
   ["cmcs", "CMCS", (a) => a.breakdown.cmcs.score, -1, "How hard this asset is to migrate, independent of how risky it is"],
   ["tier", "Tier", (a) => TIER_RANK[a.tier] * 1000 + a.score, -1],
   ["evidence", "Evidence", (a) => EV_RANK[a.breakdown.evidence], -1, "How the crypto was seen; separate from severity"],
@@ -138,7 +139,8 @@ export default function Queue({ summary }) {
                     </div>
                   </td>
                   <td className="num mono" style={{ color: `var(--${TIER_B[a.tier]}-ink)` }}>{a.score}</td>
-                  <td className={`num mono${e > 0 ? " exp" : ""}`}>{signed(e)}</td>
+                  <td className={`num mono${e > 0 ? " exp" : ""}`} title={e == null ? b.mosca.reason : undefined}>
+                    {e == null ? <span className="of">n/a</span> : signed(e)}</td>
                   <td className="num mono">{b.cmcs.score}<span className="of">/10</span></td>
                   <td><span className={`b ${TIER_B[a.tier]}`}>{a.tier}</span></td>
                   <td className="ev">{b.evidence_label}</td>

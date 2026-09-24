@@ -131,3 +131,14 @@ run.ps1  README.md  requirements.txt  .gitignore
 - [x] Blueprint "Assign owners" omitted: no owner model until the Roadmap phase (no dead controls)
 - [ ] Visual review screenshots (Chrome extension not connected)
 - [ ] Next: Fix & verify (six-step rail, two-person approval, verification contract)
+
+## Phase 15 — Critical findings of docs/AUDIT.md (C1–C7)
+- [x] C1: request DB connection closes safely on another thread (FastAPI dependency teardown); UI tells "load failed" from "no scan"; Roadmap / Fix list / Asset errors give a retry (0/40 false-empty dashboards, 0 API 500s, was 5/40)
+- [x] C6: Mosca only where an algorithm is identified (library-only assets: exposure null, not 0); ACCEPT rule re-derived; Z moved to a Settings screen with explicit save and before/after split; all three verdicts reachable for Z 1–20; docs/SCORING.md §2, §4.1 boundary cases
+- [x] C3: nginx fixer enables TLS 1.3 with the hybrid group and drops static-RSA suites when a FS suite remains; hybrid credited only when negotiable; per-claim in-effect / not-in-effect / not-verified shown before approval and re-derived after; status "not-in-effect" never counted as cleared
+- [x] C4: HNDL / forgery from each key's declared purpose (Terraform key_usage, sign/encrypt call, certificate, static-RSA suite); undeclared = "undetermined", not counted; demo HNDL 3 → 1
+- [x] C2: "Open fix" offered only where a fixer produces a patch (server-checked); no-fix and 422 states give the manual path
+- [x] C5: compliance report derives planes, network statement, probe, standards and fix counts from the scan record; reportlab removed; PDF written with the standard library
+- [x] C7: Asset detail cards no longer flex-shrink; Locations table fully visible at 1366×768
+- [x] Visual check: headless Chrome over DevTools at 1366×768 (extension not connected)
+- [ ] Open from the audit: Majors 1–23 except those closed as side effects (see docs/AUDIT.md second pass)

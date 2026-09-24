@@ -6,9 +6,12 @@ import { Pager, Search, usePaged } from "../lib.jsx";
 export default function Roadmap({ summary }) {
   const [w, setW] = useState(null);
   const [wave, setWave] = useState(0);
-  useEffect(() => { api.roadmap().then(setW); }, [summary]);
+  const [err, setErr] = useState("");
+  const load = () => { setErr(""); api.roadmap().then(setW).catch((e) => setErr(e.message)); };
+  useEffect(load, [summary]);
   const rows = (w || []).flatMap((x) => x.assets.map((a) => ({ ...a, wave: x.wave, wname: x.name })));
   const p = usePaged(wave ? rows.filter((r) => r.wave === wave) : rows, (r) => `${r.label} ${r.tier} ${r.verdict} ${r.wname} ${r.replacement || ""}`);
+  if (err) return <div className="p-6"><div className="errbox">Could not load the roadmap: {err}. <button className="linkbtn" onClick={load}>Retry</button></div></div>;
   if (!w) return <div className="p-6 dim">Loading…</div>;
   return (
     <div className="p-5 max-w-[1100px] mx-auto">

@@ -31,7 +31,17 @@ export default function Dashboard({ summary, onScanned }) {
     setBusy(false);
   };
 
-  if (!summary?.scan)
+  if (!summary) return <div className="p-6 hint">Loading the latest scan</div>;
+  if (summary.error)
+    return (
+      <div className="p-6">
+        <div className="errbox" style={{ maxWidth: 560 }}>
+          Could not load the latest scan: {summary.error}. Stored results are not affected.{" "}
+          <button className="linkbtn" onClick={onScanned}>Retry</button>
+        </div>
+      </div>
+    );
+  if (!summary.scan)
     return (
       <div className="p-6">
         <div className="bp-card" style={{ maxWidth: 560 }}>
@@ -64,8 +74,8 @@ export default function Dashboard({ summary, onScanned }) {
         <div className="tiles">
           <Tile n={kpi.assets} label="Cryptographic assets" sub={`from ${summary.scan.findings_count} findings`} to="/queue" />
           <Tile n={kpi.hndl} tone="crit" label="Harvest-now-decrypt-later exposed" to="/queue"
-            sub={`plus ${kpi.forgery ?? 0} signature asset${kpi.forgery === 1 ? "" : "s"} exposed to forgery`}
-            title="Shor-breakable key exchange or encryption whose Mosca exposure is above zero. Signature assets are counted separately: their threat is forgery, not decryption." />
+            sub={`plus ${kpi.forgery ?? 0} exposed to forgery${kpi.undetermined ? `, ${kpi.undetermined} of undeclared purpose` : ""}`}
+            title="Shor-breakable key exchange, key transport or encryption whose Mosca exposure is above zero, counted only where the key's own config or code declares that use. Signing keys are counted as forgery; keys whose use is not declared are not counted as either." />
           <Tile n={kpi.quantum_vulnerable} tone="high" label="Quantum-vulnerable (Shor) assets" sub={`${kpi.safe} not Shor-breakable`} to="/queue" />
           <Tile n={kpi.readiness ?? "–"} unit="/100" tone="safe" label="Readiness index" sub="as disclosed in the attestation" to="/attest"
             title="100 − (50 × HNDL-exposed + 30 × quantum-vulnerable + 20 × MIGRATE) / assets, scaled 0.8–1.0 by plane coverage (mox/attest.py)" />
@@ -101,6 +111,7 @@ export default function Dashboard({ summary, onScanned }) {
               {["Critical", "High", "Medium", "Low"].map((t) => <span key={t}><Swatch tier={t} />{t}</span>)}
               <span>dot size = risk score</span>
               <span>dashed line = Mosca break-even, X + Y = Z</span>
+              {summary.unplotted > 0 && <span>not plotted: <span className="mono">{summary.unplotted}</span> with no identified algorithm (Mosca n/a)</span>}
               <Link to="/queue" className="rf-table">Same data as a table: work queue</Link>
             </div>
             <RiskField field={field} />

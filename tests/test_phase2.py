@@ -75,12 +75,23 @@ def test_disallowed_is_wave_one_even_when_not_quantum_exposed():
 def test_hybrid_keeps_signature_risk_but_drops_hndl():
     crt = F(id=1, plane="certificates", file="certs/e.crt", fingerprint="ee", confidence="high",
             meta='{"kind":"certificate"}', algorithm="ECDSA", curve="P-256", key_size=256)
+    tls13 = '{"cert_refs":["certs/e.crt"],"key_refs":[],"tls":{"hybrid_effective":true}}'
     hyb = F(id=2, plane="configs", file="conf/edge.conf", algorithm="X25519MLKEM768", key_size=None,
-            nist_now="hybrid", quantum_vulnerable=0, meta='{"cert_refs":["certs/e.crt"],"key_refs":[]}')
+            nist_now="hybrid", quantum_vulnerable=0, meta=tls13)
     a = asset(crt, hyb)
     assert a["hybrid"]
     b = score_asset(a)["breakdown"]
     assert b["quantum"] == "shor" and "hndl" not in b["threats"] and "forgery" in b["threats"]
+    # phase 15 (AUDIT C3): a separately listed classical X25519 fallback keeps HNDL
+    fb = F(id=4, plane="configs", file="conf/edge.conf", algorithm="X25519", key_size=None, nist_now="not_approved",
+           meta=tls13)
+    assert "hndl" in score_asset(asset(crt, hyb, fb))["breakdown"]["threats"]
+    # phase 15: a group the config cannot negotiate (no TLS 1.3) is never credited
+    no13 = F(id=5, plane="configs", file="conf/edge.conf", algorithm="X25519MLKEM768", key_size=None,
+             nist_now="hybrid", quantum_vulnerable=0,
+             meta='{"cert_refs":["certs/e.crt"],"tls":{"hybrid_effective":false,"hybrid_why":"TLS 1.2 only"}}')
+    x = asset(crt, no13)
+    assert not x["hybrid"] and x["hybrid_ineffective"] == ["TLS 1.2 only"]
     # same group named in an unrelated config: co-occurrence is not hybrid
     other = F(id=3, plane="configs", file="conf/other.conf", algorithm="X25519MLKEM768", key_size=None,
               nist_now="hybrid", quantum_vulnerable=0, meta='{"cert_refs":["certs/zzz.crt"]}')
