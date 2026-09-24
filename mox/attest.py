@@ -129,7 +129,8 @@ def build(conn, scan_id: int, sector: str = "government") -> dict:
     if sector not in SECTORS:
         raise ValueError(f"sector must be one of {', '.join(SECTORS)}")
     scan = conn.execute("SELECT * FROM scans WHERE id=?", (scan_id,)).fetchone()
-    st, planes = stats(conn, scan_id), len(json.loads(scan["planes_hit"]))
+    from .coverage import ran
+    st, planes = stats(conn, scan_id), len(ran(scan))  # coverage = planes that ran, not planes that found something
     assets = {k: st[k] for k in ("total", "hndl_exposed", "quantum_vulnerable", "safe_or_out_of_scope")}
     key = operator_key()
     register_key(conn, key.public_key())

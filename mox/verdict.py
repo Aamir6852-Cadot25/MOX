@@ -69,31 +69,76 @@ def wave(tier: str, exposure: int | None, verdict: str, status: str = "") -> tup
     return min(4, base + 1), f"{tier} risk tier and not quantum-exposed yet (Mosca {e}), so one wave after its tier"
 
 
+_STATUS_WORDS = {"disallowed": "disallowed today", "deprecated": "deprecated today", "not_approved": "not approved",
+                 "approved": "approved today", "hybrid": "a hybrid post-quantum group", "pending": "pending standardisation",
+                 "unknown": "unrated (no NIST rule matches its name or key size)"}
+_QUANTUM_WORDS = {"shor": "Shor-breakable", "grover": "Grover-weakened only", "none": "not quantum-weakened"}
+_EVIDENCE_NOTE = {"unverified": " (use not proven)", "textual": " (a string match, not a parsed artefact)"}
+
+
+def _facts(asset: dict, sc: dict) -> str:
+    """The inputs that produced this verdict, in words: NIST status and its source, quantum class, Mosca, evidence."""
+    b, m = sc["breakdown"], sc["breakdown"]["mosca"]
+    name = f"{asset['algorithm']}-{asset['key_size']}" if asset.get("key_size") else asset["algorithm"]
+    cite = (b["terms"][0].get("citation") or [None])[0]
+    status = f"{name} is {_STATUS_WORDS.get(b['base_status'], b['base_status'])}" + (f" under {cite}" if cite else "")
+    if m["exposure"] is None:
+        mosca = "Mosca does not apply (no algorithm identified)"
+    else:
+        e = m["exposure"]
+        arith = f"Mosca {e:+d} yrs (X {m['x']} + Y {m['y']} − Z {m['z']})"
+        if e <= 0:
+            mosca = f"{arith}, so not quantum-exposed"
+        elif b["quantum"] == "shor":
+            mosca = f"{arith}, so quantum-exposed"
+        else:  # only Shor breaks crypto outright; past the horizon a Grover-class algorithm is weakened, not broken
+            mosca = f"{arith}: past the quantum horizon, " + (
+                "where Grover halves its strength" if b["quantum"] == "grover" else "but not quantum-weakened")
+    evidence = f"evidence {b['evidence_label'].lower()}{_EVIDENCE_NOTE.get(b['evidence'], '')}"
+    return f"{status}; {_QUANTUM_WORDS[b['quantum']]}; {mosca}; {evidence}"
+
+
 def decide(asset: dict, sc: dict) -> dict:
     b = sc["breakdown"]
     m = b["mosca"]
     y, x, exp = m["y"], m["x"], m["exposure"]
-    has_source = any(f["plane"] in _PATCHABLE or (f["plane"] == "containers" and "!" not in f["file"])
-                     for f in asset["findings"])
+    fixable = [f for f in asset["findings"]
+               if f["plane"] in _PATCHABLE or (f["plane"] == "containers" and "!" not in f["file"])]
+    has_source = bool(fixable)
     if y >= 5 or not has_source:
         v = "CONTAIN"
-        why = f"vendor binary / firmware / HSM / KMS coupling (Y={y})" if y >= 5 else "no patchable source location"
+        why = (f"CONTAIN because migration takes Y = {y} yrs (CMCS {b['cmcs']['score']}: {b['cmcs']['basis']}), "
+               "too long to patch in place" if y >= 5 else
+               "CONTAIN because no location can be patched in place (only "
+               + ", ".join(sorted({f['plane'] for f in asset['findings']})) + ")")
         rec = ["Segment the network path to this asset", "Front it with a crypto-agile gateway",
                "Shorten key lifetime / rotate more often"]
     elif exp is None and sc["tier"] == "Low":
         # A library or package name with no identified algorithm: nothing to migrate until a call site is found.
         v = "ACCEPT"
-        why = (f"no algorithm identified (a library or package name only) and Low risk tier ({sc['score']}); "
+        why = (f"ACCEPT because it is Low risk ({sc['score']}) with no algorithm identified (a library or package name only); "
                "not verified: MOX has not found a call into it")
         rec = ["Verify usage first: search for calls into this library", "Re-assess at next scan"]
     elif x <= 1 or (sc["tier"] == "Low" and exp is not None and exp <= 0):
         v = "ACCEPT"
-        why = ("data shelf-life X <= 1 year" if x <= 1 else
-               f"Low risk tier ({sc['score']}) and not quantum-exposed (Mosca {exp:+d} yrs)")
+        why = (f"ACCEPT because data shelf life X = {x} yr: it expires before a quantum computer matters" if x <= 1 else
+               f"ACCEPT because it is Low risk ({sc['score']}) and not quantum-exposed")
         rec = ["Monitor; re-assess at next scan"]
     else:
-        v, why = "MIGRATE", "weak or quantum-vulnerable and patchable"
+        because = []
+        if b["base_status"] == "disallowed":
+            because.append("it is already classically broken")
+        elif sc["tier"] != "Low":
+            because.append(f"it is {sc['tier']} risk ({sc['score']})")
+        if exp is not None and exp > 0:
+            because.append(f"it is quantum-exposed by {exp} yrs" if b["quantum"] == "shor"
+                           else f"its data outlives the quantum horizon by {exp} yrs")
+        n = len({f["file"] for f in fixable})
+        v = "MIGRATE"
+        why = (f"MIGRATE because {' and '.join(because)}; "
+               f"it can be changed in {n} location{'s' if n != 1 else ''} you control")
         rec = ["Replace per the PQC map", "Deploy hybrid first, then retire the classical algorithm"]
+    why = f"{_facts(asset, sc)}. {why}"
     reps = replacements(asset)
     return {"verdict": v, "reason": why, "recommendations": rec, "replacements": reps,
             "size_notes": sorted({r["note"] for r in reps if r["note"]}),

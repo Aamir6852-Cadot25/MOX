@@ -19,6 +19,8 @@ export default function NewScan({ summary, onScanned }) {
   const netRef = useRef(null);
 
   useEffect(() => () => es.current?.close(), []);
+  // The latest scan may load after first render (direct link to /scan): prefill its folder once it arrives.
+  useEffect(() => { if (!path && summary?.scan?.target) setPath(summary.scan.target); }, [summary?.scan?.target]);
   useEffect(() => { api.netstat().then(setNet).catch(() => setNet(null)); }, [run?.state]);
   useEffect(() => { if (loc.hash === "#network") netRef.current?.scrollIntoView(); }, [loc.hash, net]);
 
@@ -61,6 +63,10 @@ export default function NewScan({ summary, onScanned }) {
   const toggle = (p) => setOn((s) => { const n = new Set(s); n.has(p) ? n.delete(p) : n.add(p); return n; });
   const sock = Object.fromEntries((net?.planes || []).map((p) => [p.plane, p]));
   const tlsOn = !!probe.trim();
+  // Warn before a narrower scan of the same target, so coverage never shrinks without the operator seeing it.
+  const norm = (p) => (p || "").trim().replace(/[\\/]+$/, "").replace(/\//g, "\\").toLowerCase();
+  const same = summary?.scan && norm(path) === norm(summary.scan.target);
+  const dropped = same ? (summary.coverage?.ran || []).filter((p) => p !== "tls" && !on.has(p)) : [];
 
   return (
     <div className="p-5 flex flex-col gap-3">
@@ -91,6 +97,13 @@ export default function NewScan({ summary, onScanned }) {
                 </div>
               </div>
             </div>
+            {dropped.length > 0 && !running && (
+              <div className="alert warn" role="status"><div className="de">
+                {dropped.map((p) => PLANE_NAME[p]).join(", ")} ran in the last scan of this folder (scan #{summary.scan.id}) and
+                {dropped.length === 1 ? " is" : " are"} now off. This scan will cover less; the dashboard and report will say so.{" "}
+                <button type="button" className="linkbtn" onClick={() => setOn(new Set(FILE_PLANES))}>Turn all planes back on</button>
+              </div></div>
+            )}
             {err && <div className="errbox">{err}</div>}
             {run?.state === "done" && (
               <div className="flex gap-2 items-center">

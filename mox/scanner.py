@@ -212,12 +212,17 @@ def scan(target: str | Path, probe: str | None = None, conn=None, settings: dict
     planes: dict[str, int] = {}
     for f in findings:
         planes[f.plane] = planes.get(f.plane, 0) + 1
-    mark("Detect", len(findings), plane_report(ctx, findings, probe, probe_error))
+    report = plane_report(ctx, findings, probe, probe_error)
+    mark("Detect", len(findings), report)
+    # Coverage = planes that ran (a plane that ran and found nothing still counts); failed and off planes do not.
+    planes_run = [n for n, d in report.items() if d["status"] in ("ok", "idle", "partial")]
+    planes_off = [n for n, d in report.items() if d["status"] == "off"]
     verify = sum(f.confidence == "low" for f in findings)
     cur = conn.execute(
-        "INSERT INTO scans(target,probe,started_at,seconds,files_scanned,planes_hit,findings_count,probe_error)"
-        " VALUES(?,?,?,?,?,?,?,?)",
-        (str(target), probe, started, seconds, ctx.files_scanned, json.dumps(planes), len(findings), probe_error))
+        "INSERT INTO scans(target,probe,started_at,seconds,files_scanned,planes_hit,findings_count,probe_error,"
+        "planes_run,planes_off) VALUES(?,?,?,?,?,?,?,?,?,?)",
+        (str(target), probe, started, seconds, ctx.files_scanned, json.dumps(planes), len(findings), probe_error,
+         json.dumps(planes_run), json.dumps(planes_off)))
     scan_id = cur.lastrowid
     store_findings(conn, scan_id, findings)
     conn.commit()
@@ -229,8 +234,11 @@ def scan(target: str | Path, probe: str | None = None, conn=None, settings: dict
            "loopback": net1["loopback"] - net0["loopback"]}
     conn.execute("UPDATE scans SET stages=?, net=? WHERE id=?", (json.dumps(mark.events), json.dumps(net), scan_id))
     conn.commit()
+    from . import coverage
+    cov = coverage.delta(conn, conn.execute("SELECT * FROM scans WHERE id=?", (scan_id,)).fetchone())
     if own:
         conn.close()
     return {"assets": len(assets), "scan_id": scan_id, "target": str(target), "files_scanned": ctx.files_scanned, "seconds": seconds,
-            "planes": planes, "findings": len(findings), "verify_first": verify,
-            "probe_error": probe_error, "errors": ctx.errors, "net": net}
+            "planes": planes, "planes_run": planes_run, "planes_off": planes_off, "findings": len(findings),
+            "verify_first": verify, "probe_error": probe_error, "errors": ctx.errors, "net": net,
+            "coverage": cov, "coverage_warning": coverage.warning(cov)}

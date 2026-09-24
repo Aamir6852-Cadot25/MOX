@@ -52,4 +52,7 @@ def connect(path=None, check_same_thread=True) -> sqlite3.Connection:
         conn.execute("ALTER TABLE scans ADD COLUMN stages TEXT")  # phase 8: pipeline stage events (JSON)
     if "net" not in cols:
         conn.execute("ALTER TABLE scans ADD COLUMN net TEXT")  # phase 11: socket connects during the scan (JSON)
+    if "planes_run" not in cols:  # phase 16: coverage = planes that ran (not planes that found something)
+        conn.execute("ALTER TABLE scans ADD COLUMN planes_run TEXT")
+        conn.execute("ALTER TABLE scans ADD COLUMN planes_off TEXT")
     return conn

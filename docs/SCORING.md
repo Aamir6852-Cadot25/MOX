@@ -180,6 +180,25 @@ Boundary cases on the demo target:
 | RSA-2048 `infra/kms.tf`, Y 5 | CONTAIN at every Z, rule 1. |
 | Binaries or configs plane switched off | CONTAIN can reach 0, because only those planes hold the vendor or KMS locations. That is lost coverage, not a verdict rule. |
 
+### 4.2 Verdict reason
+
+Every asset's `reason` is built from the inputs that decided it (`mox/verdict.py: _facts`), never a stock
+phrase. It has two parts:
+
+1. **The facts**, in this order:
+   - the NIST status today, with its source document;
+   - the quantum class;
+   - the Mosca arithmetic (X + Y − Z);
+   - the evidence grade.
+2. **The rule that fired**, starting with the verdict word.
+
+Only a Shor-breakable asset past the horizon is called "quantum-exposed". A Grover-class asset reads "past the
+quantum horizon, where Grover halves its strength". Example (demo target, after the RSA fix):
+
+> RSA-3072 is approved today under NIST SP 800-131A Rev.2 (2019); Shor-breakable; Mosca +7 yrs
+> (X 15 + Y 2 − Z 10), so quantum-exposed; evidence declared. MIGRATE because it is quantum-exposed by
+> 7 yrs; it can be changed in 1 location you control
+
 Full scan, 22 assets: Z 9–12 gives 11 / 4 / 7, and Z 1–8 gives 12 / 4 / 6 (migrate / contain / accept).
 `tests/test_phase15.py` checks that all three verdicts are reachable for Z from 1 to 20.
 

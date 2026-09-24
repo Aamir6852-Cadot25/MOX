@@ -3,7 +3,7 @@ The PDF is written with the Python standard library only (PDF 1.4, base-14 Helve
 import json
 from datetime import datetime, timezone
 
-from . import cbom
+from . import cbom, coverage
 from .nist import cite
 from .score import exposed
 
@@ -50,7 +50,8 @@ def build(conn, scan) -> dict:
     tiers = {t: sum(1 for a in assets if a["tier"] == t) for t in TIERS}
     verdicts = {v: sum(1 for a in assets if a["verdict"] == v) for v in ("MIGRATE", "CONTAIN", "ACCEPT")}
     qv = [a for a in assets if a["breakdown"]["quantum_vulnerable"]]
-    hit = json.loads(scan["planes_hit"] or "{}")
+    hit = set(coverage.ran(scan))  # planes that ran, including those that found nothing
+    cov_warning = coverage.warning(coverage.delta(conn, scan))
     ran = [p for p in PLANES if p in hit]
     fixes = {s: 0 for s in ("cleared", "not-in-effect", "still-present")}
     for r in conn.execute("SELECT status, data FROM fixes"):
@@ -73,7 +74,7 @@ def build(conn, scan) -> dict:
                        "fixes_cleared": fixes["cleared"], "fixes_not_in_effect": fixes["not-in-effect"],
                        "unverified_accepts": sum(1 for a in assets if a["verdict"] == "ACCEPT" and a.get("verify_first"))},
             "planes": [list(PLANES[p]) for p in ran], "planes_not_run": [PLANES[p][0] for p in PLANES if p not in hit],
-            "network": network_statement(net, scan["probe"], scan["probe_error"]),
+            "network": network_statement(net, scan["probe"], scan["probe_error"]), "coverage_warning": cov_warning,
             "standards": list(dict.fromkeys(standards)), "tiers": tiers, "verdicts": verdicts,
             "findings": [{"label": a["label"], "algorithm": _alg(a), "location": _loc(a), "tier": a["tier"], "score": a["score"],
                           "verdict": a["verdict"], "confidence": a["breakdown"]["confidence"], "wave": a["wave"]} for a in assets]}
@@ -104,6 +105,8 @@ def scope_text(d: dict) -> str:
          f"{d['scan']['started_at']}. Planes run: {', '.join(p[0] for p in d['planes']) or 'none'}.")
     if d["planes_not_run"]:
         s += f" Not run: {', '.join(d['planes_not_run'])}; findings in those planes are not in this report."
+    if d.get("coverage_warning"):
+        s += " " + d["coverage_warning"]
     return s + " " + d["network"] + " MOX stores metadata and fingerprints only, never private key material."
 
 

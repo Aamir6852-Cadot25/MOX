@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import attest, auth, cbom, db, jobs, netguard, report, scanner
+from . import attest, auth, cbom, coverage, db, jobs, netguard, report, scanner
 from .fixers import flow
 from .analyze import analyze
 from .db import ROOT
@@ -118,23 +118,26 @@ def _assets(conn, scan_id):
     return sorted((_asset(conn, r) for r in rows), key=lambda a: -a["score"])
 
 
-def _summary(scan, assets) -> dict:
+def _summary(conn, scan, assets) -> dict:
     qv = [a for a in assets if a["breakdown"]["quantum_vulnerable"]]
     hndl = [a for a in qv if exposed(a, "hndl")]
     verdicts = {"MIGRATE": 0, "CONTAIN": 0, "ACCEPT": 0}
     for a in assets:
         verdicts[a["verdict"]] += 1
     planes = json.loads(scan["planes_hit"])
+    ran = coverage.ran(scan)
     return {"scan": {k: scan[k] for k in ("id", "target", "started_at", "seconds", "files_scanned",
                                           "findings_count")} | {"planes": planes,
                                                                 "net": json.loads(scan["net"] or "null")},
-            "kpi": {"files": scan["files_scanned"], "planes": len(planes), "seconds": scan["seconds"],
+            "coverage": {"ran": ran, "off": coverage.off(scan), "delta": (d := coverage.delta(conn, scan)),
+                         "warning": coverage.warning(d)},
+            "kpi": {"files": scan["files_scanned"], "planes": len(ran), "seconds": scan["seconds"],
                     "assets": len(assets), "hndl": len(hndl), "quantum_vulnerable": len(qv),
                     "forgery": sum(1 for a in qv if exposed(a, "forgery")),
                     "undetermined": sum(1 for a in qv if "undetermined" in a["breakdown"]["threats"]),
                     "readiness": attest.readiness({"total": len(assets), "hndl_exposed": len(hndl),
                                                    "quantum_vulnerable": len(qv)},
-                                                  {"migrate": verdicts["MIGRATE"]}, len(planes)),
+                                                  {"migrate": verdicts["MIGRATE"]}, len(ran)),
                     "safe": len(assets) - len(qv), "hybrid": sum(1 for a in assets if a["hybrid"])},
             "verdicts": verdicts,
             "stages": json.loads(scan["stages"] or "[]"),
@@ -211,7 +214,7 @@ def create_app() -> FastAPI:
         scan = _latest(conn)
         if not scan:
             return {"scan": None}
-        return _summary(scan, _assets(conn, scan["id"]))
+        return _summary(conn, scan, _assets(conn, scan["id"]))
 
     @app.get("/api/assets")
     def assets(u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):

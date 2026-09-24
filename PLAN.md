@@ -149,3 +149,12 @@ run.ps1  README.md  requirements.txt  .gitignore
 - [x] Classical fallback keeps its HNDL tag; only its base changes
 - [x] tests/test_scoring_order.py: table-driven "only broken reaches Critical", "broken today outranks Shor-later" grid, demo DES above every hybrid-configured endpoint
 - [x] Demo copy: ecdsa-p256.crt 48.0 → 28.0 Medium, api-gw 57.6 → 45.6 High, DES payments 52.0 High above both
+
+## Phase 16 — B2 coverage, B4 paper canvas, asset-specific verdict reasons (Part D step 3)
+- [x] B2 root cause: not a default change (all six file planes on since b141b09), not a detector regression (all 33 recorded scans ran 6 planes); 18 files / 4 planes = Configuration + Binaries toggled off, and nothing recorded or warned
+- [x] Scans record planes_run / planes_off; coverage = planes that ran (was planes that found something) for KPI, readiness, attestation and report
+- [x] mox/coverage.py compares with the previous scan of the same target; shrink shown on New Scan before starting, as a Dashboard banner, in the report scope and on the CLI
+- [x] New Scan pre-fills the folder when the latest scan loads after first render (direct link to /scan)
+- [x] B4: body on --paper, cards/panels on --surface; legacy --line override removed (tokens.css is the only source)
+- [x] Verdict reason built from NIST status + source, quantum class, Mosca arithmetic, evidence grade and the rule that fired; only Shor-class is called quantum-exposed; 22/22 distinct on the demo
+- [x] tests/test_phase16.py

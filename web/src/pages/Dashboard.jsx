@@ -71,6 +71,12 @@ export default function Dashboard({ summary, onScanned }) {
         </div>
       </div>
       <div className="dash-b">
+        {summary.coverage?.warning && (
+          <div className="alert warn" role="status">
+            <div style={{ flex: 1 }}><div className="ti">Coverage shrank</div><div className="de">{summary.coverage.warning}</div></div>
+            <Link className="bp-btn" to="/scan">Re-scan with all planes</Link>
+          </div>
+        )}
         <div className="tiles">
           <Tile n={kpi.assets} label="Cryptographic assets" sub={`from ${summary.scan.findings_count} findings`} to="/queue" />
           <Tile n={kpi.hndl} tone="crit" label="Harvest-now-decrypt-later exposed" to="/queue"

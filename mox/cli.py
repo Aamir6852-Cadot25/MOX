@@ -22,7 +22,9 @@ def _scan(a):
     print(f"scan #{s['scan_id']}: {s['files_scanned']} files in {s['seconds']}s -> {s['findings']} findings "
           f"({s['verify_first']} verify-first) -> {s['assets']} assets")
     print("planes: " + ", ".join(f"{k}={v}" for k, v in sorted(s["planes"].items())))
-    for msg in ([s["probe_error"]] if s["probe_error"] else []) + s["errors"]:
+    if s["planes_off"]:
+        print("planes off: " + ", ".join(s["planes_off"]))
+    for msg in ([s["coverage_warning"]] if s["coverage_warning"] else []) + ([s["probe_error"]] if s["probe_error"] else []) + s["errors"]:
         print("warning:", msg, file=sys.stderr)
     return 1 if s["probe_error"] else 0
 
