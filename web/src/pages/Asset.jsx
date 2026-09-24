@@ -4,7 +4,40 @@ import { api } from "../api.js";
 import Icon from "../components/Icon.jsx";
 import { Badge, Evidence, Tier, Verdict } from "../components/Marks.jsx";
 import { Disclosure } from "../components/Motion.jsx";
-import { useConfirm } from "../motion.js";
+import { token, useConfirm } from "../motion.js";
+import { recommend } from "../data/pqc_alternatives.js";
+
+const cls = (l) => (l.startsWith("+++") || l.startsWith("---") || l.startsWith("@@") ? "hdr" : l[0] === "+" ? "add" : l[0] === "-" ? "del" : "");
+const CLAIM = { "in-effect": ["In effect", "min"], "not-in-effect": ["Not in effect", "red"], "not-verified": ["Not verified", "amb"] };
+const RESULT = { cleared: "Finding cleared", "still-present": "Finding still present", "not-in-effect": "Applied, but not fully in effect" };
+const STEPS = [["Patch previewed", "Diff generated from the rule for this finding"], ["Analyst approved", "Approval and review note audited"],
+  ["Applied with backup", "Original saved next to the file as .bak"], ["Re-scanned", "Same planes re-run on the changed file"]];
+
+/** Recommended alternatives (Task 3): a compact comparison table, the recommended row highlighted. */
+function Alternatives({ algorithm, verdict, hndl, criticality }) {
+  const r = recommend(algorithm, { verdict, hndl, criticality });
+  if (!r) return <div className="hint">No PQC/hybrid alternative is tabled for {algorithm}.</div>;
+  return (
+    <>
+      <table className="bp-table" style={{ width: "100%" }}>
+        <thead><tr><th>Option</th><th>Kind</th><th>Standard</th><th>Size (bytes)</th><th>Speed</th><th>Effort</th></tr></thead>
+        <tbody>
+          {r.options.map((o) => (
+            <tr key={o.name} style={o === r.recommended ? { background: "var(--brand-soft)" } : undefined}>
+              <td className="mono">{o.name}{o === r.recommended && <Badge family="plain" title="Recommended for this asset"> recommended</Badge>}</td>
+              <td>{o.kind}</td>
+              <td className="mono">{o.standard}</td>
+              <td className="mono">{o.pk ? `pk ${o.pk}` : ""}{o.ct ? `, ct ${o.ct}` : ""}{o.sig ? `, sig ${o.sig}` : ""}{o.size === null && !o.pk ? "–" : ""}</td>
+              <td>{o.speed}</td>
+              <td>{o.effort}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="hint" style={{ marginTop: "var(--s2)" }}>Recommended because: {r.reason}.</div>
+    </>
+  );
+}
 
 // Every number on this page is a server value from breakdown (see docs/SCORING.md); nothing is recomputed
 // here except the Mosca preview while an analyst types, which is replaced by the server's answer on save.
@@ -189,162 +222,152 @@ export default function Asset({ onChanged }) {
   const { id } = useParams();
   const [a, setA] = useState(null);
   const [err, setErr] = useState("");
+  const [fix, setFix] = useState(null);
+  const [fixErr, setFixErr] = useState("");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [ripple, setRipple] = useState(false);
   const load = () => api.asset(id).then(setA).catch((e) => setErr(e.status === 404
     ? `${e.message}. It may belong to an older scan`
     : `${e.message}. Reload the page; if it persists, check the server log`));
   useEffect(() => {
-    setA(null);
+    setA(null); setFix(null); setFixErr(""); setNote("");
     load();
   }, [id]);
+  useEffect(() => {
+    if (a?.fix_finding) api.fixPreview(a.fix_finding).then(setFix).catch((e) => setFixErr(e.message));
+  }, [a?.fix_finding]);
   if (err) return <div className="p-6"><div className="errbox">Could not load asset {id}: {err}. The <Link to="/findings">work queue</Link> lists the latest assets.</div></div>;
   if (!a) return <div className="p-6 hint">Loading asset {id}</div>;
 
   const b = a.breakdown, m = b.mosca;
   const first = a.findings[0];
   const save = async (body) => { setA(await api.override(a.id, { x: m.x, criticality: b.criticality, ...body })); onChanged(); };  // throws on failure: the caller shows "Not saved"
-  const planes = [...new Set(a.locations.map((l) => l.plane))];
   const nFiles = new Set(a.locations.map((l) => l.file)).size;
   const top = b.threats[0];
-  const fixable = a.fix_finding ? { finding_id: a.fix_finding } : null; // server-checked: a fixer produces a patch
-  const rep = a.replacements[0];
+  const hndl = b.threats?.includes("hndl");
+  const fixable = a.fix_finding;
+  const step = fix && fix.status !== "previewed" ? 4 : 1;
+
+  const apply = async () => {
+    setBusy(true); setFixErr("");
+    try {
+      const updated = await api.fixApply(fix.id, note);
+      setFix(updated);
+      if (updated.status === "cleared") { setRipple(true); setTimeout(() => setRipple(false), token("--t-slow")); }
+      onChanged();
+    } catch (e) { setFixErr(e.message); }
+    setBusy(false);
+  };
 
   return (
-    <div className="split">
-      <div className="lft">
-        <div className="crumb"><Link to="/findings">Work queue</Link><span>›</span><span className="mono">asset {a.id}</span></div>
-        <div className="asset-hd">
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <h1 className="mono">{a.label}</h1>
-            {a.fingerprint && <div className="spki mono">SPKI SHA-256 {a.fingerprint.slice(0, 32)}…</div>}
-            <div className="tags">
-              {planes.map((p) => <Badge key={p}>Plane: {p}</Badge>)}
-              <Badge family={b.criticality === 3 ? "crit" : "plain"}>Criticality {CRIT[b.criticality]}</Badge>
-              <Evidence grade={b.evidence} label={`Evidence: ${b.evidence_label}`} />
-              {a.verify_first && <Badge family="high">Verify first</Badge>}
-            </div>
-          </div>
-          <div className="flex flex-col items-end gap-1">
-            <Verdict verdict={a.verdict} />
-            <span className="flex items-center gap-2"><Tier tier={a.tier} /><span className="mono" style={{ fontSize: 17, fontWeight: 500 }} title="Risk score; the arithmetic is in Why this score">{a.score}</span></span>
-          </div>
+    <div className="p-4 flex flex-col gap-3">
+      <div className="crumb"><Link to="/findings">Findings</Link><span>›</span><span className="mono">asset {a.id}</span></div>
+      <div className="asset-hd">
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h1 className="mono">{a.label}</h1>
+          <div className="hint" style={{ marginTop: 4 }}>{top ? THREAT[top][0] : a.reason}.</div>
         </div>
-
-        {top ? (
-          <div className={`alert${top === "forgery" || top === "undetermined" ? " warn" : ""}`}>
-            <div style={{ flex: 1 }}>
-              {b.threats.map((t) => <div key={t} style={{ marginBottom: 4 }}><div className="ti">{THREAT[t][0]}</div><div className="de">{THREAT[t][1]}</div></div>)}
-              {b.purposes?.length > 0 && (
-                <div className="de" style={{ marginTop: 8 }}>
-                  <Disclosure summary={<>Declared purpose at {b.purposes.length} location{b.purposes.length === 1 ? "" : "s"}:{" "}
-                    {[...new Set(b.purposes.map((p) => p.purpose))].join(", ")}</>}>
-                    <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
-                      {b.purposes.map((p, i) => <li key={i}><span className="mono">{p.file}{p.line ? `:${p.line}` : ""}</span> {p.purpose}: {p.evidence}</li>)}
-                    </ul>
-                  </Disclosure>
-                </div>)}
-            </div>
-            {fixable && a.verdict !== "ACCEPT" && <Link className="bp-btn" to={`/code/${fixable.finding_id}`}><Icon name="wrench" />Open fix</Link>}
-          </div>
-        ) : (
-          m.exposure == null ? (
-            <div className="alert warn"><div><div className="ti">No algorithm identified: use not verified</div>
-              <div className="de">MOX found this library or package but no call into it, so it cannot say which algorithm
-                is in use or whether it is quantum-vulnerable. {a.reason}.</div></div></div>
-          ) : (
-            <div className="alert calm"><div><div className="ti">No quantum or classical weakness recorded</div>
-              <div className="de">{a.reason}. Re-assess at the next scan.</div></div></div>
-          )
-        )}
-
-        <div className="bp-card">
-          <div className="card-h"><h2>Locations: what breaks if this asset changes</h2>
-            <span className="note mono">{a.findings.length} finding{a.findings.length === 1 ? "" : "s"} → 1 asset, {nFiles} file{nFiles === 1 ? "" : "s"}</span></div>
-          <table className="bp-table">
-            <thead><tr><th style={{ width: 110 }}>Plane</th><th>Location</th><th style={{ width: 110 }}>Change type</th><th style={{ width: 60 }}></th></tr></thead>
-            <tbody>
-              {a.locations.map((l) => (
-                <tr key={l.finding_id}>
-                  <td>{l.plane}</td>
-                  <td className="mono" style={{ color: "var(--ink)", wordBreak: "break-all" }}>{l.file}{l.line ? `:${l.line}` : ""}</td>
-                  <td><Badge>{CHANGE[l.plane] || "Review"}</Badge></td>
-                  <td>{l.fixable ? <Link to={`/code/${l.finding_id}`}>Fix</Link>
-                    : <span className="hint" title="No automatic fix for this location: change it by hand; the next scan verifies it">manual</span>}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="g2">
-          <div className="bp-card">
-            <div className="card-h"><h2>NIST status</h2><span className="note">{first.nist_source ? "cited below" : "no table entry"}</span></div>
-            <div className="card-b">
-              <div className="nist3">
-                {[["Now", first.nist_now], ["After 2030", first.nist_2030], ["After 2035", first.nist_2035]].map(([k, v]) => (
-                  <div key={k} className={NIST_B[v] || ""}><div className="k">{k}</div><div className="v">{(v || "unknown").replace("_", " ")}</div></div>
-                ))}
-              </div>
-              <div className="cite">
-                {b.terms[0].citation?.length ? <>Source: {b.terms[0].citation.join("; ")}. </> : null}
-                {first.nist_notes || ""}
-                {[...new Map(a.findings.filter((f) => f.nist_notes && f.algorithm !== first.algorithm)
-                  .map((f) => [f.algorithm, f.nist_notes])).entries()].map(([alg, n]) => <span key={alg}> {alg}: {n}.</span>)}
-                {a.findings.length > 1 && <> Shown for <span className="mono">{first.file}</span>; the score uses the worst status across all locations (<span className="mono">{b.base_status.replace("_", " ")}</span>).</>}
-              </div>
-            </div>
-          </div>
-          <WhyScore a={a} onCrit={(c) => save({ criticality: c })} />
-        </div>
-
-        <div className="bp-card">
-          <div className="card-h"><h2>Evidence chain</h2><span className="note">fact, analysis, recommendation</span></div>
-          <div className="card-b">
-            <div className="chain">
-              {[
-                ["Fact", `${a.algorithm}${a.key_size ? ` key, ${a.key_size} bit` : ""}, seen in ${nFiles} file${nFiles === 1 ? "" : "s"}. Evidence: ${b.evidence_label.toLowerCase()}${b.evidence === "unverified" ? ": a library that can do this, use not proven" : b.evidence === "textual" ? ": a string match, not a parsed artefact" : ""}.`],
-                ["Normalised", `${a.algorithm}${a.key_size ? `-${a.key_size}` : ""}, ${QUANTUM[b.quantum]}${a.fingerprint ? `, SPKI ${a.fingerprint.slice(0, 8)}…` : ""}`],
-                ["Analysis", `NIST ${b.base_status.replace("_", " ")} now. Risk ${a.score} (${a.tier}). Mosca exposure ${m.exposure == null ? "not applicable (no identified algorithm)" : `${signed(m.exposure)} yrs`}. CMCS ${b.cmcs.score}/10.`],
-                ["Recommendation", `${a.verdict}${rep ? `: ${rep.from} to ${rep.to}` : ""}, wave ${a.wave} of 5`],
-              ].map(([k, v], i, all) => (
-                <div key={k}>
-                  <div className={`ch-link${i === all.length - 1 ? " out" : ""}`}><div className="k">{k}</div><div className="v">{v}</div></div>
-                  {i < all.length - 1 && <div className="tick" />}
-                </div>
-              ))}
-            </div>
-          </div>
+        <div className="flex flex-col items-end gap-1">
+          <Verdict verdict={a.verdict} />
+          <span className="flex items-center gap-2"><Tier tier={a.tier} /><span className="mono" style={{ fontSize: 17, fontWeight: 500 }}>{a.score}</span></span>
         </div>
       </div>
 
-      <aside className="rgt">
-        <div className="card-h"><h2>Recommended replacement</h2></div>
-        <div className="card-b flex flex-col gap-2">
-          {rep ? (
-            <div className="rep">
-              <div className="to mono">{rep.to}</div>
-              <div className="fr2">replaces {rep.from}</div>
-              {a.replacements.slice(1).map((r) => <div key={r.from + r.to} className="fr2">and {r.from} with <span className="mono">{r.to}</span></div>)}
-              {a.size_notes.map((n) => <div key={n} className="nt">{n}</div>)}
-            </div>
-          ) : <div className="hint">No replacement is mapped for {a.algorithm}. {a.reason}.</div>}
-          <div>
-            <div className="lbl" style={{ marginBottom: 0 }}>Migration wave, this asset</div>
-            <div className="wstrip" role="list">
-              {[1, 2, 3, 4, 5].map((w) => <div key={w} role="listitem" className={w === a.wave ? "here" : ""}
-                aria-current={w === a.wave ? "step" : undefined}>{w === a.wave ? `Wave ${w}` : w}</div>)}
-            </div>
-            <div className="hint" style={{ marginTop: 8 }}>{a.wave_reason ? a.wave_reason.charAt(0).toUpperCase() + a.wave_reason.slice(1) + "." : ""}</div>
+      <div className="grid gap-3" style={{ gridTemplateColumns: "280px minmax(0,1fr) 300px" }}>
+        <div className="flex flex-col gap-3">
+          <div className="bp-card">
+            <div className="card-h"><h2>Why</h2></div>
+            <div className="card-b hint">{top ? THREAT[top][1] : `${a.reason}. Re-assess at the next scan.`}</div>
           </div>
-          <div className="hint"><Verdict verdict={a.verdict} /> {a.reason}.</div>
-          {fixable && a.verdict !== "ACCEPT" && <Link className="bp-btn pri" style={{ justifyContent: "center" }} to={`/code/${fixable.finding_id}`}><Icon name="wrench" />Open fix and verify</Link>}
-          {!fixable && a.verdict === "MIGRATE" && (
-            <div className="hint">No automatic fix for this asset. Change it by hand{rep ? <>: {rep.from} to <span className="mono">{rep.to}</span></> : null}.
-              Then run a scan from <Link to="/scan">New Scan</Link>; the re-scan shows whether it cleared.</div>)}
-          <Link className="bp-btn" style={{ justifyContent: "center" }} to="/reports/roadmap">Open roadmap</Link>
+          <div className="bp-card">
+            <div className="card-h"><h2>NIST status</h2></div>
+            <div className="card-b">
+              <div className="nist3">
+                {[["Now", first.nist_now], ["2030", first.nist_2030], ["2035", first.nist_2035]].map(([k, v]) => (
+                  <div key={k} className={NIST_B[v] || ""}><div className="k">{k}</div><div className="v">{(v || "unknown").replace("_", " ")}</div></div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="bp-card">
+            <MoscaCard a={a} onX={(x) => save({ x })} />
+          </div>
         </div>
-        <MoscaCard a={a} onX={(x) => save({ x })} />
-        <CmcsCard c={b.cmcs} />
-      </aside>
+
+        <div className="flex flex-col gap-3">
+          <div className="bp-card">
+            <div className="card-h"><h2>Recommended alternatives</h2><span className="note">by risk, size and migration effort</span></div>
+            <div className="card-b"><Alternatives algorithm={a.algorithm} verdict={a.verdict} hndl={hndl} criticality={b.criticality} /></div>
+          </div>
+          <div className="bp-card">
+            <div className="card-h"><h2>Patch</h2></div>
+            <div className="card-b flex flex-col gap-3">
+              {!fixable && <div className="hint">No automatic fix for this asset. Change it by hand using a recommended alternative above,
+                then re-scan from <Link to="/scan">Discover</Link>; the re-scan shows whether it cleared.</div>}
+              {fixable && !fix && !fixErr && <div className="hint">Generating patch…</div>}
+              {fixErr && <div className="errbox">{fixErr}</div>}
+              {fix && (
+                <>
+                  <div className="panel py-2"><div className="diff">{fix.diff.split("\n").slice(0, -1).map((l, i) => <div key={i} className={cls(l)}>{l || " "}</div>)}</div></div>
+                  {fix.status === "previewed" && (
+                    <div className="flex gap-3 items-center">
+                      <input className="flex-1" placeholder="Review note (optional)" value={note} maxLength={200} onChange={(e) => setNote(e.target.value)} />
+                      <button className="btn" style={{ width: 200 }} disabled={busy} onClick={apply}><Icon name="check" />Approve and apply</button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <aside className="flex flex-col gap-3">
+          <div className="bp-card verify-card">
+            {ripple && <span className="verify-ring" />}
+            <div className="card-h"><h2>Verify</h2></div>
+            <div className="card-b">
+              {STEPS.map(([t, d], i) => (
+                <div key={t} className="steps flex gap-3 mb-3" style={{ opacity: i < step ? 1 : 0.5 }}>
+                  <span className={`n${i < step ? " done" : ""}`}>{i + 1}</span>
+                  <div><div className="h">{t}</div><div className="dim text-[12px]">{d}</div></div>
+                </div>
+              ))}
+              {fix && fix.status !== "previewed" && (
+                <div className="panel p-3">
+                  <div className={`h ${fix.status === "cleared" ? "" : "red"}`}>{RESULT[fix.status] || fix.status}</div>
+                  {fix.status === "cleared" && <div className="hint">Finding cleared: verified by re-scan.</div>}
+                  <Link className="bp-btn pri" style={{ marginTop: "var(--s2)", justifyContent: "center" }} to="/dashboard">Back to Quantum Risk</Link>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="bp-card">
+            <div className="card-h"><h2>Audit trail</h2></div>
+            <div className="card-b"><div className="mono text-[11px] dim">{(fix?.trail || []).map((t, i) => <div key={i}>{t.ts.slice(11, 19)} {t.text}</div>)}</div></div>
+          </div>
+          <div className="bp-card"><div className="card-b">
+            <Disclosure summary="Score breakdown"><WhyScore a={a} onCrit={(c) => save({ criticality: c })} /></Disclosure>
+          </div></div>
+          <div className="bp-card"><div className="card-b">
+            <Disclosure summary="Locations">
+              <table className="bp-table">
+                <thead><tr><th style={{ width: 90 }}>Plane</th><th>Location</th><th style={{ width: 90 }}>Change</th></tr></thead>
+                <tbody>
+                  {a.locations.map((l) => (
+                    <tr key={l.finding_id}>
+                      <td>{l.plane}</td>
+                      <td className="mono" style={{ color: "var(--ink)", wordBreak: "break-all" }}>{l.file}{l.line ? `:${l.line}` : ""}</td>
+                      <td><Badge>{CHANGE[l.plane] || "Review"}</Badge></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="hint" style={{ marginTop: "var(--s2)" }}>{a.findings.length} finding{a.findings.length === 1 ? "" : "s"} → 1 asset, {nFiles} file{nFiles === 1 ? "" : "s"}.</div>
+            </Disclosure>
+          </div></div>
+        </aside>
+      </div>
     </div>
   );
 }

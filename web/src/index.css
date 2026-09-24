@@ -76,6 +76,10 @@ input, select { background: var(--surface); border: 1px solid var(--line-2); bor
 .ledger-hd .note { font-size: 10.5px; color: var(--term-dim); }
 .ledger-ring { position: absolute; left: var(--s5); top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%;
   border: 1px solid var(--brand); opacity: .8; animation: ledger-ripple var(--t-slow) var(--ease-out) both; pointer-events: none; }
+/* Task 3/6: the cleared-fix ripple on the Remediate verify stepper reuses the same ring animation. */
+.verify-card { position: relative; overflow: hidden; }
+.verify-ring { position: absolute; left: 50%; top: 40px; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%;
+  border: 1px solid var(--brand); opacity: .8; animation: ledger-ripple var(--t-slow) var(--ease-out) both; pointer-events: none; }
 @keyframes ledger-ripple { from { transform: scale(1); opacity: .8; } to { transform: scale(6); opacity: 0; } }
 .ledger-stages { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--s2); padding: var(--s3) var(--s4); border-bottom: 1px solid var(--term-line); }
 .ledger-stage { position: relative; padding-bottom: var(--s2); min-width: 0; }
