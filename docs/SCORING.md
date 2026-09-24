@@ -85,6 +85,25 @@ would never fire. The cut-offs sit on the formula's own anchor points instead:
 | Medium | ≥ 25 | deprecated / legacy |
 | Low | < 25 | approved today |
 
+### 1.4 Ordering invariants (permanent tests: `tests/test_scoring_order.py`)
+
+1. **Only broken crypto reaches Critical.** Every rule in `data/nist_status.json` whose status today is neither
+   disallowed nor deprecated stays below 55, even at the worst multipliers (observed, high confidence,
+   criticality 3). A table edit that breaks this fails the build.
+2. **Broken today outranks Shor-later.** At equal criticality, evidence and confidence, DES, 3DES and RSA-1024
+   score above RSA-3072, ECDSA P-256 and X25519.
+3. On the demo target, live DES in `payments/Crypto.java` outranks every hybrid-configured endpoint. Each of
+   those keeps its `hndl` tag.
+
+How the inputs keep these true:
+- **X25519** is rated like ECDH P-256: approved now, disallowed after 2035 (IR 8547 draft). The table note says
+  it is not FIPS-listed, since it is absent from SP 800-56A Rev.3, and the Asset NIST card prints that note.
+  Rated `not_approved` it had the MD5 / RC4 base of 25, and a TLS 1.3 hybrid endpoint scored 48 against live DES.
+- **A static-RSA cipher suite** takes its key size from the certificate it was correlated to
+  (`analyze._size_key_transport`), and is rated from that size instead of "unknown".
+- **Quantum urgency** for these endpoints is carried by the HNDL tag, Mosca exposure and the wave, not by the
+  risk base.
+
 ## 2. Mosca exposure
 
 ```

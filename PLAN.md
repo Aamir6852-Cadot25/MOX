@@ -142,3 +142,10 @@ run.ps1  README.md  requirements.txt  .gitignore
 - [x] C7: Asset detail cards no longer flex-shrink; Locations table fully visible at 1366×768
 - [x] Visual check: headless Chrome over DevTools at 1366×768 (extension not connected)
 - [ ] Open from the audit: Majors 1–23 except those closed as side effects (see docs/AUDIT.md second pass)
+
+## Phase 15b — risk ordering (hybrid fallback vs live DES)
+- [x] X25519 rated like ECDH P-256 (approved now, disallowed after 2035, IR 8547 draft); not-FIPS-listed note shown on the Asset NIST card
+- [x] Static-RSA cipher suite takes its key size from the correlated certificate SPKI and is re-rated (finding row updated)
+- [x] Classical fallback keeps its HNDL tag; only its base changes
+- [x] tests/test_scoring_order.py: table-driven "only broken reaches Critical", "broken today outranks Shor-later" grid, demo DES above every hybrid-configured endpoint
+- [x] Demo copy: ecdsa-p256.crt 48.0 → 28.0 Medium, api-gw 57.6 → 45.6 High, DES payments 52.0 High above both

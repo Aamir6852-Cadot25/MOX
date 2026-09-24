@@ -32,7 +32,7 @@
       "P-384": { "now": "approved", "after_2030": "approved", "after_2035": "disallowed", "source": "8547" },
       "P-521": { "now": "approved", "after_2030": "approved", "after_2035": "disallowed", "source": "8547" } } },
     "EdDSA": { "quantum_vulnerable": true, "now": "approved", "after_2030": "approved", "after_2035": "disallowed", "source": "186-5, 8547", "notes": "Ed25519 / Ed448" },
-    "X25519": { "quantum_vulnerable": true, "now": "not_approved", "after_2030": "not_approved", "after_2035": "not_approved", "source": "8547", "notes": "widely used key agreement, not in NIST SP 800-56A; quantum-vulnerable" },
+    "X25519": { "quantum_vulnerable": true, "now": "approved", "after_2030": "approved", "after_2035": "disallowed", "source": "8547", "notes": "rated like ECDH P-256 (about 128-bit classical strength; IR 8547 draft: quantum-vulnerable key agreement disallowed after 2035). Not FIPS-listed: X25519 is not in NIST SP 800-56A Rev.3, so a FIPS-validated deployment cannot rely on it" },
     "X25519MLKEM768": { "quantum_vulnerable": false, "now": "hybrid", "after_2030": "hybrid", "after_2035": "hybrid", "source": "203", "notes": "hybrid classical + ML-KEM-768 key exchange; transition-safe" },
     "MD5": { "quantum_vulnerable": false, "now": "not_approved", "after_2030": "not_approved", "after_2035": "not_approved", "source": "131A", "notes": "collision-broken; never NIST-approved" },
     "SHA-1": { "quantum_vulnerable": false, "now": "deprecated", "after_2030": "disallowed", "after_2035": "disallowed", "legacy_use": "verify old signatures; non-signature uses (HMAC/KDF) still allowed now", "source": "131A, sha1", "notes": "disallowed for new digital signatures" },

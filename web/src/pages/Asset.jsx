@@ -275,6 +275,8 @@ export default function Asset({ onChanged }) {
               <div className="cite">
                 {b.terms[0].citation?.length ? <>Source: {b.terms[0].citation.join("; ")}. </> : null}
                 {first.nist_notes || ""}
+                {[...new Map(a.findings.filter((f) => f.nist_notes && f.algorithm !== first.algorithm)
+                  .map((f) => [f.algorithm, f.nist_notes])).entries()].map(([alg, n]) => <span key={alg}> {alg}: {n}.</span>)}
                 {a.findings.length > 1 && <> Shown for <span className="mono">{first.file}</span>; the score uses the worst status across all locations (<span className="mono">{b.base_status.replace("_", " ")}</span>).</>}
               </div>
             </div>
