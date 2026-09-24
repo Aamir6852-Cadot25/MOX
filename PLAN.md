@@ -158,3 +158,8 @@ run.ps1  README.md  requirements.txt  .gitignore
 - [x] B4: body on --paper, cards/panels on --surface; legacy --line override removed (tokens.css is the only source)
 - [x] Verdict reason built from NIST status + source, quantum class, Mosca arithmetic, evidence grade and the rule that fired; only Shor-class is called quantum-exposed; 22/22 distinct on the demo
 - [x] tests/test_phase16.py
+
+## Phase 16b — disallowed today is never ACCEPT
+- [x] verdict.decide: worst status disallowed skips both ACCEPT branches (was reachable via X <= 1 at any tier)
+- [x] Permanent invariant in tests/test_scoring_order.py (DES / 3DES / RSA-1024 x criticality x confidence x evidence x Z x path); phase 2 test updated
+- [x] P6 re-run: all three verdicts at every Z 1-40 on all 6 planes (audit copy 11/4/7 at Z 10, unchanged; pristine 14/4/7)

@@ -164,6 +164,11 @@ The rule is applied in this order (`mox/verdict.py: wave`). Each asset carries i
 ### 4.1 Verdict rule (`mox/verdict.py: decide`), applied in order
 
 1. **CONTAIN** if Y ≥ 5 (vendor, firmware, HSM or KMS coupling) or no location is patchable.
+*Disallowed today is never ACCEPT.* If the asset's worst status is disallowed, rules 2 and 3 are skipped:
+it is CONTAINed (rule 1) or MIGRATEd (rule 4), whatever its tier, X or Mosca exposure.
+`tests/test_scoring_order.py` checks this across criticality × confidence × evidence × Z × path.
+Before this rule, X ≤ 1 (a test / log / tmp path) ACCEPTed a disallowed algorithm at any tier.
+
 2. **ACCEPT** if Mosca does not apply (no identified algorithm) and the tier is Low. The reason says
    "not verified: MOX has not found a call into it", and the asset stays in Verify first.
 3. **ACCEPT** if X ≤ 1, or the tier is Low and exposure ≤ 0.

@@ -105,6 +105,9 @@ def decide(asset: dict, sc: dict) -> dict:
     fixable = [f for f in asset["findings"]
                if f["plane"] in _PATCHABLE or (f["plane"] == "containers" and "!" not in f["file"])]
     has_source = bool(fixable)
+    # Disallowed today (worst status across the asset's locations) is classically broken: it is never ACCEPTed,
+    # whatever the tier or Mosca says. It is CONTAINed if it cannot be patched in place, otherwise MIGRATEd.
+    broken = b["base_status"] == "disallowed"
     if y >= 5 or not has_source:
         v = "CONTAIN"
         why = (f"CONTAIN because migration takes Y = {y} yrs (CMCS {b['cmcs']['score']}: {b['cmcs']['basis']}), "
@@ -113,21 +116,21 @@ def decide(asset: dict, sc: dict) -> dict:
                + ", ".join(sorted({f['plane'] for f in asset['findings']})) + ")")
         rec = ["Segment the network path to this asset", "Front it with a crypto-agile gateway",
                "Shorten key lifetime / rotate more often"]
-    elif exp is None and sc["tier"] == "Low":
+    elif exp is None and sc["tier"] == "Low" and not broken:
         # A library or package name with no identified algorithm: nothing to migrate until a call site is found.
         v = "ACCEPT"
         why = (f"ACCEPT because it is Low risk ({sc['score']}) with no algorithm identified (a library or package name only); "
                "not verified: MOX has not found a call into it")
         rec = ["Verify usage first: search for calls into this library", "Re-assess at next scan"]
-    elif x <= 1 or (sc["tier"] == "Low" and exp is not None and exp <= 0):
+    elif not broken and (x <= 1 or (sc["tier"] == "Low" and exp is not None and exp <= 0)):
         v = "ACCEPT"
         why = (f"ACCEPT because data shelf life X = {x} yr: it expires before a quantum computer matters" if x <= 1 else
                f"ACCEPT because it is Low risk ({sc['score']}) and not quantum-exposed")
         rec = ["Monitor; re-assess at next scan"]
     else:
         because = []
-        if b["base_status"] == "disallowed":
-            because.append("it is already classically broken")
+        if broken:
+            because.append("it is already classically broken, and disallowed crypto is never accepted")
         elif sc["tier"] != "Low":
             because.append(f"it is {sc['tier']} risk ({sc['score']})")
         if exp is not None and exp > 0:

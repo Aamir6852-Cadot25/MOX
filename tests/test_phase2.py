@@ -113,7 +113,9 @@ def test_verdict_rules_and_replacements():
         return decide(a, score_asset(a, **kw))
     assert verdict(F(plane="binaries", file="vendor/a.bin", confidence="low"))["verdict"] == "CONTAIN"
     assert verdict(F(plane="configs", file="infra/kms.tf"))["verdict"] == "CONTAIN"
-    assert verdict(F(file="tmp/x.py", key_size=1024, nist_now="disallowed"))["verdict"] == "ACCEPT"  # X<=1
+    assert verdict(F(file="tmp/x.py"))["verdict"] == "ACCEPT"  # X<=1, approved today
+    # phase 16b: disallowed today is never ACCEPTed, even with X<=1
+    assert verdict(F(file="tmp/x.py", key_size=1024, nist_now="disallowed"))["verdict"] == "MIGRATE"
     v = verdict(F(file="auth/x.py"))
     assert v["verdict"] == "MIGRATE" and v["replacements"][0]["to"].startswith("ML-DSA-65")
     assert "3,309" in v["size_notes"][0]

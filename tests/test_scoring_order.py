@@ -80,3 +80,31 @@ def test_demo_des_outranks_every_hybrid_configured_endpoint(demo_dir):
     for a in hybrid_cfg:
         assert des["score"] > a["score"], (des["score"], a["label"], a["score"])
         assert "hndl" in a["breakdown"]["threats"]  # the classical fallback stays tagged; it just doesn't drive the base
+
+
+# ── verdict invariant: disallowed today is never ACCEPT, whatever the tier or Mosca exposure ──
+@pytest.mark.parametrize("alg,size,qv", [("DES", None, 0), ("3DES", None, 0), ("RSA", 1024, 1)])
+def test_disallowed_is_never_accepted(alg, size, qv):
+    from mox.verdict import decide
+    seen = set()
+    for crit, conf, grade, z, path in itertools.product(score.CRIT_MULT, score.CONF_MULT, EVIDENCE_PLANES,
+                                                        (1, 10, 40), ("tests/fixture.py", "logs/x.py", "app/x.py")):
+        plane = EVIDENCE_PLANES[grade]
+        a = asset(F(algorithm=alg, key_size=size, nist_now="disallowed", quantum_vulnerable=qv, plane=plane,
+                    confidence=conf, file=path if plane == "code" else f"{path}.{plane}"))
+        a.update(score_asset(a, {"threat_horizon": z}, {"criticality": crit}))
+        v = decide(a, a)["verdict"]
+        assert v != "ACCEPT", (alg, crit, conf, grade, z, path, a["tier"], a["breakdown"]["mosca"]["exposure"])
+        seen.add(v)
+    assert "MIGRATE" in seen  # patchable locations still migrate; unpatchable ones are CONTAINed
+
+
+def test_short_shelf_life_des_in_a_test_file_is_migrated_not_accepted():
+    """The case that used to ACCEPT: DES in a test-only path gets X = 1, and X <= 1 accepted at any tier."""
+    from mox.verdict import decide
+    a = asset(F(algorithm="DES", key_size=None, nist_now="disallowed", quantum_vulnerable=0, confidence="low",
+                file="tests/legacy_fixture.py"))
+    a.update(score_asset(a, override={"criticality": 1}))
+    assert a["breakdown"]["mosca"]["x"] == 1 and a["breakdown"]["mosca"]["exposure"] < 0
+    d = decide(a, a)
+    assert d["verdict"] == "MIGRATE" and "disallowed crypto is never accepted" in d["reason"]
