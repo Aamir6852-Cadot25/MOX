@@ -20,11 +20,11 @@ export default function AirGapPill() {
   if (err || !n?.installed)
     return <Link to="/scan#network" className="agp unk" title="The socket counter is not reporting. Open New Scan for the network panel.">
       <i className="led" />Outbound calls not measured</Link>;
-  const title = `Counted by a hook on socket.connect in this server process since ${n.since}. ` +
+  const title = `Counts Python-level socket.connect calls in this server process since ${n.since}, not the OS or the network card. ` +
     `Loopback connects (${n.loopback}) are counted separately.` + (n.last ? ` Last outbound: ${n.last.host} at ${n.last.at}.` : "");
   return (
     <Link to="/scan#network" className={`agp${n.outbound ? " bad" : ""}`} title={title}>
-      <i className="led" />{n.outbound ? "Not air-gapped" : "Air-gapped"}: <span className="mono">{n.outbound}</span> outbound {n.outbound === 1 ? "call" : "calls"}
+      <i className="led" /><span className="mono">{n.outbound}</span> outbound {n.outbound === 1 ? "connect" : "connects"} counted
     </Link>
   );
 }

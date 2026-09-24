@@ -110,8 +110,8 @@ export default function NewScan({ summary, onScanned }) {
             {run?.state === "done" && (
               <div className="flex gap-2 items-center">
                 <span className="hint">Scan of <span className="mono">{run.path}</span> finished. Review what it found:</span>
-                <Link className="bp-btn pri" to="/queue">Open work queue</Link>
-                <Link className="bp-btn" to="/">Open dashboard</Link>
+                <Link className="bp-btn pri" to="/findings">Open work queue</Link>
+                <Link className="bp-btn" to="/dashboard">Open dashboard</Link>
               </div>
             )}
           </div>

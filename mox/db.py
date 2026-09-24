@@ -1,10 +1,16 @@
 import os
 import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
+DEFAULT_PROJECT = "Default project"
+
 SCHEMA = """
+CREATE TABLE IF NOT EXISTS projects(
+  id INTEGER PRIMARY KEY, name TEXT, sector TEXT, system_type TEXT, criticality INTEGER,
+  shelf_life_years INTEGER, source_kind TEXT, source_ref TEXT, created_at TEXT);
 CREATE TABLE IF NOT EXISTS scans(
   id INTEGER PRIMARY KEY, target TEXT, probe TEXT, started_at TEXT, seconds REAL,
   files_scanned INTEGER, planes_hit TEXT, findings_count INTEGER, probe_error TEXT);
@@ -46,6 +52,7 @@ def connect(path=None, check_same_thread=True) -> sqlite3.Connection:
     p.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(p, check_same_thread=check_same_thread)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
     conn.executescript(SCHEMA)
     cols = {r["name"] for r in conn.execute("PRAGMA table_info(scans)")}
     if "stages" not in cols:
@@ -55,4 +62,29 @@ def connect(path=None, check_same_thread=True) -> sqlite3.Connection:
     if "planes_run" not in cols:  # phase 16: coverage = planes that ran (not planes that found something)
         conn.execute("ALTER TABLE scans ADD COLUMN planes_run TEXT")
         conn.execute("ALTER TABLE scans ADD COLUMN planes_off TEXT")
+    if "project_id" not in cols:  # phase 1 (v2): every scan belongs to a project; migrate old scans to the default
+        conn.execute("ALTER TABLE scans ADD COLUMN project_id INTEGER")
+        default_id = ensure_default_project(conn)
+        conn.execute("UPDATE scans SET project_id=? WHERE project_id IS NULL", (default_id,))
+    conn.commit()
     return conn
+
+
+def ensure_default_project(conn: sqlite3.Connection) -> int:
+    """The project every scan belongs to until Phase 2's project picker assigns another one."""
+    row = conn.execute("SELECT id FROM projects WHERE name=?", (DEFAULT_PROJECT,)).fetchone()
+    if row:
+        return row["id"]
+    cur = conn.execute(
+        "INSERT INTO projects(name,sector,system_type,criticality,shelf_life_years,source_kind,source_ref,created_at)"
+        " VALUES(?,NULL,NULL,NULL,NULL,'folder',NULL,?)",
+        (DEFAULT_PROJECT, datetime.now(timezone.utc).isoformat(timespec="seconds")))
+    conn.commit()
+    return cur.lastrowid
+
+
+def get_project(conn: sqlite3.Connection, project_id: int | None) -> dict | None:
+    if project_id is None:
+        return None
+    row = conn.execute("SELECT * FROM projects WHERE id=?", (project_id,)).fetchone()
+    return dict(row) if row else None

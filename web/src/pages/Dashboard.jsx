@@ -69,7 +69,7 @@ export default function Dashboard({ summary, onScanned }) {
         <h1>Dashboard</h1>
         <span className="sub"><span className="mono">{kpi.assets}</span> cryptographic assets correlated from <span className="mono">{summary.scan.findings_count}</span> findings</span>
         <div className="head-act">
-          <Link className="bp-btn" to="/report">Compliance report</Link>
+          <Link className="bp-btn" to="/reports/compliance">Compliance report</Link>
           <Link className="bp-btn pri" to="/scan"><Icon name="refresh-cw" />Re-scan</Link>
         </div>
       </div>
@@ -81,12 +81,12 @@ export default function Dashboard({ summary, onScanned }) {
           </div>
         )}
         <div className="tiles">
-          <Tile n={<Num k="kpi.assets" value={kpi.assets} />} label="Cryptographic assets" sub={`from ${summary.scan.findings_count} findings`} to="/queue" />
-          <Tile n={<Num k="kpi.hndl" value={kpi.hndl} />} tone="crit" label="Harvest-now-decrypt-later exposed" to="/queue"
+          <Tile n={<Num k="kpi.assets" value={kpi.assets} />} label="Cryptographic assets" sub={`from ${summary.scan.findings_count} findings`} to="/findings" />
+          <Tile n={<Num k="kpi.hndl" value={kpi.hndl} />} tone="crit" label="Harvest-now-decrypt-later exposed" to="/findings"
             sub={`plus ${kpi.forgery ?? 0} exposed to forgery${kpi.undetermined ? `, ${kpi.undetermined} of undeclared purpose` : ""}`}
             title="Shor-breakable key exchange, key transport or encryption whose Mosca exposure is above zero, counted only where the key's own config or code declares that use. Signing keys are counted as forgery; keys whose use is not declared are not counted as either." />
-          <Tile n={<Num k="kpi.qv" value={kpi.quantum_vulnerable} />} tone="high" label="Quantum-vulnerable (Shor) assets" sub={`${kpi.safe} not Shor-breakable`} to="/queue" />
-          <Tile n={kpi.readiness == null ? "–" : <Num k="kpi.readiness" value={kpi.readiness} />} unit="/100" tone="safe" label="Readiness index" sub="as disclosed in the attestation" to="/attest"
+          <Tile n={<Num k="kpi.qv" value={kpi.quantum_vulnerable} />} tone="high" label="Quantum-vulnerable (Shor) assets" sub={`${kpi.safe} not Shor-breakable`} to="/findings" />
+          <Tile n={kpi.readiness == null ? "–" : <Num k="kpi.readiness" value={kpi.readiness} />} unit="/100" tone="safe" label="Readiness index" sub="as disclosed in the attestation" to="/reports/attestation"
             title="100 − (50 × HNDL-exposed + 30 × quantum-vulnerable + 20 × MIGRATE) / assets, scaled 0.8–1.0 by plane coverage (mox/attest.py)" />
         </div>
 
@@ -96,7 +96,7 @@ export default function Dashboard({ summary, onScanned }) {
             <div className="card-b">
               <div className="vbar">
                 {VERDICTS.map(([v, c]) => verdicts[v] > 0 && (
-                  <Link key={v} to={`/queue?verdict=${v}`} className={`vseg ${c}`} style={{ flex: verdicts[v] }}
+                  <Link key={v} to={`/findings?verdict=${v}`} className={`vseg ${c}`} style={{ flex: verdicts[v] }}
                     aria-label={`${v}: ${verdicts[v]} assets`}>{v} <span className="mono"><Num k={`verdict.${v}`} value={verdicts[v]} /></span></Link>
                 ))}
               </div>
@@ -104,14 +104,14 @@ export default function Dashboard({ summary, onScanned }) {
                 <div className="urgent">
                   <span className="lbl" style={{ margin: 0 }}>On fire now</span>
                   <span><span className="mono">{vd.wave1}</span> asset{vd.wave1 === 1 ? "" : "s"} in wave 1. Most urgent:</span>
-                  <Link to={`/asset/${vd.most_urgent.id}`} className="mono">{vd.most_urgent.label}</Link>
+                  <Link to={`/findings/${vd.most_urgent.id}`} className="mono">{vd.most_urgent.label}</Link>
                   <Tier tier={vd.most_urgent.tier} />
                   <span className="dim">{vd.most_urgent.why}.</span>
                 </div>
               )}
               <div className="vcols">
                 {VERDICTS.map(([v, , d]) => (
-                  <Link key={v} to={`/queue?verdict=${v}`} className="vcol">
+                  <Link key={v} to={`/findings?verdict=${v}`} className="vcol">
                     <span className="vh"><Verdict verdict={v} /><span className="mono"><Num k={`verdict.${v}`} value={verdicts[v]} /></span>
                       <span className="dim mono"><Num k={`verdict.${v}.pct`} value={Math.round((100 * verdicts[v]) / total)} />%</span></span>
                     <span className="dim">{d}</span>
@@ -141,7 +141,7 @@ export default function Dashboard({ summary, onScanned }) {
               <span>labels: highest risk that fit; hover or focus a dot for any other</span>
               <span>dashed line = Mosca break-even, X + Y = Z</span>
               {summary.unplotted > 0 && <span>not plotted: <span className="mono">{summary.unplotted}</span> with no identified algorithm (Mosca n/a)</span>}
-              <Link to="/queue" className="rf-table">Same data as a table: work queue</Link>
+              <Link to="/findings" className="rf-table">Same data as a table: work queue</Link>
             </div>
             <RiskField field={field} />
           </div>

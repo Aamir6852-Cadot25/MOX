@@ -23,10 +23,10 @@ function List({ summary }) {
         <div className="dim">No scan yet, so there is nothing to fix. <Link className="link" to="/scan">Open New Scan</Link> to scan a folder.</div>)}
       {rows.length === 0 && summary?.scan && (
         <div className="dim">No finding in the latest scan has an automatic fix. The remaining MIGRATE assets need a manual
-          change; each asset page names the replacement. <Link className="link" to="/queue?verdict=MIGRATE">Open the MIGRATE queue</Link>,
+          change; each asset page names the replacement. <Link className="link" to="/findings?verdict=MIGRATE">Open the MIGRATE queue</Link>,
           change the code or config, then <Link className="link" to="/scan">re-scan</Link> to verify.</div>)}
       {rows.map((f) => (
-        <Link key={f.id} to={`/fix/${f.id}`} className="kv" style={{ textDecoration: "none" }}>
+        <Link key={f.id} to={`/code/${f.id}`} className="kv" style={{ textDecoration: "none" }}>
           <span>{f.algorithm}{f.key_size ? `-${f.key_size}` : ""} at {f.file}:{f.line}</span><span className="link">Preview fix</span>
         </Link>
       ))}
@@ -55,7 +55,7 @@ export default function Fix({ onChanged, summary }) {
         : <>Could not prepare the fix: {err}. Nothing was written to disk.</>}</div>
       <div className="flex gap-2">
         <button className="bp-btn" onClick={() => nav(-1)}>Back to the asset</button>
-        <Link className="bp-btn" to="/fix">Auto-fixable findings</Link>
+        <Link className="bp-btn" to="/code">Auto-fixable findings</Link>
         <Link className="bp-btn" to="/scan">Re-scan</Link>
       </div>
     </div>
@@ -71,7 +71,7 @@ export default function Fix({ onChanged, summary }) {
     <div className="p-4 grid gap-4 max-w-[1500px] mx-auto lg:grid-cols-[minmax(0,1fr)_380px]">
       <div className="flex flex-col gap-4">
         <div className="panel p-4">
-          <Link to="/fix" className="bp-btn"><Icon name="arrow-left" />All fixes</Link>
+          <Link to="/code" className="bp-btn"><Icon name="arrow-left" />All fixes</Link>
           <div className="text-xl font-bold mt-2">{fix.algorithm}{fix.key_size ? `-${fix.key_size}` : ""} at <span className="mono">{fix.file}:{fix.line}</span></div>
           <div className="dim">Proposed change to 1 file, <span className="mono">{fix.lines_changed}</span> changed lines. Nothing is written until you approve.</div>
         </div>
@@ -96,7 +96,7 @@ export default function Fix({ onChanged, summary }) {
           <div className="panel p-4 flex gap-3 items-center">
             <input className="flex-1" placeholder="Review note (optional)" value={note} maxLength={200} onChange={(e) => setNote(e.target.value)} />
             <button className="btn" style={{ width: 200 }} disabled={busy} onClick={apply}><Icon name="check" />Approve and apply</button>
-            <button className="btn ghost" style={{ width: 100 }} onClick={() => nav("/fix")}>Cancel</button>
+            <button className="btn ghost" style={{ width: 100 }} onClick={() => nav("/code")}>Cancel</button>
           </div>
         )}
       </div>
@@ -110,7 +110,7 @@ export default function Fix({ onChanged, summary }) {
             </div>
           ))}
           {applied && (
-            <div className="panel p-3" style={{ borderColor: "var(--pri)" }}>
+            <div className="panel p-3" style={{ borderColor: "var(--brand)" }}>
               <div className={`h ${fix.status === "cleared" ? "" : "red"}`}>{RESULT[fix.status] || fix.status}</div>
               <div className="dim text-[12px]">{fix.status === "still-present"
                 ? "The re-scan still reports this finding; the backup is kept."

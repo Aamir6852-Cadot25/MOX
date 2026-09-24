@@ -172,15 +172,18 @@ class _Stages:
 
 
 def scan(target: str | Path, probe: str | None = None, conn=None, settings: dict | None = None,
-         overrides: dict | None = None, on_stage=None, planes: set[str] | None = None, on_progress=None) -> dict:
+         overrides: dict | None = None, on_stage=None, planes: set[str] | None = None, on_progress=None,
+         project_id: int | None = None) -> dict:
     """Scan `target`, persist scan + findings + stage events, return a summary dict. Read-only on `target`.
     on_stage(event): fired as each pipeline stage completes. on_progress(snapshot): per-plane Detect progress.
-    planes: file planes to run (default all six); tls runs only when `probe` is given."""
+    planes: file planes to run (default all six); tls runs only when `probe` is given.
+    project_id: the project this scan belongs to (default: the auto-created "Default project")."""
     target = Path(target).resolve()
     if not target.is_dir():
         raise FileNotFoundError(f"scan target is not a directory: {target}")
     own = conn is None
     conn = conn or db.connect()
+    project_id = project_id if project_id is not None else db.ensure_default_project(conn)
     started = datetime.now(timezone.utc).isoformat(timespec="seconds")
     net0 = netguard.counts()
     mark = _Stages(on_stage)
@@ -220,9 +223,9 @@ def scan(target: str | Path, probe: str | None = None, conn=None, settings: dict
     verify = sum(f.confidence == "low" for f in findings)
     cur = conn.execute(
         "INSERT INTO scans(target,probe,started_at,seconds,files_scanned,planes_hit,findings_count,probe_error,"
-        "planes_run,planes_off) VALUES(?,?,?,?,?,?,?,?,?,?)",
+        "planes_run,planes_off,project_id) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
         (str(target), probe, started, seconds, ctx.files_scanned, json.dumps(planes), len(findings), probe_error,
-         json.dumps(planes_run), json.dumps(planes_off)))
+         json.dumps(planes_run), json.dumps(planes_off), project_id))
     scan_id = cur.lastrowid
     store_findings(conn, scan_id, findings)
     conn.commit()

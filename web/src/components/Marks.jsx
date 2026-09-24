@@ -16,12 +16,12 @@ export function Tier({ tier, children }) {
   return <Badge family={family} icon={icon}>{tier}{children}</Badge>;
 }
 
-const VERDICT = { MIGRATE: "crit", CONTAIN: "med", ACCEPT: "low" };
+const VERDICT = { MIGRATE: "crit", CONTAIN: "med", ACCEPT: "safe" };
 export function Verdict({ verdict }) {
   return <Badge family={VERDICT[verdict] || "plain"}>{verdict}</Badge>;
 }
 
-const EVIDENCE = { observed: "pri", declared: "plain", unverified: "plain", textual: "plain" };
+const EVIDENCE = { observed: "obs", declared: "plain", unverified: "plain", textual: "plain" };
 export function Evidence({ grade, label }) {
   return <Badge family={EVIDENCE[grade] || "plain"} title="How the crypto was seen; separate from severity">{label}</Badge>;
 }

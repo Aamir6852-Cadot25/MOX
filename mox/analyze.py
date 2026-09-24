@@ -38,7 +38,15 @@ def analyze(scan_id: int, conn=None, settings: dict | None = None, overrides: di
     own = conn is None
     conn = conn or db.connect()
     mark = mark or (lambda *a: None)
-    root = conn.execute("SELECT target FROM scans WHERE id=?", (scan_id,)).fetchone()["target"]
+    scan_row = conn.execute("SELECT target, project_id FROM scans WHERE id=?", (scan_id,)).fetchone()
+    root = scan_row["target"]
+    project = db.get_project(conn, scan_row["project_id"])
+    settings = dict(settings or {})
+    if project:
+        if project.get("criticality") is not None:
+            settings.setdefault("project_criticality", project["criticality"])
+        if project.get("shelf_life_years") is not None:
+            settings.setdefault("project_shelf_life", project["shelf_life_years"])
     rows = [dict(r) for r in conn.execute("SELECT * FROM findings WHERE scan_id=?", (scan_id,))]
     conn.execute("DELETE FROM asset_locations WHERE asset_id IN (SELECT id FROM assets WHERE scan_id=?)", (scan_id,))
     conn.execute("DELETE FROM assets WHERE scan_id=?", (scan_id,))
