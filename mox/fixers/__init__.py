@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 
 INTERIM = "interim: plan ML-DSA-65 hybrid"
-_HASH = {"MD5": re.compile(r"md5", re.I), "SHA-1": re.compile(r"sha-?1(?!\d)", re.I)}
+_HASH = {"MD5": re.compile(r"\bmd5\b", re.I), "SHA-1": re.compile(r"\bsha-?1\b(?!\d)", re.I)}
 _HASH_EXTS = {".py", ".js", ".java"}
 _RSA_SIZE = re.compile(r"(?<![\d.])(1024|2048)(?![\d.])")
 _CURVE_LINE = "ssl_ecdh_curve X25519MLKEM768:X25519;"

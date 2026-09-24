@@ -1,3 +1,4 @@
+import re
 import shutil
 
 import pytest
@@ -11,6 +12,17 @@ from tests.conftest import scan_files
 
 def _f(alg, file, line, size=None):
     return {"algorithm": alg, "file": file, "line": line, "key_size": size, "plane": "code"}
+
+
+def test_hash_fix_never_touches_an_identifier_only_the_algorithm_literal():
+    """A variable named like the algorithm (md5Hash) must survive; only the actual API call/literal
+    changes. A hyphenated replacement (SHA-256) landing inside an identifier would be invalid Java."""
+    java = 'byte[] md5Hash = MessageDigest.getInstance("MD5").digest(data);\n'
+    out = fix_text(_f("MD5", "A.java", 1), java)
+    assert 'getInstance("SHA-256")' in out
+    assert "md5Hash" in out  # the identifier is untouched
+    code_only = re.sub(r'"[^"]*"', '""', out)  # string contents may hold a hyphen; code positions may not
+    assert not re.search(r"\w-\w", code_only)
 
 
 def test_fixers_are_text_safe():
