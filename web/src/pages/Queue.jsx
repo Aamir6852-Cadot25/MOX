@@ -125,7 +125,7 @@ export default function Queue({ summary }) {
         <h1>Work queue</h1>
         <span className="sub">sorted by {COLS.find((c) => c[0] === sort[0])[1].toLowerCase()}, {sort[1] < 0 ? "highest" : "lowest"} first. Keys: <kbd>j</kbd> <kbd>k</kbd> move, <kbd>Enter</kbd> open, <kbd>/</kbd> search</span>
         <div className="head-act">
-          {firstFix && <Link className="bp-btn pri" to={`/fix/${firstFix.fix_finding}`} title={firstFix.label}><Icon name="wrench" />Open first fix</Link>}
+          {firstFix && <Link className="bp-btn pri" to={`/code/${firstFix.fix_finding}`} title={firstFix.label}><Icon name="wrench" />Open first fix</Link>}
         </div>
       </div>
       <div className="filters">
@@ -168,7 +168,7 @@ export default function Queue({ summary }) {
               return (
                 <tr key={a.id} data-i={i} data-id={a.id} className={leaving?.has(a.id) ? "leaving" : undefined} aria-selected={shown === rows && i === sel} onClick={() => { setSel(i); nav(`/asset/${a.id}`); }}>
                   <td className="c-asset">
-                    <Link to={`/asset/${a.id}`} className="a1 mono" tabIndex={-1}>{a.label}</Link>
+                    <Link to={`/findings/${a.id}`} className="a1 mono" tabIndex={-1}>{a.label}</Link>
                     <div className="a2">
                       <span className="mono">{a.summary}</span>
                       {(a.planes || []).map((p) => <Badge key={p}>{PLANE_NAME[p] || p}</Badge>)}

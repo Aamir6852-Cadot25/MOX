@@ -1,22 +1,32 @@
 import { useEffect, useState } from "react";
-import { NavLink, Navigate, Route, Routes, useNavigate } from "react-router-dom";
+import { NavLink, Navigate, Route, Routes, useLocation, useNavigate, useParams } from "react-router-dom";
 import { api } from "./api.js";
 import Login from "./pages/Login.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Queue from "./pages/Queue.jsx";
 import Asset from "./pages/Asset.jsx";
 import Fix from "./pages/Fix.jsx";
-import Cbom from "./pages/Cbom.jsx";
-import Roadmap from "./pages/Roadmap.jsx";
-import Attest from "./pages/Attest.jsx";
+import Reports from "./pages/Reports.jsx";
 import Sector from "./pages/Sector.jsx";
-import Audit from "./pages/Audit.jsx";
-import Report from "./pages/Report.jsx";
 import NewScan from "./pages/NewScan.jsx";
 import Settings from "./pages/Settings.jsx";
 import AirGapPill from "./components/AirGapPill.jsx";
 import Icon from "./components/Icon.jsx";
+import Mark from "./components/Mark.jsx";
 import { RouteStage } from "./components/Motion.jsx";
+
+/** D1: every old route redirects to its new home with the same entity selected, preserving any query/hash. */
+function OldRoute({ to }) {
+  const params = useParams();
+  const loc = useLocation();
+  return <Navigate to={`${to(params)}${loc.search}${loc.hash}`} replace />;
+}
+
+/** D2: post-login landing. No scan in the database -> /scan. Otherwise -> /dashboard. */
+function Landing({ summary }) {
+  if (!summary) return null;
+  return <Navigate to={summary.scan ? "/dashboard" : "/scan"} replace />;
+}
 
 export default function App() {
   const [user, setUser] = useState(undefined);
@@ -41,27 +51,20 @@ export default function App() {
     );
 
   const scan = summary?.scan;
-  const topAsset = summary?.field?.[0]?.id;
-  const groups = [
-    ["Overview", [["/", "Dashboard", "layout-dashboard", true], ["/scan", "New Scan", "scan-search"]]],
-    ["Findings", [["/queue", "Work queue", "list-checks"], [topAsset ? `/asset/${topAsset}` : "/queue", "Asset detail", "key-round"]]],
-    ["Remediate", [["/fix", "Fix", "wrench"]]],
-    ["Compliance", [["/cbom", "CBOM", "file-braces"], ["/roadmap", "Roadmap", "map"]]],
-    ["Reports", [["/attest", "Attest", "signature"], ["/report", "Compliance Report", "file-text"], ["/sector", "Sector", "landmark"], ["/audit", "Audit", "scroll-text"]]],
-    ["Organisation", [["/settings", "Settings", "settings"]]],
-  ];
+  const work = [["/scan", "Scan", "scan-search"], ["/dashboard", "Dashboard", "layout-dashboard"],
+    ["/findings", "Findings", "list-checks"], ["/code", "Code Edit", "wrench"], ["/reports", "Reports", "file-text"]];
+  const footer = [["/settings", "Settings", "settings"], ["/sector", "Sector", "landmark"]];
+  const navRow = (to, l, icon) => (
+    <NavLink key={l} to={to} className={({ isActive }) => "nav" + (isActive ? " on" : "")}><Icon name={icon} size="nav" />{l}</NavLink>
+  );
   return (
     <div className="shell">
       <aside className="side">
-        <div className="logo">MOX</div>
-        {groups.map(([g, items]) => (
-          <div key={g}>
-            <div className="grp">{g}</div>
-            {items.map(([to, l, icon, end]) => (
-              <NavLink key={l} to={to} end={end} className={({ isActive }) => "nav" + (isActive ? " on" : "")}><Icon name={icon} size="nav" />{l}</NavLink>
-            ))}
-          </div>
-        ))}
+        <div className="logo"><Mark />MOX</div>
+        <div className="grp">Work</div>
+        {work.map(([to, l, icon]) => navRow(to, l, icon))}
+        <div className="sp" />
+        {footer.map(([to, l, icon]) => navRow(to, l, icon))}
       </aside>
       <div className="main">
         <div className="topbar">
@@ -76,19 +79,27 @@ export default function App() {
         </div>
       <RouteStage>{(loc) => (
       <Routes location={loc}>
-        <Route path="/" element={<Dashboard summary={summary} onScanned={refresh} />} />
+        <Route path="/" element={<Landing summary={summary} />} />
         <Route path="/scan" element={<NewScan summary={summary} onScanned={refresh} />} />
-        <Route path="/queue" element={<Queue summary={summary} />} />
-        <Route path="/asset/:id" element={<Asset onChanged={refresh} />} />
-        <Route path="/fix" element={<Fix onChanged={refresh} summary={summary} />} />
-        <Route path="/fix/:findingId" element={<Fix onChanged={refresh} />} />
-        <Route path="/cbom" element={<Cbom summary={summary} />} />
-        <Route path="/roadmap" element={<Roadmap summary={summary} />} />
-        <Route path="/attest" element={<Attest summary={summary} />} />
+        <Route path="/dashboard" element={<Dashboard summary={summary} onScanned={refresh} />} />
+        <Route path="/findings" element={<Queue summary={summary} />} />
+        <Route path="/findings/:id" element={<Asset onChanged={refresh} />} />
+        <Route path="/code" element={<Fix onChanged={refresh} summary={summary} />} />
+        <Route path="/code/:findingId" element={<Fix onChanged={refresh} />} />
+        <Route path="/reports" element={<Navigate to="/reports/cbom" replace />} />
+        <Route path="/reports/:tab" element={<Reports summary={summary} />} />
         <Route path="/sector" element={<Sector />} />
-        <Route path="/audit" element={<Audit />} />
-        <Route path="/report" element={<Report summary={summary} />} />
         <Route path="/settings" element={<Settings summary={summary} onChanged={refresh} />} />
+        {/* old routes (D1): redirect to the new home, entity preserved */}
+        <Route path="/queue" element={<OldRoute to={() => "/findings"} />} />
+        <Route path="/asset/:id" element={<OldRoute to={(p) => `/findings/${p.id}`} />} />
+        <Route path="/fix" element={<OldRoute to={() => "/code"} />} />
+        <Route path="/fix/:findingId" element={<OldRoute to={(p) => `/code/${p.findingId}`} />} />
+        <Route path="/cbom" element={<OldRoute to={() => "/reports/cbom"} />} />
+        <Route path="/roadmap" element={<OldRoute to={() => "/reports/roadmap"} />} />
+        <Route path="/report" element={<OldRoute to={() => "/reports/compliance"} />} />
+        <Route path="/attest" element={<OldRoute to={() => "/reports/attestation"} />} />
+        <Route path="/audit" element={<OldRoute to={() => "/reports/audit"} />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
       )}</RouteStage>

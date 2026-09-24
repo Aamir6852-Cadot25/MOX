@@ -16,7 +16,7 @@ export default function Sector() {
   if (!v) return <div className="p-6 dim">Loading…</div>;
   const k = v.kpi;
   if (!k.attestations)
-    return <div className="p-4"><div className="bp-card" style={{ maxWidth: 640 }}><div className="card-h"><h2>No attestations received</h2></div><div className="card-b hint">The sector view is built only from signed attestations. Export one from <Link className="link" to="/attest">Attest</Link>, or generate simulated ones (labelled demo data) with <span className="mono">python -m mox demo-attestations</span>.</div></div></div>;
+    return <div className="p-4"><div className="bp-card" style={{ maxWidth: 640 }}><div className="card-h"><h2>No attestations received</h2></div><div className="card-b hint">The sector view is built only from signed attestations. Export one from <Link className="link" to="/reports/attestation">Attest</Link>, or generate simulated ones (labelled demo data) with <span className="mono">python -m mox demo-attestations</span>.</div></div></div>;
   const kpis = [[k.attestations, "signed attestations verified"], [k.sectors, "critical sectors reporting"],
     [k.hndl_exposed.toLocaleString(), "HNDL-exposed assets across sectors (simulated)", "red"], [k.leaks, "file paths or hostnames disclosed"]];
   return (

@@ -205,3 +205,33 @@ run.ps1  README.md  requirements.txt  .gitignore
 - [x] P1–P20 re-run on the audit-state target (API, static, headless Chrome at 1366x768, both motion modes); 14 pass, 5 partial, 1 fail (P8 ties)
 - [x] Closure table for every first-pass finding: C1–C7 closed; Majors 4, 7, 11, 18, 21–23 closed, 6/8/19 partly, 14 disclosed; B1–B6 and C1–C7 closed
 - [x] Still open, ordered: Majors 2, 3, 1, 5, 10, 19/20, then 9, 12, 13, 15–17 and the Minor list
+
+## v2 Phase 1 — Foundations (docs/MOX_V2_BUILD_PLAN.md)
+- [x] Rail regrouped: Work (Scan, Dashboard, Findings, Code Edit, Reports) + footer (Settings, Sector); new routes
+      `/dashboard`, `/findings`, `/findings/:id`, `/code`, `/code/:findingId`, `/reports`, `/reports/:tab`
+      per D1; every old route (`/`, `/queue`, `/asset/:id`, `/fix`, `/fix/:findingId`, `/cbom`, `/roadmap`,
+      `/report`, `/attest`, `/audit`) redirects via `OldRoute`, entity and query/hash preserved; `/` is the D2
+      landing decision (no scan -> `/scan`, else -> `/dashboard`); internal links across all pages updated to
+      the new paths so nothing bounces through a redirect unnecessarily
+- [x] Reports hub (`pages/Reports.jsx`) hosts CBOM/Roadmap/Compliance/Attestation/Audit unchanged under tabs;
+      History and Reference tabs are Phase 6 placeholders
+- [x] Tokens (D8): `--brand/--brand-hover/--brand-ink/--brand-soft/--brand-line` added; `--pri*` retired and
+      every use replaced (fills pair with `--ink` text, never white; text/links/focus rings use `--brand-ink`);
+      Low tier moved to neutral slate; ACCEPT verdict moved to the `--safe` teal family; Evidence "observed"
+      badge (was `.b.pri`) moved to a neutral `.b.obs`, no brand tokens in any Marks badge
+- [x] `--term-*` tokens (D9) + `TerminalSurface` component, no consumers yet
+- [x] `web/src/vendor/status-words.js` (D11): word list + `useStatusWord(active)` hook, no consumers yet
+- [x] `web/src/vendor/cipherx/mark.svg` + inline `components/Mark.jsx` (currentColor wave mark) in the top bar;
+      `web/public/favicon.svg`
+- [x] `projects` table (id, name, sector, system_type, criticality, shelf_life_years, source_kind, source_ref,
+      created_at); every scan gets a `project_id`; existing scans migrated to an auto-created "Default project"
+- [x] D3 precedence wired into scoring: per-asset override > path heuristic > project default > hardcoded
+      default, for both criticality and shelf life (`mox/score.py`, `mox/analyze.py`)
+- [x] SQLite `PRAGMA journal_mode=WAL`, with a test
+- [x] Audit Major 2: top-bar pill now reads "N outbound connects counted"
+- [x] New tests: `tests/test_project.py` (WAL, default project, D3 precedence), 3 new D8 lint rules in
+      `tests/test_ui_rules.py`; `test_c6_every_route_names_its_one_question` and `docs/SCREENS.md` updated for
+      the new IA; 217 passed (207 baseline + 10 new)
+- [x] Verified live: headless Chrome at 1366x768 and 1280x800 on a real seeded scan — every old URL lands on
+      its new page with the entity preserved, `/reports/:tab` tabs and unknown-tab fallback work, no console
+      or page errors beyond the expected pre-login 401

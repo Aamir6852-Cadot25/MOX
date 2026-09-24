@@ -137,7 +137,7 @@ function MoscaCard({ a, onX }) {
             {exp > 0 && <div className="tl-e" style={{ left: pct(Z), width: pct(exp) }} />}
           </div>
           <div className="tl-key">
-            <span><i style={{ background: "var(--pri-line)" }} />{sigOnly ? "Signature trust life (X)" : "Data life (X)"}</span>
+            <span><i style={{ background: "var(--brand-line)" }} />{sigOnly ? "Signature trust life (X)" : "Data life (X)"}</span>
             <span><i style={{ background: "var(--high-line)" }} />Migration (Y)</span>
             <span><i style={{ background: "var(--ink)", width: 2 }} />Quantum horizon (Z)</span>
             {exp > 0 && <span><i style={{ background: "var(--crit-ink)" }} />Exposed</span>}
@@ -196,7 +196,7 @@ export default function Asset({ onChanged }) {
     setA(null);
     load();
   }, [id]);
-  if (err) return <div className="p-6"><div className="errbox">Could not load asset {id}: {err}. The <Link to="/queue">work queue</Link> lists the latest assets.</div></div>;
+  if (err) return <div className="p-6"><div className="errbox">Could not load asset {id}: {err}. The <Link to="/findings">work queue</Link> lists the latest assets.</div></div>;
   if (!a) return <div className="p-6 hint">Loading asset {id}</div>;
 
   const b = a.breakdown, m = b.mosca;
@@ -211,7 +211,7 @@ export default function Asset({ onChanged }) {
   return (
     <div className="split">
       <div className="lft">
-        <div className="crumb"><Link to="/queue">Work queue</Link><span>›</span><span className="mono">asset {a.id}</span></div>
+        <div className="crumb"><Link to="/findings">Work queue</Link><span>›</span><span className="mono">asset {a.id}</span></div>
         <div className="asset-hd">
           <div style={{ flex: 1, minWidth: 0 }}>
             <h1 className="mono">{a.label}</h1>
@@ -243,7 +243,7 @@ export default function Asset({ onChanged }) {
                   </Disclosure>
                 </div>)}
             </div>
-            {fixable && a.verdict !== "ACCEPT" && <Link className="bp-btn" to={`/fix/${fixable.finding_id}`}><Icon name="wrench" />Open fix</Link>}
+            {fixable && a.verdict !== "ACCEPT" && <Link className="bp-btn" to={`/code/${fixable.finding_id}`}><Icon name="wrench" />Open fix</Link>}
           </div>
         ) : (
           m.exposure == null ? (
@@ -267,7 +267,7 @@ export default function Asset({ onChanged }) {
                   <td>{l.plane}</td>
                   <td className="mono" style={{ color: "var(--ink)", wordBreak: "break-all" }}>{l.file}{l.line ? `:${l.line}` : ""}</td>
                   <td><Badge>{CHANGE[l.plane] || "Review"}</Badge></td>
-                  <td>{l.fixable ? <Link to={`/fix/${l.finding_id}`}>Fix</Link>
+                  <td>{l.fixable ? <Link to={`/code/${l.finding_id}`}>Fix</Link>
                     : <span className="hint" title="No automatic fix for this location: change it by hand; the next scan verifies it">manual</span>}</td>
                 </tr>
               ))}
@@ -336,11 +336,11 @@ export default function Asset({ onChanged }) {
             <div className="hint" style={{ marginTop: 8 }}>{a.wave_reason ? a.wave_reason.charAt(0).toUpperCase() + a.wave_reason.slice(1) + "." : ""}</div>
           </div>
           <div className="hint"><Verdict verdict={a.verdict} /> {a.reason}.</div>
-          {fixable && a.verdict !== "ACCEPT" && <Link className="bp-btn pri" style={{ justifyContent: "center" }} to={`/fix/${fixable.finding_id}`}><Icon name="wrench" />Open fix and verify</Link>}
+          {fixable && a.verdict !== "ACCEPT" && <Link className="bp-btn pri" style={{ justifyContent: "center" }} to={`/code/${fixable.finding_id}`}><Icon name="wrench" />Open fix and verify</Link>}
           {!fixable && a.verdict === "MIGRATE" && (
             <div className="hint">No automatic fix for this asset. Change it by hand{rep ? <>: {rep.from} to <span className="mono">{rep.to}</span></> : null}.
               Then run a scan from <Link to="/scan">New Scan</Link>; the re-scan shows whether it cleared.</div>)}
-          <Link className="bp-btn" style={{ justifyContent: "center" }} to="/roadmap">Open roadmap</Link>
+          <Link className="bp-btn" style={{ justifyContent: "center" }} to="/reports/roadmap">Open roadmap</Link>
         </div>
         <MoscaCard a={a} onX={(x) => save({ x })} />
         <CmcsCard c={b.cmcs} />

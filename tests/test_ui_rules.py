@@ -142,12 +142,47 @@ def test_c7_a_failed_load_is_never_shown_as_empty():
     assert _offenders(JSX, lambda l: re.search(r"\.catch\(\(\)\s*=>\s*set\w+\((\[\]|false)\)\)", l)) == []
 
 
+# ── D8: CipherX green is the one accent, action only, never a meaning or a badge ──
+def test_d8_never_white_text_on_brand_fill():
+    rules = re.findall(r"([^{}]+)\{([^}]*)\}", _css_text())
+    bad = [sel.strip() for sel, body in rules
+           if re.search(r"background(?:-color)?:\s*var\(--brand\)", body)
+           and re.search(r"color:\s*(var\(--surface\)|white|#fff)", body, re.I)]
+    assert bad == []
+    jsx = _offenders(JSX, lambda l: "var(--brand)" in l and re.search(r'color:\s*(["\']?)(var\(--surface\)|white|#fff)', l, re.I))
+    assert jsx == []
+
+
+def test_d8_brand_is_never_used_as_text_colour():
+    """#81B500 (--brand) is 2.5:1 on light surfaces; text must use --brand-ink instead.
+    An icon's stroke (driven by `color` via currentColor, e.g. ".logo svg") is not text; D8 names
+    the logo itself as a --brand use, so selectors that colour an svg/icon are exempt."""
+    rules = re.findall(r"([^{}]+)\{([^}]*)\}", _css_text())
+    bad = [sel.strip() for sel, body in rules
+           if "svg" not in sel and re.search(r"(?<![-\w])color:\s*var\(--brand\)(?!-)", body)]
+    assert bad == []
+    jsx = _offenders(JSX, lambda l: re.search(r'(?<![-\w])color:\s*["\']var\(--brand\)(?!-)', l))
+    assert jsx == []
+
+
+def test_d8_brand_never_appears_inside_a_marks_badge():
+    """Green means action now, never severity/meaning, so it can never colour a Tier/Verdict/Evidence badge."""
+    badge_rules = re.findall(r"(\.b\.\w+)\s*\{([^}]*)\}", (WEB / "styles" / "asset.css").read_text(encoding="utf-8"))
+    bad = [sel for sel, body in badge_rules if "--brand" in body]
+    assert bad == []
+    marks = (WEB / "components" / "Marks.jsx").read_text(encoding="utf-8")
+    assert "brand" not in marks.lower()
+
+
 def test_c6_every_route_names_its_one_question():
     app = (WEB / "App.jsx").read_text(encoding="utf-8")
     screens = (WEB.parent.parent / "docs" / "SCREENS.md").read_text(encoding="utf-8")
-    # "*" redirects; "/fix" is the list in front of Fix & verify, which is documented as /fix/:id
-    routes = [r for r in re.findall(r'<Route path="([^"]+)"', app) if r not in ("*", "/fix")]
+    # D1: old routes are pure redirects to their new home and have no question of their own; "/" decides
+    # /scan vs /dashboard (D2); "/reports" is the bare default that picks a tab.
+    redirects = {"*", "/", "/reports", "/queue", "/asset/:id", "/fix", "/fix/:findingId",
+                 "/cbom", "/roadmap", "/report", "/attest", "/audit"}
+    routes = [r for r in re.findall(r'<Route path="([^"]+)"', app) if r not in redirects]
     for r in routes:
-        doc = {"/fix/:findingId": "/fix/:id", "/asset/:id": "/asset/:id"}.get(r, r)
+        doc = {"/code/:findingId": "/code"}.get(r, r)
         row = next((l for l in screens.splitlines() if f"`{doc}`" in l), None)
         assert row and "?" in row, f"{r} has no question in docs/SCREENS.md"

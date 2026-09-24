@@ -36,21 +36,23 @@ def _all_low_value(files: list[str]) -> bool:
     return bool(files) and all(_tokens(f) & _LOW_VALUE for f in files)
 
 
-def shelf_life(files: list[str]) -> tuple[int, str]:
-    """X default: data shelf-life years from path tags, with the reason."""
+def shelf_life(files: list[str]) -> tuple[int | None, str | None]:
+    """X from path tags, with the reason. None when the path gives no signal, so score_asset can fall back
+    to the project default (D3: per-asset override > path heuristic > project default)."""
     toks = set().union(*(_tokens(f) for f in files)) if files else set()
     if hit := toks & _HIGH_VALUE:
         return 15, f"path tag '{sorted(hit)[0]}': long-lived secrets"
     if _all_low_value(files):
         return 1, "test / log / tmp paths only"
-    return 7, "default for unclassified data"
+    return None, None
 
 
-def criticality(files: list[str]) -> int:
+def criticality(files: list[str]) -> int | None:
+    """Business criticality from path tags. None when the path gives no signal (see shelf_life)."""
     toks = set().union(*(_tokens(f) for f in files)) if files else set()
     if toks & (_HIGH_VALUE | {"kms", "keystore", "gw"}):
         return 3
-    return 1 if _all_low_value(files) else 2
+    return 1 if _all_low_value(files) else None
 
 
 # Tier cut-offs sit on the formula's own anchors (docs/SCORING.md §1.3): disallowed + Shor = 55,
@@ -215,10 +217,17 @@ def migration_years(c: int) -> int:
 def score_asset(asset: dict, settings: dict | None = None, override: dict | None = None) -> dict:
     st, ov = {**DEFAULTS, **(settings or {})}, override or {}
     files = [f["file"].split("!")[-1] for f in asset["findings"]]
-    crit = ov.get("criticality") or criticality(files)
+    # D3: per-asset override > path heuristic > project default > hardcoded default.
+    crit = ov.get("criticality") or criticality(files) or st.get("project_criticality") or 2
     r = risk(asset, crit)
     c = cmcs(asset)
-    x, x_basis = (ov["x"], "set by an analyst") if ov.get("x") is not None else shelf_life(files)
+    if ov.get("x") is not None:
+        x, x_basis = ov["x"], "set by an analyst"
+    else:
+        x, x_basis = shelf_life(files)
+        if x is None:
+            x, x_basis = (st["project_shelf_life"], "project default shelf life") \
+                if st.get("project_shelf_life") is not None else (7, "default for unclassified data")
     y, z = migration_years(c["score"]), st["threat_horizon"]
     # Mosca asks when a known algorithm breaks. With no identified algorithm (a library or package name only)
     # there is nothing to put on that timeline, so exposure is left out rather than scored as 0.
