@@ -42,12 +42,12 @@ run.ps1  README.md  requirements.txt  .gitignore
 - [x] `npm --prefix web run build` passes; FastAPI serves web/dist
 
 ## Phase 4 — fix-and-verify + CBOM + roadmap (+ Fix, CBOM, Roadmap screens)
-- [ ] Fixers: md5/sha1→sha256 (py/js/java), RSA keygen→3072 + interim comment, nginx hardening
-- [ ] Flow preview diff → approve → .bak → apply → re-scan file; every step audited
-- [ ] Test: fixer diff + re-scan clears finding
-- [ ] CycloneDX 1.6 cryptographic-asset components + mox:* properties; Test: schema valid
-- [ ] Roadmap: 5 waves (Discover … Validate & attest) from assigned waves
-- [ ] Fix, CBOM (valid badge + download), Roadmap screens; web build passes
+- [x] Fixers: md5/sha1→sha256 (py/js/java), RSA keygen→3072 + interim comment, nginx hardening
+- [x] Flow preview diff → approve → .bak → apply → re-scan file; every step audited
+- [x] Test: fixer diff + re-scan clears finding
+- [x] CycloneDX 1.6 cryptographic-asset components + mox:* properties; Test: schema valid
+- [x] Roadmap: 5 waves (Discover … Validate & attest) from assigned waves
+- [x] Fix, CBOM (valid badge + download), Roadmap screens; web build passes
 
 ## Phase 5 — attestation + sector view + bench (+ Attest, Sector, Audit screens)
 - [ ] Ed25519 operator key in data/keys/ (never exported); attestation "mox.attestation/v1" per §11

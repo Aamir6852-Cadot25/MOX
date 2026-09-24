@@ -48,7 +48,8 @@ export default function Asset({ onChanged }) {
           <div className="grid gap-3 md:grid-cols-[1fr_auto_1fr] items-center">
             <div className="flex flex-col gap-2">
               {a.locations.map((l) => (
-                <div key={l.finding_id} className="node"><div className="p">{l.plane}</div><div className="f">{l.file}{l.line ? `:${l.line}` : ""}</div></div>
+                <div key={l.finding_id} className="node"><div className="p">{l.plane}</div><div className="f">{l.file}{l.line ? `:${l.line}` : ""}</div>
+                  <Link to={`/fix/${l.finding_id}`} className="text-[11px] min">Fix →</Link></div>
               ))}
             </div>
             <div className="dim text-2xl text-center">→</div>

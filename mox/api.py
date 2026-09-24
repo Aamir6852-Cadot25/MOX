@@ -7,7 +7,8 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import auth, db, scanner
+from . import auth, cbom, db, scanner
+from .fixers import flow
 from .analyze import analyze
 from .db import ROOT
 from .score import DEFAULTS
@@ -42,6 +43,14 @@ class ScanReq(BaseModel):
 
 class SettingsReq(BaseModel):
     threat_horizon: int | None = None
+
+
+class FixReq(BaseModel):
+    finding_id: int
+
+
+class ApplyReq(BaseModel):
+    note: str = ""
 
 
 class OverrideReq(BaseModel):
@@ -193,6 +202,60 @@ def create_app() -> FastAPI:
                 _reanalyze(conn, scan["id"])
             auth.audit(conn, u["sub"], "settings", f"threat_horizon={body.threat_horizon}")
         return _settings(conn)
+
+    def _fix(fn, *a):
+        try:
+            return fn(*a)
+        except flow.FixError as e:
+            raise HTTPException(e.status, str(e))
+
+    @app.post("/api/fixes/preview")
+    def fix_preview(body: FixReq, u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
+        return _fix(flow.preview, conn, body.finding_id, u["sub"])
+
+    @app.get("/api/fixes")
+    def fix_candidates(u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
+        return flow.candidates(conn)
+
+    @app.get("/api/fixes/{fix_id}")
+    def fix_get(fix_id: int, u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
+        return _fix(flow.get, conn, fix_id)
+
+    @app.post("/api/fixes/{fix_id}/apply")
+    def fix_apply(fix_id: int, body: ApplyReq, u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
+        r = _fix(flow.apply, conn, fix_id, u["sub"], body.note)
+        scan = _latest(conn)
+        if scan:
+            _reanalyze(conn, scan["id"])
+        return r
+
+    def _cbom(conn):
+        scan = _latest(conn)
+        if not scan:
+            raise HTTPException(404, "no scan yet")
+        version = 1 + conn.execute("SELECT COUNT(*) FROM fixes WHERE status IN ('cleared','still-present')").fetchone()[0]
+        bom = cbom.build(conn, scan["id"], version)
+        return bom, cbom.validate(bom)
+
+    @app.get("/api/cbom")
+    def cbom_summary(u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
+        bom, errs = _cbom(conn)
+        return {"valid": not errs, "errors": errs, "version": bom["version"], "spec": bom["specVersion"],
+                "components": len(bom["components"]), "bom": bom}
+
+    @app.get("/api/cbom/download")
+    def cbom_download(u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
+        bom, errs = _cbom(conn)
+        if errs:
+            raise HTTPException(500, "CBOM failed schema validation")
+        auth.audit(conn, u["sub"], "cbom-export", f"v{bom['version']} {len(bom['components'])} components")
+        return Response(json.dumps(bom, indent=2), media_type="application/vnd.cyclonedx+json",
+                        headers={"Content-Disposition": 'attachment; filename="mox-cbom.cdx.json"'})
+
+    @app.get("/api/roadmap")
+    def roadmap(u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
+        scan = _latest(conn)
+        return cbom.roadmap(conn, scan["id"]) if scan else []
 
     @app.get("/api/audit")
     def audit_log(u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):

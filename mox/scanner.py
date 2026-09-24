@@ -64,6 +64,21 @@ def _dedupe(findings: list[Finding]) -> list[Finding]:
     return out
 
 
+def store_findings(conn, scan_id: int, findings: list[Finding]) -> None:
+    rows = []
+    for f in findings:
+        n = nist.lookup(f.algorithm, f.key_size, f.curve, f.mode)
+        qv = n.get("quantum_vulnerable")
+        rows.append((scan_id, f.plane, f.algorithm, f.key_size, f.mode, f.curve, f.file, f.line, f.evidence,
+                     f.fingerprint, f.confidence, f.detector, int(f.confidence == "low"), n["now"],
+                     n["after_2030"], n["after_2035"], None if qv is None else int(qv), n.get("source"),
+                     n.get("notes"), json.dumps(f.meta)))
+    conn.executemany(
+        "INSERT INTO findings(scan_id,plane,algorithm,key_size,mode,curve,file,line,evidence,fingerprint,"
+        "confidence,detector,verify_first,nist_now,nist_2030,nist_2035,quantum_vulnerable,nist_source,"
+        "nist_notes,meta) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", rows)
+
+
 def scan(target: str | Path, probe: str | None = None, conn=None) -> dict:
     """Scan `target`, persist scan + findings, return a summary dict."""
     target = Path(target).resolve()
@@ -94,18 +109,7 @@ def scan(target: str | Path, probe: str | None = None, conn=None) -> dict:
         " VALUES(?,?,?,?,?,?,?,?)",
         (str(target), probe, started, seconds, ctx.files_scanned, json.dumps(planes), len(findings), probe_error))
     scan_id = cur.lastrowid
-    rows = []
-    for f in findings:
-        n = nist.lookup(f.algorithm, f.key_size, f.curve, f.mode)
-        qv = n.get("quantum_vulnerable")
-        rows.append((scan_id, f.plane, f.algorithm, f.key_size, f.mode, f.curve, f.file, f.line, f.evidence,
-                     f.fingerprint, f.confidence, f.detector, int(f.confidence == "low"), n["now"],
-                     n["after_2030"], n["after_2035"], None if qv is None else int(qv), n.get("source"),
-                     n.get("notes"), json.dumps(f.meta)))
-    conn.executemany(
-        "INSERT INTO findings(scan_id,plane,algorithm,key_size,mode,curve,file,line,evidence,fingerprint,"
-        "confidence,detector,verify_first,nist_now,nist_2030,nist_2035,quantum_vulnerable,nist_source,"
-        "nist_notes,meta) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", rows)
+    store_findings(conn, scan_id, findings)
     conn.commit()
     from .analyze import analyze
     assets = analyze(scan_id, conn)

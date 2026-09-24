@@ -23,6 +23,11 @@ export const api = {
   asset: (id) => call("GET", `/api/assets/${id}`),
   override: (id, body) => call("PUT", `/api/assets/${id}/override`, body),
   settings: () => call("GET", "/api/settings"),
+  fixes: () => call("GET", "/api/fixes"),
+  fixPreview: (finding_id) => call("POST", "/api/fixes/preview", { finding_id }),
+  fixApply: (id, note) => call("POST", `/api/fixes/${id}/apply`, { note }),
+  cbom: () => call("GET", "/api/cbom"),
+  roadmap: () => call("GET", "/api/roadmap"),
   setSettings: (body) => call("PUT", "/api/settings", body),
 };
 

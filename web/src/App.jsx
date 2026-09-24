@@ -5,8 +5,11 @@ import Login from "./pages/Login.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Queue from "./pages/Queue.jsx";
 import Asset from "./pages/Asset.jsx";
+import Fix from "./pages/Fix.jsx";
+import Cbom from "./pages/Cbom.jsx";
+import Roadmap from "./pages/Roadmap.jsx";
 
-const LATER = ["Fix", "CBOM", "Roadmap", "Attest", "Sector", "Audit"];
+const LATER = ["Attest", "Sector", "Audit"];
 
 export default function App() {
   const [user, setUser] = useState(undefined);
@@ -38,6 +41,9 @@ export default function App() {
         <div className="tabs">
           <NavLink to="/" end className={({ isActive }) => "tab" + (isActive ? " on" : "")}>Dashboard</NavLink>
           <NavLink to="/queue" className={({ isActive }) => "tab" + (isActive ? " on" : "")}>Work queue</NavLink>
+          {[["/fix", "Fix"], ["/cbom", "CBOM"], ["/roadmap", "Roadmap"]].map(([to, l]) => (
+            <NavLink key={to} to={to} className={({ isActive }) => "tab" + (isActive ? " on" : "")}>{l}</NavLink>
+          ))}
           {LATER.map((t) => <span key={t} className="tab off" title="Coming in a later phase">{t}</span>)}
         </div>
         <div className="sp" />
@@ -49,6 +55,10 @@ export default function App() {
         <Route path="/" element={<Dashboard summary={summary} onScanned={refresh} />} />
         <Route path="/queue" element={<Queue summary={summary} />} />
         <Route path="/asset/:id" element={<Asset onChanged={refresh} />} />
+        <Route path="/fix" element={<Fix onChanged={refresh} />} />
+        <Route path="/fix/:findingId" element={<Fix onChanged={refresh} />} />
+        <Route path="/cbom" element={<Cbom summary={summary} />} />
+        <Route path="/roadmap" element={<Roadmap summary={summary} />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </>
