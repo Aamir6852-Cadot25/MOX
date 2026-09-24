@@ -7,9 +7,7 @@ import Queue from "./pages/Queue.jsx";
 import Asset from "./pages/Asset.jsx";
 import Fix from "./pages/Fix.jsx";
 import Reports from "./pages/Reports.jsx";
-import Sector from "./pages/Sector.jsx";
 import NewScan from "./pages/NewScan.jsx";
-import Settings from "./pages/Settings.jsx";
 import AirGapPill from "./components/AirGapPill.jsx";
 import Icon from "./components/Icon.jsx";
 import Mark from "./components/Mark.jsx";
@@ -51,9 +49,8 @@ export default function App() {
     );
 
   const scan = summary?.scan;
-  const work = [["/scan", "Scan", "scan-search"], ["/dashboard", "Dashboard", "layout-dashboard"],
-    ["/findings", "Findings", "list-checks"], ["/code", "Code Edit", "wrench"], ["/reports", "Reports", "file-text"]];
-  const footer = [["/settings", "Settings", "settings"], ["/sector", "Sector", "landmark"]];
+  const work = [["/scan", "1 Discover", "scan-search"], ["/dashboard", "2 Quantum Risk", "layout-dashboard"],
+    ["/findings", "3 Remediate", "list-checks"], ["/reports", "4 Report", "file-text"]];
   const navRow = (to, l, icon) => (
     <NavLink key={l} to={to} className={({ isActive }) => "nav" + (isActive ? " on" : "")}><Icon name={icon} size="nav" />{l}</NavLink>
   );
@@ -63,8 +60,6 @@ export default function App() {
         <div className="logo"><Mark />MOX</div>
         <div className="grp">Work</div>
         {work.map(([to, l, icon]) => navRow(to, l, icon))}
-        <div className="sp" />
-        {footer.map(([to, l, icon]) => navRow(to, l, icon))}
       </aside>
       <div className="main">
         <div className="topbar">
@@ -88,8 +83,6 @@ export default function App() {
         <Route path="/code/:findingId" element={<Fix onChanged={refresh} />} />
         <Route path="/reports" element={<Navigate to="/reports/cbom" replace />} />
         <Route path="/reports/:tab" element={<Reports summary={summary} />} />
-        <Route path="/sector" element={<Sector />} />
-        <Route path="/settings" element={<Settings summary={summary} onChanged={refresh} />} />
         {/* old routes (D1): redirect to the new home, entity preserved */}
         <Route path="/queue" element={<OldRoute to={() => "/findings"} />} />
         <Route path="/asset/:id" element={<OldRoute to={(p) => `/findings/${p.id}`} />} />
@@ -100,6 +93,8 @@ export default function App() {
         <Route path="/report" element={<OldRoute to={() => "/reports/compliance"} />} />
         <Route path="/attest" element={<OldRoute to={() => "/reports/attestation"} />} />
         <Route path="/audit" element={<OldRoute to={() => "/reports/audit"} />} />
+        <Route path="/sector" element={<OldRoute to={() => "/reports/national"} />} />
+        <Route path="/settings" element={<OldRoute to={() => "/dashboard"} />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
       )}</RouteStage>

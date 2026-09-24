@@ -4,10 +4,11 @@ import Roadmap from "./Roadmap.jsx";
 import Attest from "./Attest.jsx";
 import Report from "./Report.jsx";
 import Audit from "./Audit.jsx";
+import Sector from "./Sector.jsx";
 
 const TABS = [
-  ["cbom", "CBOM"], ["roadmap", "Roadmap"], ["compliance", "Compliance"],
-  ["attestation", "Attestation"], ["audit", "Audit log"], ["history", "History"], ["reference", "Reference"],
+  ["cbom", "CBOM"], ["attestation", "Attestation"], ["national", "National view"], ["roadmap", "Roadmap"],
+  ["compliance", "Compliance"], ["audit", "Audit log"], ["history", "History"], ["reference", "Reference"],
 ];
 const KNOWN = new Set(TABS.map(([k]) => k));
 
@@ -28,6 +29,7 @@ export default function Reports({ summary }) {
       {tab === "roadmap" && <Roadmap summary={summary} />}
       {tab === "compliance" && <Report summary={summary} />}
       {tab === "attestation" && <Attest summary={summary} />}
+      {tab === "national" && <Sector />}
       {tab === "audit" && <Audit />}
       {tab === "history" && (
         <div className="panel p-4 dim">Scan-over-scan history and delta land in Phase 6.</div>
