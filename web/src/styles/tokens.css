@@ -61,6 +61,8 @@
   --t-base:200ms;       /* open, close, reveal */
   --t-slow:320ms;       /* route change, panel slide, number change */
   --t-route-out:80ms;   /* outgoing route content (C2 table: route change) */
+  --t-count:400ms;      /* Task 6: a number counting up on first view */
+  --t-rescore:250ms;    /* Task 6: risk-matrix cells/bars settling after a re-score */
   --ease:cubic-bezier(0.2, 0, 0.2, 1);
   --ease-out:cubic-bezier(0.16, 1, 0.3, 1);   /* things entering */
 

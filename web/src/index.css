@@ -62,7 +62,10 @@ input, select { background: var(--surface); border: 1px solid var(--line-2); bor
 .steps .n { width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-weight: 500; font-size: 11px; background: var(--surface-2); color: var(--ink-3); border: 1px solid var(--line-2); flex: 0 0 auto; }
 .steps .n.done { background: var(--brand); border-color: var(--brand); color: var(--ink); }
 .meter-bar { height: 8px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; margin: var(--s2) 0; }
-.meter-bar i { display: block; height: 100%; background: var(--brand); }
+.meter-bar i { display: block; height: 100%; background: var(--brand); transition: width var(--t-rescore) var(--ease); }
+/* Task 6: the risk matrix cell and any meter/verdict bar settle over --t-rescore after a re-score (e.g. Z change). */
+.risk-cell { transition: background-color var(--t-rescore) var(--ease); }
+.vseg { transition: flex-grow var(--t-rescore) var(--ease); }
 .mark-ok { color: var(--low-ink); } .mark-bad { color: var(--crit-ink); }
 .ic { display: inline-block; flex: 0 0 auto; vertical-align: middle; stroke-width: var(--ic-stroke); }
 

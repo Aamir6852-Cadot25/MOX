@@ -26,28 +26,30 @@ export function tween(from, to, ms, set) {
 }
 
 // Last value shown per metric, kept across remounts: after a re-scan the dashboard mounts again, and the change
-// must still count from the old value. The first value ever shown is painted directly (never on first paint).
+// must still count from the old value. A metric never seen before counts up from 0 (Task 6: first view, 400ms).
 const shown = new Map();
 
 /**
- * Number change (C2): counts from the previous value of metric `key` to `value` over --t-slow.
- * Reduced motion: no counting; the new value cross-fades in (opacity only, same duration).
+ * Number change (C2 + Task 6): counts from the previous value of metric `key` to `value`, over --t-slow on
+ * change or --t-count (400ms) on first view. Reduced motion: no counting; the new value cross-fades in.
  */
 export function useCountTo(key, value) {
-  const prev = shown.has(key) ? shown.get(key) : value;
-  const [v, setV] = useState(prev);
+  const seenBefore = shown.has(key);
+  const prev = seenBefore ? shown.get(key) : 0;
+  const [v, setV] = useState(typeof value === "number" ? prev : value);
   const [fading, setFading] = useState(false);
   useEffect(() => {
     shown.set(key, value);
     if (typeof value !== "number" || typeof prev !== "number" || prev === value) return setV(value);
+    const dur = seenBefore ? token("--t-slow") : token("--t-count");
     if (reducedMotion()) {
       setV(value);
       setFading(true);
-      const t = setTimeout(() => setFading(false), token("--t-slow"));
+      const t = setTimeout(() => setFading(false), dur);
       return () => clearTimeout(t);
     }
     const decimals = Number.isInteger(value) && Number.isInteger(prev) ? 0 : 1;
-    return tween(prev, value, token("--t-slow"), (x) => setV(Number(x.toFixed(decimals))));
+    return tween(prev, value, dur, (x) => setV(Number(x.toFixed(decimals))));
   }, [key, value]);
   return [v, fading];
 }

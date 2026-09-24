@@ -193,7 +193,7 @@ export default function Dashboard({ summary, onScanned }) {
                     const active = filter && filter !== "unplotted" && filter.row === row && filter.col === col;
                     return (
                       <td key={col} style={{ padding: "var(--s1)" }}>
-                        <button type="button" className={`b ${cellClass(row, col)}`} style={{ width: "100%", height: 44, fontSize: 15, border: active ? "2px solid var(--ink)" : undefined }}
+                        <button type="button" className={`b risk-cell ${cellClass(row, col)}`} style={{ width: "100%", height: 44, fontSize: 15, border: active ? "2px solid var(--ink)" : undefined }}
                           onClick={() => setFilter(active ? null : { row, col })}>{n}</button>
                       </td>
                     );
