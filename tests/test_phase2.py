@@ -47,48 +47,53 @@ def test_tls_peer_joins_asset():
 def test_score_stores_every_term_and_tiers():
     sc = score_asset(asset(F(nist_now="approved", file="misc/x.py")))
     b = sc["breakdown"]
-    for k in ("base", "qv_points", "mosca", "criticality_mult", "confidence_mult", "raw", "scaled"):
-        assert k in b
-    assert set(b["mosca"]) >= {"x", "y", "z", "exposure", "points"}
-    assert [tier(s) for s in (70, 50, 30, 29.9)] == ["Critical", "High", "Medium", "Low"]
+    assert [t["term"] for t in b["terms"]] == ["base", "quantum", "evidence", "subtotal", "criticality", "confidence"]
+    assert set(b["mosca"]) >= {"x", "y", "z", "exposure"} and "points" not in b["mosca"]  # Mosca is not in risk
+    assert [tier(s) for s in (55, 40, 25, 24.9)] == ["Critical", "High", "Medium", "Low"]
 
 
 def test_mosca_per_asset_and_horizon_setting():
-    a = asset(F(file="auth/login.py"))  # X=15, Y=2 (code), Z=10 -> exposure 7 -> +21
+    a = asset(F(file="auth/login.py"))  # X=15 (auth), CMCS 4 (source) -> Y=2, Z=10 -> exposure 7
     b = score_asset(a)["breakdown"]["mosca"]
-    assert (b["x"], b["y"], b["z"], b["exposure"], b["points"]) == (15, 2, 10, 7, 21)
-    assert score_asset(a, {"threat_horizon": 20})["breakdown"]["mosca"]["points"] == 0
+    assert (b["x"], b["y"], b["z"], b["exposure"]) == (15, 2, 10, 7)
+    assert score_asset(a, {"threat_horizon": 20})["breakdown"]["mosca"]["exposure"] == -3
+    assert score_asset(a, {"threat_horizon": 20})["score"] == score_asset(a)["score"]  # Z never moves risk
     assert score_asset(a, override={"x": 1})["breakdown"]["mosca"]["x"] == 1
     t = score_asset(asset(F(file="tests/log/t.py")))["breakdown"]["mosca"]
     assert t["x"] == 1
 
 
-def test_disallowed_floor_at_least_70():
-    sc = score_asset(asset(F(key_size=1024, nist_now="disallowed", file="tmp/x.py", confidence="low")))
-    assert sc["score"] >= 70 and sc["breakdown"]["floor_applied"]
+def test_disallowed_is_wave_one_even_when_not_quantum_exposed():
+    a = asset(F(key_size=1024, nist_now="disallowed", file="misc/x.py"))
+    sc = score_asset(a, {"threat_horizon": 30})
+    assert sc["breakdown"]["mosca"]["exposure"] < 0
+    d = decide(a, sc)
+    assert d["verdict"] == "MIGRATE" and d["wave"] == 1
+    assert "classically broken" in d["wave_reason"] and "Mosca exposure is -" in d["wave_reason"]
 
 
-def test_hybrid_halves_only_with_real_endpoint():
+def test_hybrid_keeps_signature_risk_but_drops_hndl():
     crt = F(id=1, plane="certificates", file="certs/e.crt", fingerprint="ee", confidence="high",
-            meta='{"kind":"certificate"}')
+            meta='{"kind":"certificate"}', algorithm="ECDSA", curve="P-256", key_size=256)
     hyb = F(id=2, plane="configs", file="conf/edge.conf", algorithm="X25519MLKEM768", key_size=None,
             nist_now="hybrid", quantum_vulnerable=0, meta='{"cert_refs":["certs/e.crt"],"key_refs":[]}')
     a = asset(crt, hyb)
     assert a["hybrid"]
-    assert score_asset(a)["breakdown"]["qv_points"] == 12.5
+    b = score_asset(a)["breakdown"]
+    assert b["quantum"] == "shor" and "hndl" not in b["threats"] and "forgery" in b["threats"]
     # same group named in an unrelated config: co-occurrence is not hybrid
     other = F(id=3, plane="configs", file="conf/other.conf", algorithm="X25519MLKEM768", key_size=None,
               nist_now="hybrid", quantum_vulnerable=0, meta='{"cert_refs":["certs/zzz.crt"]}')
     assets = correlate([crt, other])
     plain = next(x for x in assets if x["fingerprint"] == "ee")
-    assert not plain["hybrid"] and score_asset(plain)["breakdown"]["qv_points"] == 25
+    assert not plain["hybrid"]
 
 
 def test_demo_hybrid_only_on_edge_endpoint(demo_dir):
     _, assets = demo_assets(demo_dir)
     hyb = [a for a in assets if a["hybrid"]]
     assert len(hyb) == 1 and "ecdsa-p256" in hyb[0]["label"]
-    assert hyb[0]["breakdown"]["qv_halved_for_hybrid"]
+    assert hyb[0]["breakdown"]["terms"][1]["note"]
 
 
 def test_verdict_rules_and_replacements():

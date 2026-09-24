@@ -1,139 +1,312 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { api, evidence, tierClass } from "../api.js";
+import { api } from "../api.js";
 
-const KIND = Object.fromEntries([
-  ...["RSA", "DSA", "ECDSA", "EdDSA", "DH", "ECDH", "X25519", "X25519MLKEM768"].map((k) => [k, "asymmetric"]),
-  ...["AES", "DES", "3DES", "RC4"].map((k) => [k, "symmetric"]), ...["MD5", "SHA-1", "SHA-256"].map((k) => [k, "hash"]),
-]);
-const nistCls = (s) => (s === "disallowed" ? "red" : "");
+// Every number on this page is a server value from breakdown (see docs/SCORING.md); nothing is recomputed
+// here except the Mosca preview while an analyst types, which is replaced by the server's answer on save.
+const TIER_B = { Critical: "crit", High: "high", Medium: "med", Low: "low" };
+const VERDICT_B = { MIGRATE: "crit", CONTAIN: "med", ACCEPT: "low" };
+const NIST_B = { disallowed: "crit", not_approved: "high", deprecated: "high", approved: "low", hybrid: "low" };
+const CRIT = { 1: "1 low", 2: "2 normal", 3: "3 mission-critical" };
+const CHANGE = { certificates: "Re-issue", configs: "Config change", code: "Code change", dependencies: "Upgrade",
+  containers: "Rebuild image", binaries: "Vendor update", tls: "Endpoint config" };
+const QUANTUM = { shor: "Shor-breakable", grover: "Grover-weakened", none: "not quantum-weakened" };
+const TERM = {
+  base: (t) => `Base: NIST status ${t.basis.replace("_", " ")}`,
+  quantum: (t) => `Quantum: ${QUANTUM[t.basis]}`,
+  evidence: (t) => `Evidence: ${EV_LABEL[t.basis]}`,
+  subtotal: () => "Subtotal",
+  criticality: (t) => `Criticality ${CRIT[t.basis]}`,
+  confidence: (t) => `Detector confidence: ${t.basis}`,
+};
+const EV_LABEL = { observed: "observed", declared: "declared", unverified: "declared, unverified", textual: "textual" };
+const THREAT = {
+  hndl: ["Harvest-now, decrypt-later exposure",
+    "Traffic or data protected by this key can be recorded today and decrypted once a cryptographically relevant quantum computer exists."],
+  forgery: ["Signature forgery after a quantum computer exists",
+    "Nothing can be harvested; the risk is a forged signature being accepted once a quantum computer exists. It matters for as long as these signatures must be trusted."],
+  classical: ["Weak today, without any quantum computer",
+    "Disallowed or broken under current NIST guidance. This needs no quantum computer to exploit."],
+};
+const fmt = (v, op) => (op === "×" ? `×${v.toFixed(2).replace(/0$/, "")}` : op === "=" ? `${v}` : `+${v}`);
+const signed = (n) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : "0");
+
+function WhyScore({ a, onCrit }) {
+  const b = a.breakdown;
+  const t = Object.fromEntries(b.terms.map((r) => [r.term, r]));
+  const product = `${t.subtotal.value} × ${t.criticality.value} × ${t.confidence.value}`;
+  const rounded = b.exact !== a.score;
+  return (
+    <div className="bp-card">
+      <div className="card-h"><h2>Why this score</h2><span className="note">risk only; Mosca and CMCS are separate</span></div>
+      <div className="card-b" style={{ paddingTop: 8 }}>
+        <div className="brk">
+          {b.terms.map((r) => (
+            <div key={r.term} className={`brk-r${r.term === "subtotal" ? " sub" : ""}`}
+              title={r.citation?.length ? `Source: ${r.citation.join("; ")}` : r.note || ""}>
+              {TERM[r.term](r)}
+              {r.term === "criticality" && (
+                <select aria-label="Business criticality" value={b.criticality} onChange={(e) => onCrit(+e.target.value)}>
+                  {[3, 2, 1].map((c) => <option key={c} value={c}>{CRIT[c]}</option>)}
+                </select>)}
+              {r.note && <span className="bn">{r.note}</span>}
+              <span className="bv mono">{fmt(r.value, r.op)}</span>
+            </div>
+          ))}
+          <div className="brk-r tot">
+            Risk score <span className={`b ${TIER_B[a.tier]}`}>{a.tier}</span>
+            <span className="bv mono">{product} = {rounded ? `${b.exact} ≈ ` : ""}{a.score}</span>
+          </div>
+        </div>
+        {t.base.citation?.length > 0 && <div className="cite">Base status source: {t.base.citation.join("; ")}.</div>}
+      </div>
+    </div>
+  );
+}
+
+function MoscaCard({ a, horizon, onX, onZ }) {
+  const m = a.breakdown.mosca;
+  const [x, setX] = useState(m.x);
+  const [z, setZ] = useState(horizon ?? m.z);
+  useEffect(() => setX(m.x), [m.x]);
+  useEffect(() => setZ(horizon ?? m.z), [horizon, m.z]);
+  const deb = useRef(0);
+  const edit = (set, save) => (e) => {
+    const v = e.target.value === "" ? null : Math.max(0, Math.min(50, Math.round(+e.target.value)));
+    set(v ?? "");
+    clearTimeout(deb.current);
+    if (v != null) deb.current = setTimeout(() => save(v), 400);
+  };
+  const X = x === "" ? m.x : x, Z = z === "" ? m.z : z, Y = m.y;
+  const exp = X + Y - Z;
+  const span = Math.max(X + Y, Z) * 1.08 || 1;
+  const pct = (v) => `${(100 * v) / span}%`;
+  const threats = a.breakdown.threats;
+  const sigOnly = threats.includes("forgery") && !threats.includes("hndl");
+  const broken = a.breakdown.base_status === "disallowed";
+  let cls = "", line;
+  if (exp > 0)
+    line = <>X + Y = {X + Y} &gt; Z = {Z}: <b>exposed by {exp} yrs</b>. {sigOnly
+      ? "Signatures made with this key must still be trusted after a quantum computer can forge them."
+      : "Data protected today is still secret when it can be decrypted."}</>;
+  else if (broken) {
+    cls = "warn";
+    line = <>X + Y = {X + Y} ≤ Z = {Z}: not quantum-exposed. It is <b>already classically broken</b> (disallowed
+      today), which is why it is still wave {a.wave}. Mosca measures the quantum deadline; this asset fails without one.</>;
+  } else {
+    cls = "safe";
+    line = <>X + Y = {X + Y} ≤ Z = {Z}: not quantum-exposed by {signed(-exp).replace("+", "")} yrs of margin.</>;
+  }
+  return (
+    <>
+      <div className="card-h"><h2>Mosca check</h2><span className="note mono">X + Y &gt; Z</span></div>
+      <div className="card-b">
+        <div className="mosca">
+          <div className="mbox"><div className="mv mono">{X}</div><div className="mk">X<br />{sigOnly ? "trust life" : "data life"}</div></div>
+          <div className="mop">+</div>
+          <div className="mbox"><div className="mv mono">{Y}</div><div className="mk">Y<br />migration</div></div>
+          <div className="mop">vs</div>
+          <div className="mbox"><div className="mv mono">{Z}</div><div className="mk">Z<br />quantum</div></div>
+          <div className="mop">=</div>
+          <div className={`mbox res${exp > 0 ? "" : " safe"}`}><div className="mv mono">{signed(exp)}</div><div className="mk">yrs<br />exposed</div></div>
+        </div>
+        <div className="tl" role="img" aria-label={`Timeline: data life ${X} years then migration ${Y} years, quantum horizon at ${Z} years, exposure ${exp} years`}>
+          <div className="tl-ax mono">
+            <span className="l" style={{ left: 0 }}>now</span>
+            <span style={{ left: pct(Z) }}>Z {Z}y</span>
+            {X + Y !== Z && <span className="r" style={{ left: pct(X + Y) }}>{X + Y}y</span>}
+          </div>
+          <div className="tl-tr">
+            <div className="tl-x" style={{ width: pct(X) }} />
+            <div className="tl-y" style={{ left: pct(X), width: pct(Y) }} />
+            <div className="tl-z" style={{ left: pct(Z) }} />
+            {exp > 0 && <div className="tl-e" style={{ left: pct(Z), width: pct(exp) }} />}
+          </div>
+          <div className="tl-key">
+            <span><i style={{ background: "var(--pri-line)" }} />{sigOnly ? "Signature trust life (X)" : "Data life (X)"}</span>
+            <span><i style={{ background: "var(--high-line)" }} />Migration (Y)</span>
+            <span><i style={{ background: "var(--ink)", width: 2 }} />Quantum horizon (Z)</span>
+            {exp > 0 && <span><i style={{ background: "var(--crit-ink)" }} />Exposed</span>}
+          </div>
+        </div>
+        <div className={`verdict-line ${cls}`}>{line}</div>
+        <div className="fields">
+          <div className="fr"><label htmlFor="fx">X {sigOnly ? "signature trust life" : "data shelf life"}</label>
+            <input id="fx" className="mono" type="number" min="0" max="50" value={x} onChange={edit(setX, onX)} /><span className="u">yrs</span></div>
+          <div className="hint">{m.x_basis}</div>
+          <div className="fr"><label>Y migration time</label><span className="mono" style={{ fontSize: 11 }}>{Y}</span><span className="u">yrs</span></div>
+          <div className="hint">{m.y_basis}; see Migration complexity below</div>
+          <div className="fr"><label htmlFor="fz">Z quantum horizon, all assets</label>
+            <input id="fz" className="mono" type="number" min="1" max="50" value={z} onChange={edit(setZ, onZ)} /><span className="u">yrs</span></div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function CmcsCard({ c }) {
+  return (
+    <>
+      <div className="card-h"><h2>Migration complexity</h2><span className="note">CMCS</span></div>
+      <div className="card-b">
+        <div className="flex items-baseline gap-2">
+          <span className="big mono">{c.score}</span><span className="mono dim">/10</span>
+          <span style={{ fontSize: 11.5, color: "var(--ink-2)" }}>{c.basis}</span>
+        </div>
+        <div className="hint" style={{ marginTop: 4 }}>How hard this asset is to migrate, independent of how risky it is.</div>
+        <div className="meter">
+          <div className="meter-tr"><div className="meter-fl" style={{ width: `${c.score * 10}%` }} /></div>
+          <div className="meter-ax"><span>Re-issue only</span><span>Vendor-blocked</span></div>
+        </div>
+        <div className="brk" style={{ marginTop: 8 }}>
+          {c.components.map((p) => (
+            <div key={p.term} className="brk-r"><span style={{ textTransform: "capitalize" }}>{p.term}</span>
+              <span className="bn">{p.basis}</span><span className="bv mono">+{p.value}</span></div>
+          ))}
+          <div className="brk-r tot">CMCS{c.clamped ? " (clamped to 1–10)" : ""}<span className="bv mono">{c.score}</span></div>
+        </div>
+      </div>
+    </>
+  );
+}
 
 export default function Asset({ onChanged }) {
   const { id } = useParams();
   const [a, setA] = useState(null);
+  const [err, setErr] = useState("");
   const [horizon, setHorizon] = useState(null);
+  const load = () => api.asset(id).then(setA).catch((e) => setErr(e.message));
   useEffect(() => {
-    api.asset(id).then(setA);
-    api.settings().then((s) => setHorizon(s.threat_horizon));
+    setA(null);
+    load();
+    api.settings().then((s) => setHorizon(s.threat_horizon)).catch(() => {});
   }, [id]);
-  if (!a) return <div className="p-6 dim">Loading…</div>;
+  if (err) return <div className="p-6"><div className="errbox">Could not load asset {id}: {err}. It may belong to an older scan; open the <Link to="/queue">work queue</Link> for the latest assets.</div></div>;
+  if (!a) return <div className="p-6 hint">Loading asset {id}</div>;
 
   const b = a.breakdown, m = b.mosca;
   const first = a.findings[0];
-  const set = async (body) => { setA(await api.override(a.id, body)); onChanged(); };
-  const setZ = async (z) => { setHorizon(z); await api.setSettings({ threat_horizon: z }); onChanged(); };
-  const rows = [
-    ["Base (NIST now: " + b.base_status + ")", b.base],
-    ["Quantum-vulnerable" + (b.qv_halved_for_hybrid ? " (halved: hybrid)" : ""), b.qv_points],
-    [`Mosca X+Y−Z = ${m.x}+${m.y}−${m.z} = ${m.exposure}`, m.points],
-    ["Raw", b.raw],
-    [`× criticality ${b.criticality} (${b.criticality_mult}) × confidence ${b.confidence} (${b.confidence_mult})`, b.scaled],
-    ...(b.floor_applied ? [["Floor: disallowed algorithm, minimum", b.floor]] : []),
-  ];
+  const save = async (body) => { setA(await api.override(a.id, { x: m.x, criticality: b.criticality, ...body })); onChanged(); };
+  const setZ = async (z) => { setHorizon(z); await api.setSettings({ threat_horizon: z }); await load(); onChanged(); };
+  const planes = [...new Set(a.locations.map((l) => l.plane))];
   const nFiles = new Set(a.locations.map((l) => l.file)).size;
-  const alg = a.algorithm + (a.key_size ? `-${a.key_size}` : "");
-  const chain = [
-    ["Fact", `${a.algorithm}${a.key_size ? ` key, ${a.key_size} bit` : ""}, found in ${nFiles} file${nFiles === 1 ? "" : "s"} (${evidence(b.confidence)})`],
-    ["Normalized fact", `${alg}, ${KIND[a.algorithm] || (a.algorithm.startsWith("TLS") || a.algorithm.startsWith("SSL") ? "protocol" : "other")}`],
-    ["Analysis", `NIST: ${b.base_status} now${b.quantum_vulnerable ? ", quantum-vulnerable" : ""} · Mosca exposure ${m.exposure > 0 ? "+" : ""}${m.exposure} yrs`],
-    ["Recommendation", `${a.verdict}${a.replacements.length ? ` → ${a.replacements[0].to}` : ""} (wave ${a.wave})`],
-  ];
-  const mosca = [[m.x, "X data life"], "+", [m.y, "Y migration"], ">", [m.z, "Z quantum"], "=", [(m.exposure > 0 ? "+" : "") + m.exposure, "yrs exposed"]];
+  const top = b.threats[0];
+  const fixable = a.locations.find((l) => l.plane !== "binaries");
+  const rep = a.replacements[0];
+
   return (
-    <div className="p-5 grid gap-4 max-w-[1500px] mx-auto lg:grid-cols-[1fr_380px]">
-      <div className="flex flex-col gap-4">
-        <div className="panel p-5">
-          <Link to="/queue" className="dim text-[12px]">← Work queue</Link>
-          <div className="flex items-center gap-3 mt-2">
-            <div className="text-2xl font-bold">{a.label}</div>
-            <span className={`pill ${a.verdict}`}>{a.verdict}</span>
-            {a.verify_first && <span className="pill CONTAIN">verify first</span>}
+    <div className="split">
+      <div className="lft">
+        <div className="crumb"><Link to="/queue">Work queue</Link><span>›</span><span className="mono">asset {a.id}</span></div>
+        <div className="asset-hd">
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h1 className="mono">{a.label}</h1>
+            {a.fingerprint && <div className="spki mono">SPKI SHA-256 {a.fingerprint.slice(0, 32)}…</div>}
+            <div className="tags">
+              {planes.map((p) => <span key={p} className="b plain">Plane: {p}</span>)}
+              <span className={`b ${b.criticality === 3 ? "crit" : "plain"}`}>Criticality {CRIT[b.criticality]}</span>
+              <span className="b pri" title="How the finding was seen; separate from severity">Evidence: {b.evidence_label}</span>
+              {a.verify_first && <span className="b high">Verify first</span>}
+            </div>
           </div>
-          {a.fingerprint && <div className="mono dim mt-1 text-[12px]">SPKI SHA-256 {a.fingerprint.slice(0, 32)}…</div>}
-          <div className="mt-4 flex items-center gap-3 rounded-lg p-3" style={{ background: "#F7F8FA", border: "1px dashed #E3E7ED" }}>
-            <div className="mono text-xl font-bold whitespace-nowrap">{a.findings.length} → 1</div>
-            <div>{a.summary}. Fix this one asset and every location below is covered.</div>
-          </div>
+          <span className={`b lg ${VERDICT_B[a.verdict]}`}>{a.verdict}</span>
         </div>
-        <div className="panel p-5">
-          <div className="h mb-3">Locations — what breaks if this asset changes</div>
-          <div className="grid gap-3 md:grid-cols-[1fr_auto_1fr] items-center">
-            <div className="flex flex-col gap-2">
+
+        {top ? (
+          <div className={`alert${top === "forgery" ? " warn" : ""}`}>
+            <div style={{ flex: 1 }}>
+              {b.threats.map((t) => <div key={t} style={{ marginBottom: 4 }}><div className="ti">{THREAT[t][0]}</div><div className="de">{THREAT[t][1]}</div></div>)}
+            </div>
+            {fixable && a.verdict !== "ACCEPT" && <Link className="bp-btn" to={`/fix/${fixable.finding_id}`}>Open fix</Link>}
+          </div>
+        ) : (
+          <div className="alert calm"><div><div className="ti">No quantum or classical weakness recorded</div>
+            <div className="de">{a.reason}. Re-assess at the next scan.</div></div></div>
+        )}
+
+        <div className="bp-card">
+          <div className="card-h"><h2>Locations: what breaks if this asset changes</h2>
+            <span className="note mono">{a.findings.length} finding{a.findings.length === 1 ? "" : "s"} → 1 asset, {nFiles} file{nFiles === 1 ? "" : "s"}</span></div>
+          <table className="bp-table">
+            <thead><tr><th style={{ width: 110 }}>Plane</th><th>Location</th><th style={{ width: 110 }}>Change type</th><th style={{ width: 60 }}></th></tr></thead>
+            <tbody>
               {a.locations.map((l) => (
-                <div key={l.finding_id} className="node"><div className="p">{l.plane}</div><div className="f">{l.file}{l.line ? `:${l.line}` : ""}</div>
-                  <Link to={`/fix/${l.finding_id}`} className="text-[11px] link">Fix →</Link></div>
+                <tr key={l.finding_id}>
+                  <td>{l.plane}</td>
+                  <td className="mono" style={{ color: "var(--ink)", wordBreak: "break-all" }}>{l.file}{l.line ? `:${l.line}` : ""}</td>
+                  <td><span className="b plain">{CHANGE[l.plane] || "Review"}</span></td>
+                  <td>{l.plane !== "binaries" && <Link to={`/fix/${l.finding_id}`}>Fix</Link>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="g2">
+          <div className="bp-card">
+            <div className="card-h"><h2>NIST status</h2><span className="note">{first.nist_source ? "cited below" : "no table entry"}</span></div>
+            <div className="card-b">
+              <div className="nist3">
+                {[["Now", first.nist_now], ["After 2030", first.nist_2030], ["After 2035", first.nist_2035]].map(([k, v]) => (
+                  <div key={k} className={NIST_B[v] || ""}><div className="k">{k}</div><div className="v">{(v || "unknown").replace("_", " ")}</div></div>
+                ))}
+              </div>
+              <div className="cite">
+                {b.terms[0].citation?.length ? <>Source: {b.terms[0].citation.join("; ")}. </> : null}
+                {first.nist_notes || ""}
+                {a.findings.length > 1 && <> Shown for <span className="mono">{first.file}</span>; the score uses the worst status across all locations (<span className="mono">{b.base_status.replace("_", " ")}</span>).</>}
+              </div>
+            </div>
+          </div>
+          <WhyScore a={a} onCrit={(c) => save({ criticality: c })} />
+        </div>
+
+        <div className="bp-card">
+          <div className="card-h"><h2>Evidence chain</h2><span className="note">fact, analysis, recommendation</span></div>
+          <div className="card-b">
+            <div className="chain">
+              {[
+                ["Fact", `${a.algorithm}${a.key_size ? ` key, ${a.key_size} bit` : ""}, seen in ${nFiles} file${nFiles === 1 ? "" : "s"}. Evidence: ${b.evidence_label.toLowerCase()}${b.evidence === "unverified" ? ": a library that can do this, use not proven" : b.evidence === "textual" ? ": a string match, not a parsed artefact" : ""}.`],
+                ["Normalised", `${a.algorithm}${a.key_size ? `-${a.key_size}` : ""}, ${QUANTUM[b.quantum]}${a.fingerprint ? `, SPKI ${a.fingerprint.slice(0, 8)}…` : ""}`],
+                ["Analysis", `NIST ${b.base_status.replace("_", " ")} now. Risk ${a.score} (${a.tier}). Mosca exposure ${signed(m.exposure)} yrs. CMCS ${b.cmcs.score}/10.`],
+                ["Recommendation", `${a.verdict}${rep ? `: ${rep.from} to ${rep.to}` : ""}, wave ${a.wave} of 5`],
+              ].map(([k, v], i, all) => (
+                <div key={k}>
+                  <div className={`ch-link${i === all.length - 1 ? " out" : ""}`}><div className="k">{k}</div><div className="v">{v}</div></div>
+                  {i < all.length - 1 && <div className="tick" />}
+                </div>
               ))}
             </div>
-            <div className="dim text-2xl text-center">→</div>
-            <div className="core"><div className="a">{a.label}</div><div className="b">{a.algorithm}{a.key_size ? `-${a.key_size}` : ""} · score {a.score}</div></div>
           </div>
-        </div>
-        <div className="panel p-5">
-          <div className="h mb-2">NIST status</div>
-          <div className="grid grid-cols-3 gap-2 text-center">
-            {[["Now", first.nist_now], ["After 2030", first.nist_2030], ["After 2035", first.nist_2035]].map(([l, v]) => (
-              <div key={l} className="node"><div className="p">{l}</div><div className={`text-lg font-bold ${nistCls(v)}`}>{v}</div></div>
-            ))}
-          </div>
-          {first.nist_source && <div className="dim text-[11px] mt-2">{first.nist_source}{first.nist_notes ? ` — ${first.nist_notes}` : ""}</div>}
         </div>
       </div>
-      <div className="flex flex-col gap-4">
-        <div className="panel p-4">
-          <div className="h mb-2">Evidence chain</div>
-          <div className="flex flex-col gap-1">
-            {chain.map(([k, v], i) => (
-              <div key={k}>
-                {i > 0 && <div className="dim text-center text-[11px]">↓</div>}
-                <div className="node" style={{ padding: 8 }}><div className="p">{k}</div><div className="text-[12px]">{v}</div></div>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="panel p-4">
-          <div className="h mb-1">Why this score</div>
-          <div className={`text-4xl font-bold ${tierClass(a.tier)}`}>{a.score} <span className="text-base">{a.tier}</span></div>
-          <div className="mt-2">{rows.map(([k, v]) => <div key={k} className="kv"><span>{k}</span><span>{v}</span></div>)}</div>
-          {b.cmcs && (
-            <div className="mt-3 pt-2 border-t border-[#E3E7ED]">
-              <div className="kv"><span className="font-bold">CMCS: {b.cmcs.score}/10</span><span className="dim">{b.cmcs.basis}</span></div>
-              <div className="dim text-[11px]">How hard this asset is to migrate, independent of how risky it is.</div>
+
+      <aside className="rgt">
+        <MoscaCard a={a} horizon={horizon} onX={(x) => save({ x })} onZ={setZ} />
+        <CmcsCard c={b.cmcs} />
+        <div className="card-h"><h2>Recommended replacement</h2></div>
+        <div className="card-b flex flex-col gap-2">
+          {rep ? (
+            <div className="rep">
+              <div className="to mono">{rep.to}</div>
+              <div className="fr2">replaces {rep.from}</div>
+              {a.replacements.slice(1).map((r) => <div key={r.from + r.to} className="fr2">and {r.from} with <span className="mono">{r.to}</span></div>)}
+              {a.size_notes.map((n) => <div key={n} className="nt">{n}</div>)}
             </div>
-          )}
-        </div>
-        <div className="panel p-4">
-          <div className="h mb-2">Mosca check</div>
-          <div className="grid grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr] items-center gap-2 text-center">
-            {mosca.map((c, i) => typeof c === "string"
-              ? <span key={i} className="dim">{c}</span>
-              : <div key={i} className="node" style={{ padding: 8, ...(i === 6 && m.exposure > 0 ? { borderColor: "#1B2A41" } : {}) }}>
-                  <div className="text-lg font-bold">{c[0]}</div><div className="dim text-[10px]">{c[1]}</div>
-                </div>)}
+          ) : <div className="hint">No replacement is mapped for {a.algorithm}. {a.reason}.</div>}
+          <div>
+            <div className="lbl" style={{ marginBottom: 0 }}>Migration wave, this asset</div>
+            <div className="wstrip" role="list">
+              {[1, 2, 3, 4, 5].map((w) => <div key={w} role="listitem" className={w === a.wave ? "here" : ""}
+                aria-current={w === a.wave ? "step" : undefined}>{w === a.wave ? `Wave ${w}` : w}</div>)}
+            </div>
+            <div className="hint" style={{ marginTop: 6 }}>{a.wave_reason ? a.wave_reason.charAt(0).toUpperCase() + a.wave_reason.slice(1) + "." : ""}</div>
           </div>
-          <div className="mt-3 grid gap-2 text-[12px]">
-            <label className="flex justify-between items-center">X shelf-life (yrs)
-              <input type="number" min="0" max="50" defaultValue={m.x} key={"x" + m.x} className="w-20"
-                onBlur={(e) => e.target.value !== "" && +e.target.value !== m.x && set({ x: +e.target.value, criticality: b.criticality })} /></label>
-            <label className="flex justify-between items-center">Criticality
-              <select value={b.criticality} onChange={(e) => set({ x: m.x, criticality: +e.target.value })}>
-                <option value="1">1 low</option><option value="2">2 normal</option><option value="3">3 mission-critical</option>
-              </select></label>
-            <label className="flex justify-between items-center">Z threat horizon (project, yrs)
-              <input type="number" min="1" max="40" value={horizon ?? ""} className="w-20"
-                onChange={(e) => e.target.value && setZ(+e.target.value)} /></label>
-          </div>
+          <div className="hint"><span className={`b ${VERDICT_B[a.verdict]}`}>{a.verdict}</span> {a.reason}.</div>
+          {fixable && a.verdict !== "ACCEPT" && <Link className="bp-btn pri" style={{ justifyContent: "center" }} to={`/fix/${fixable.finding_id}`}>Open fix and verify</Link>}
+          <Link className="bp-btn" style={{ justifyContent: "center" }} to="/roadmap">Open roadmap</Link>
         </div>
-        <div className="panel p-4">
-          <div className="h mb-1">Recommended replacement</div>
-          {a.replacements.length
-            ? a.replacements.map((r, i) => <div key={i} className="kv"><span>{r.from}</span><span>{r.to}</span></div>)
-            : <div className="dim">No replacement needed</div>}
-          {a.size_notes.map((n) => <div key={n} className="dim text-[11px] mt-2">{n}</div>)}
-          <div className="kv mt-2"><span>Migration wave</span><span>{a.wave} of 5</span></div>
-          <div className="mt-2"><span className={`pill ${a.verdict}`}>{a.verdict}</span> <span className="dim text-[12px]">{a.reason}</span></div>
-          <ul className="dim text-[12px] mt-2 list-disc pl-4">{a.recommendations.map((r) => <li key={r}>{r}</li>)}</ul>
-        </div>
-      </div>
+      </aside>
     </div>
   );
 }

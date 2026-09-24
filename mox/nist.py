@@ -73,3 +73,9 @@ def lookup(algorithm: str, key_size: int | None = None, curve: str | None = None
     if rec is None:
         return {**_UNRATED, **out, "legacy_use": None, "source": None, "notes": why}
     return {**_pick(rec), **out}
+
+
+def cite(source: str | None) -> list[str]:
+    """Expand a table source key list ("131A, 8547") into full document names for the UI."""
+    names = table()["sources"]
+    return [names.get(k.strip(), k.strip()) for k in (source or "").split(",") if k.strip()]

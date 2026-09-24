@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, evidence, tierClass } from "../api.js";
+import { api, tierClass } from "../api.js";
 import { Pager, Search, usePaged } from "../lib.jsx";
 
 const TABS = [["all", "All"], ["MIGRATE", "Migrate"], ["CONTAIN", "Contain"], ["ACCEPT", "Accept"], ["verify", "Verify first"]];
@@ -27,7 +27,7 @@ export default function Queue({ summary }) {
           </div>
         </div>
         <div className="px-4 py-2 dim text-[11px] border-b border-[#E3E7ED]">
-          Evidence: <b>Observed</b> = live TLS / parsed certificate · <b>Declared</b> = explicit code/config match · <b>Declared, unverified</b> = dependency/string match (stays in Verify first)
+          Evidence, separate from severity: <b>Observed</b> parsed certificate or TLS handshake; <b>Declared</b> named in code or config; <b>Declared, unverified</b> a dependency or package that can do it; <b>Textual</b> a string match in bytes.
         </div>
         <div className="row dim text-[11px]" style={{ cursor: "default" }}>
           <span>Asset</span><span className="text-center">Score</span><span title="Code Migration Complexity: how hard this asset is to migrate, independent of how risky it is">CMCS</span><span>Tier</span><span>Evidence</span><span>Verdict</span>
@@ -41,7 +41,7 @@ export default function Queue({ summary }) {
             <div className={`sc ${tierClass(a.tier)}`}>{a.score}</div>
             <div className="mono" title={a.breakdown.cmcs?.basis}>{a.breakdown.cmcs ? `${a.breakdown.cmcs.score}/10` : "—"}</div>
             <div className={tierClass(a.tier)}>{a.tier}</div>
-            <div className="dim">{evidence(a.breakdown.confidence)}</div>
+            <div className="dim">{a.breakdown.evidence_label}</div>
             <div><span className={`pill ${a.verdict}`}>{a.verdict}</span></div>
           </div>
         ))}

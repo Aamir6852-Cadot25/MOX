@@ -37,12 +37,24 @@ def replacements(asset: dict) -> list[dict]:
     return out
 
 
-def wave(tier: str, exposure: int, verdict: str) -> int:
-    """1 = most urgent ... 5 = validate/attest. Critical is always wave 1; accepted assets go to wave 5."""
+def wave(tier: str, exposure: int, verdict: str, status: str = "") -> tuple[int, str]:
+    """1 = most urgent ... 5 = validate/attest. Returns (wave, reason in words). docs/SCORING.md §4."""
+    e = f"{exposure:+d} yrs"
     if verdict == "ACCEPT":
-        return 5
+        return 5, "accepted risk: validate at the next scan and attest"
+    if status == "disallowed":
+        why = "disallowed today under NIST SP 800-131A: it is already classically broken, so it is wave 1"
+        if exposure <= 0:
+            why += (f". Mosca exposure is {e}, meaning no quantum computer is needed to break it; "
+                    "Mosca only measures the quantum deadline, which this asset has already missed")
+        return 1, why
     base = {"Critical": 1, "High": 2, "Medium": 3, "Low": 4}[tier]
-    return base if base == 1 or exposure > 0 else min(5, base + 1)
+    if base == 1:
+        return 1, f"{tier} risk tier"
+    if exposure > 0:
+        return 2, (f"Mosca exposure {e}: data outlives the quantum horizon once migration time is added, "
+                   f"so it starts in wave 2 whatever its {tier} risk tier")
+    return min(4, base + 1), f"{tier} risk tier and not quantum-exposed yet (Mosca {e}), so one wave after its tier"
 
 
 def decide(asset: dict, sc: dict) -> dict:
@@ -55,9 +67,10 @@ def decide(asset: dict, sc: dict) -> dict:
         why = f"vendor binary / firmware / HSM / KMS coupling (Y={y})" if y >= 5 else "no patchable source location"
         rec = ["Segment the network path to this asset", "Front it with a crypto-agile gateway",
                "Shorten key lifetime / rotate more often"]
-    elif sc["score"] < 30 or x <= 1:
+    elif x <= 1 or (sc["tier"] == "Low" and b["mosca"]["exposure"] <= 0):
         v = "ACCEPT"
-        why = f"score {sc['score']} < 30" if sc["score"] < 30 else "data shelf-life X <= 1 year"
+        why = ("data shelf-life X <= 1 year" if x <= 1 else
+               f"Low risk tier ({sc['score']}) and not quantum-exposed (Mosca {b['mosca']['exposure']:+d} yrs)")
         rec = ["Monitor; re-assess at next scan"]
     else:
         v, why = "MIGRATE", "weak or quantum-vulnerable and patchable"
@@ -65,4 +78,4 @@ def decide(asset: dict, sc: dict) -> dict:
     reps = replacements(asset)
     return {"verdict": v, "reason": why, "recommendations": rec, "replacements": reps,
             "size_notes": sorted({r["note"] for r in reps if r["note"]}),
-            "wave": wave(sc["tier"], b["mosca"]["exposure"], v)}
+            "wave": (w := wave(sc["tier"], b["mosca"]["exposure"], v, b["base_status"]))[0], "wave_reason": w[1]}

@@ -99,4 +99,16 @@ run.ps1  README.md  requirements.txt  .gitignore
 - [x] Pipeline board (Detect wide with 7 plane rows, animated Correlate count-down, real perf_counter timings) reused on Dashboard
 - [x] web/src/styles/tokens.css = blueprint :root verbatim; new components use tokens only
 - [ ] Visual review screenshot of New Scan + Dashboard board (needs a signed-in browser session)
-- [ ] Next: Mosca timeline + CMCS panel on Asset detail, traceable score rows, then SCORING.md / research-notes.md
+
+## Phase 12 — Asset detail + scoring per master prompt §8 (docs/SCORING.md)
+- [x] Risk = (base + quantum + evidence) x criticality x confidence; Mosca and CMCS removed from the risk sum; 70-floor removed
+- [x] Four evidence grades (observed / declared / declared-unverified / textual), separate from detector confidence; Queue column + CBOM mox:evidence
+- [x] CMCS 1-10 = location + spread + vendor + renegotiation; Y = ceil(CMCS/2); threats hndl / forgery / classical
+- [x] Tier cut-offs moved to the formula's anchors (55 / 40 / 25); ACCEPT never for a quantum-exposed asset
+- [x] Wave rule with wave_reason in words: disallowed today -> wave 1 even at negative Mosca (Q1)
+- [x] NIST citations resolved to full document names on the score and NIST cards
+- [x] Asset detail rebuilt on blueprint layout: two independently scrolling columns, Mosca timeline (X, Y, Z marker, exposed span), live X/Z edits, CMCS meter + components, wave strip "you are here"
+- [x] tests/test_phase12.py: exhaustive risk arithmetic (1,512 combos), Mosca/CMCS never move risk, CMCS orthogonal
+- [x] Blueprint contradictions found: its score card shows 70 for 40+15+8 x1.2 (= 75.6); it labels a certificate signature as HNDL (it is forgery). UI uses real values
+- [ ] Visual review screenshots (Chrome extension not connected)
+- [ ] Next: research-notes.md, then Dashboard (tiles, verdict bar, risk field plot with break-even line)

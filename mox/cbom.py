@@ -60,7 +60,7 @@ def _crypto(a) -> dict:
 def _component(a) -> dict:
     f, b = a["findings"][0], a["breakdown"]
     props = {"nist_now": f["nist_now"], "nist_2030": f["nist_2030"], "nist_2035": f["nist_2035"], "score": a["score"],
-             "tier": a["tier"], "verdict": a["verdict"], "wave": a["wave"], "confidence": b["confidence"],
+             "tier": a["tier"], "verdict": a["verdict"], "wave": a["wave"], "confidence": b["confidence"], "evidence": b["evidence"],
              "locations": len(a["findings"])}
     return {"type": "cryptographic-asset", "bom-ref": f"mox-asset-{a['id']}", "name": a["label"],
             "cryptoProperties": _crypto(a),

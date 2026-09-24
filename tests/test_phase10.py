@@ -92,6 +92,6 @@ def test_cmcs_present_and_in_range(scan_demo):
     assert rows
     for d in map(json.loads, rows):
         c = d["breakdown"]["cmcs"]
-        assert 0 <= c["score"] <= 10 and c["basis"]
-        y = d["breakdown"]["mosca"]["y"]
-        assert c["score"] == {1: 2, 2: 5, 3: 7, 5: 10, 6: 10}[y]
+        assert 1 <= c["score"] <= 10 and c["basis"]
+        assert c["clamped"] or c["score"] == sum(t["value"] for t in c["components"])
+        assert d["breakdown"]["mosca"]["y"] == -(-c["score"] // 2)  # Y derived from CMCS
