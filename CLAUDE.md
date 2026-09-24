@@ -30,3 +30,5 @@ Full requirements: SPEC.md (read only the section a task needs). Plan: PLAN.md.
 ## Definition of done (every phase)
 `python -m pytest -q` passes, `npm --prefix web run build` passes (if web touched),
 then `git add -A; git commit -m "phase N: <summary>"`. Update PLAN.md checkboxes.
+
+@AGENTS.md
