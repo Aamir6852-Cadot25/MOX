@@ -58,7 +58,7 @@ run.ps1  README.md  requirements.txt  .gitignore
 - [x] Attest, Sector ("simulated attestations · demo data" banner), Audit screens; web build passes
 
 ## Phase 6 — run.ps1 + README demo script + clean-run check
-- [ ] run.ps1: venv, pip install, npm ci + build, make-demo, create-admin prompt, start 127.0.0.1:8000
-- [ ] README: setup, CLI, 7-step demo script matching SPEC §1, bench numbers for slides
-- [ ] Clean clone → run.ps1 → full demo story works with no network after install
-- [ ] Grep: no runtime network calls/telemetry; no hard-coded UI numbers; demo data labelled
+- [x] run.ps1: venv, pip install, npm ci + build, make-demo, create-admin prompt, start 127.0.0.1:8000
+- [x] README: setup, CLI, 7-step demo script matching SPEC §1, bench numbers for slides
+- [x] Clean clone → run.ps1 → full demo story works with no network after install
+- [x] Grep: no runtime network calls/telemetry; no hard-coded UI numbers; demo data labelled
