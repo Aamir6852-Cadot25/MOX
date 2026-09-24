@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import auth, cbom, db, scanner
+from . import attest, auth, cbom, db, scanner
 from .fixers import flow
 from .analyze import analyze
 from .db import ROOT
@@ -51,6 +51,10 @@ class FixReq(BaseModel):
 
 class ApplyReq(BaseModel):
     note: str = ""
+
+
+class AttestReq(BaseModel):
+    sector: str = "government"
 
 
 class OverrideReq(BaseModel):
@@ -256,6 +260,34 @@ def create_app() -> FastAPI:
     def roadmap(u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
         scan = _latest(conn)
         return cbom.roadmap(conn, scan["id"]) if scan else []
+
+    def _attest(conn, sector):
+        scan = _latest(conn)
+        if not scan:
+            raise HTTPException(404, "no scan yet")
+        try:
+            att = attest.build(conn, scan["id"], sector)
+        except ValueError as e:
+            raise HTTPException(422 if sector not in attest.SECTORS else 500, str(e))
+        return scan, att
+
+    @app.get("/api/attest")
+    def attest_preview(sector: str = "government", u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
+        scan, att = _attest(conn, sector)
+        return {"attestation": att, "bytes": len(json.dumps(att, indent=2)), "sectors": attest.SECTORS,
+                "checks": attest.self_check(conn, att, scan["id"])}
+
+    @app.post("/api/attest/export")
+    def attest_export(body: AttestReq, u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
+        _, att = _attest(conn, body.sector)
+        auth.audit(conn, u["sub"], "attestation-export",
+                   f"{att['sector']} readiness={att['readiness_index']} root={att['cbom_merkle_root'][:12]}")
+        return Response(json.dumps(att, indent=2), media_type="application/json",
+                        headers={"Content-Disposition": 'attachment; filename="mox-attestation.json"'})
+
+    @app.get("/api/sectors")
+    def sectors(u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
+        return attest.sector_view(conn)
 
     @app.get("/api/audit")
     def audit_log(u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):

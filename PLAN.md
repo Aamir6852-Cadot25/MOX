@@ -50,12 +50,12 @@ run.ps1  README.md  requirements.txt  .gitignore
 - [x] Fix, CBOM (valid badge + download), Roadmap screens; web build passes
 
 ## Phase 5 — attestation + sector view + bench (+ Attest, Sector, Audit screens)
-- [ ] Ed25519 operator key in data/keys/ (never exported); attestation "mox.attestation/v1" per §11
-- [ ] Merkle root over sorted component hashes; self-check (root, no path/host/IP, sig verifies)
-- [ ] Test: attestation has no path/host and signature verifies
-- [ ] `demo-attestations` → 6 sectors; sector view verifies sigs, aggregates, ranks "if RSA-2048 falls"
-- [ ] `bench <path...>` prints files, seconds, planes, findings, assets, QV, HNDL, verdict split
-- [ ] Attest, Sector ("simulated attestations · demo data" banner), Audit screens; web build passes
+- [x] Ed25519 operator key in data/keys/ (never exported); attestation "mox.attestation/v1" per §11
+- [x] Merkle root over sorted component hashes; self-check (root, no path/host/IP, sig verifies)
+- [x] Test: attestation has no path/host and signature verifies
+- [x] `demo-attestations` → 6 sectors; sector view verifies sigs, aggregates, ranks "if RSA-2048 falls"
+- [x] `bench <path...>` prints files, seconds, planes, findings, assets, QV, HNDL, verdict split
+- [x] Attest, Sector ("simulated attestations · demo data" banner), Audit screens; web build passes
 
 ## Phase 6 — run.ps1 + README demo script + clean-run check
 - [ ] run.ps1: venv, pip install, npm ci + build, make-demo, create-admin prompt, start 127.0.0.1:8000

@@ -27,11 +27,50 @@ def _scan(a):
     return 1 if s["probe_error"] else 0
 
 
-def _later(phase, name):
-    def run(_a):
-        print(f"`{name}` arrives in phase {phase}", file=sys.stderr)
+def _demo_attestations(_a):
+    from . import attest
+    conn = db.connect()
+    n = attest.demo_attestations(conn)
+    v = attest.sector_view(conn)
+    print(f"{n} simulated signed attestations (demo data) across {v['kpi']['sectors']} sectors; "
+          f"{v['kpi']['attestations']} verified, {v['kpi']['rejected']} rejected")
+    conn.close()
+
+
+def _bench(a):
+    import shutil
+    import tempfile
+    from . import attest
+    if not a.paths:
+        print("bench: give at least one path", file=sys.stderr)
         return 2
-    return run
+    tot = {"files": 0, "seconds": 0.0, "findings": 0, "assets": 0, "qv": 0, "hndl": 0}
+    planes: set = set()
+    verdicts = {"migrate": 0, "contain": 0, "accept": 0}
+    tmp = tempfile.mkdtemp(prefix="mox-bench-")
+    try:
+        conn = db.connect(Path(tmp) / "bench.db")
+        for path in a.paths:
+            s = scanner.scan(path, conn=conn)
+            st = attest.stats(conn, s["scan_id"])
+            tot["files"] += s["files_scanned"]
+            tot["seconds"] += s["seconds"]
+            tot["findings"] += s["findings"]
+            tot["assets"] += st["total"]
+            tot["qv"] += st["quantum_vulnerable"]
+            tot["hndl"] += st["hndl_exposed"]
+            planes |= set(s["planes"])
+            for k in verdicts:
+                verdicts[k] += st["verdicts"][k]
+        conn.close()
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    rows = [("files scanned", tot["files"]), ("seconds", f"{tot['seconds']:.2f}"),
+            ("planes hit", f"{len(planes)} ({', '.join(sorted(planes))})"), ("findings", tot["findings"]),
+            ("assets", tot["assets"]), ("quantum-vuln", tot["qv"]), ("HNDL-exposed", tot["hndl"]),
+            ("verdict split", f"MIGRATE {verdicts['migrate']} / CONTAIN {verdicts['contain']} / ACCEPT {verdicts['accept']}")]
+    for k, v in rows:
+        print(f"{k:<14}: {v}")
 
 
 def main(argv=None):
@@ -56,9 +95,10 @@ def main(argv=None):
     c = sub.add_parser("serve", help="serve API + web UI on 127.0.0.1:8000")
     c.add_argument("--port", type=int, default=8000)
     c.set_defaults(fn=lambda a: __import__("mox.api", fromlist=["x"]).serve(port=a.port))
-    for name, phase in (("demo-attestations", 5), ("bench", 5)):
-        c = sub.add_parser(name)
-        c.add_argument("paths", nargs="*")
-        c.set_defaults(fn=_later(phase, name))
+    c = sub.add_parser("demo-attestations", help="simulated signed attestations for 6 sectors (demo data)")
+    c.set_defaults(fn=_demo_attestations)
+    c = sub.add_parser("bench", help="scan paths and print the numbers for the slides")
+    c.add_argument("paths", nargs="*")
+    c.set_defaults(fn=_bench)
     args = p.parse_args(argv)
     sys.exit(args.fn(args) or 0)

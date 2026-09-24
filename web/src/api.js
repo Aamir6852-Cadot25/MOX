@@ -28,6 +28,9 @@ export const api = {
   fixApply: (id, note) => call("POST", `/api/fixes/${id}/apply`, { note }),
   cbom: () => call("GET", "/api/cbom"),
   roadmap: () => call("GET", "/api/roadmap"),
+  attest: (sector) => call("GET", `/api/attest?sector=${sector}`),
+  sectors: () => call("GET", "/api/sectors"),
+  audit: () => call("GET", "/api/audit"),
   setSettings: (body) => call("PUT", "/api/settings", body),
 };
 
