@@ -7,15 +7,19 @@ body { margin: 0; min-height: 100vh; font-family: "Segoe UI", "DejaVu Sans", san
 .shell { display: flex; min-height: 100vh; }
 .side { position: fixed; inset: 0 auto 0 0; width: 232px; background: var(--card); border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: 18px 12px; overflow-y: auto; }
 .main { margin-left: 232px; flex: 1; min-width: 0; }
-.topbar { height: 52px; display: flex; align-items: center; gap: 12px; padding: 0 22px; border-bottom: 1px solid var(--line); background: var(--card); }
+.topbar { position: sticky; top: 0; z-index: 10; height: 60px; display: flex; align-items: center; gap: 12px; padding: 0 22px; border-bottom: 1px solid var(--line); background: var(--card); box-shadow: 0 1px 3px rgba(0,0,0,.06); }
 .logo { font-weight: 700; font-size: 20px; letter-spacing: 2px; padding: 0 8px 14px; color: var(--text); }
-.grp { font-size: 10.5px; letter-spacing: .8px; text-transform: uppercase; color: var(--muted); padding: 14px 8px 4px; font-weight: 600; }
-.nav { display: block; padding: 7px 10px; border-radius: 6px; color: var(--text); text-decoration: none; font-size: 13px; }
+.grp { font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; color: #8B95A3; padding: 18px 8px 6px; font-weight: 600; }
+.nav { display: block; margin-bottom: 4px; padding: 8px 10px; border-radius: 6px; color: var(--text); text-decoration: none; font-size: 13px; }
 .nav:hover { background: var(--soft); }
-.nav.on { background: var(--soft); font-weight: 600; box-shadow: inset 3px 0 0 var(--accent); }
+.nav.on:hover { background: #E3EEFA; }
+.nav.on { background: #E3EEFA; color: #1F4E79; font-weight: 600; }
 .sp { flex: 1; }
 .chip { white-space: nowrap; border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; font-size: 11.5px; color: var(--muted); background: var(--card); }
-.panel { background: var(--card); border: 1px solid var(--line); border-radius: 8px; }
+.panel { background: var(--card); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.08); padding: 24px; }
+.kpi-n { font-size: 38px; line-height: 44px; font-weight: 700; color: var(--text); }
+.kpi-l { margin-top: 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
 .h { font-size: 13.5px; font-weight: 600; color: var(--text); } .dim { color: var(--muted); } .mono { font-family: Consolas, "DejaVu Sans Mono", monospace; }
 .pill { display: inline-block; border-radius: 20px; padding: 2px 9px; font-size: 10.5px; font-weight: 600; letter-spacing: .4px; }
 .MIGRATE { background: #FDECEA; color: #B42318; border: 1px solid #F5C2BD; }

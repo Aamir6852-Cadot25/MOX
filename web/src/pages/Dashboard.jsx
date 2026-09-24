@@ -7,8 +7,12 @@ const TIERS = ["Critical", "High", "Medium", "Low"];
 const MORE = [["safe", "Quantum-safe or out of scope"], ["hybrid", "Hybrid PQ endpoints found"], ["files", "Files scanned"],
   ["planes", "Planes hit (of 7)"], ["seconds", "Scan time (s)"]];
 
-function Kpi({ n, label, cls = "" }) {
-  return <div className="panel p-4"><div className={`text-3xl font-semibold ${cls}`}>{n}</div><div className="dim text-[12px] mt-1">{label}</div></div>;
+function Kpi({ n, label, accent }) {
+  return (
+    <div className="card" style={accent ? { borderLeft: `4px solid ${accent}` } : undefined}>
+      <div className="kpi-n">{n}</div><div className="kpi-l">{label}</div>
+    </div>
+  );
 }
 
 export default function Dashboard({ summary, onScanned }) {
@@ -49,18 +53,18 @@ export default function Dashboard({ summary, onScanned }) {
         <div className="w-40"><button className="btn ghost" disabled={busy} onClick={run}>{busy ? "Scanning…" : "Re-scan"}</button></div>
       </div>
       {err && <div className="red">{err}</div>}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Kpi n={kpi.assets} label="Cryptographic assets" />
-        <Kpi n={kpi.hndl} label="Harvest-now-decrypt-later exposed" cls="red" />
-        <Kpi n={kpi.quantum_vulnerable} label="Quantum-vulnerable assets" />
-        <div className="panel p-4">
-          <div className="flex gap-1.5 flex-wrap">
+        <Kpi n={kpi.hndl} label="Harvest-now-decrypt-later exposed" accent="#B42318" />
+        <Kpi n={kpi.quantum_vulnerable} label="Quantum-vulnerable assets" accent="#D9822B" />
+        <div className="card">
+          <div className="flex gap-1.5 flex-wrap kpi-n" style={{ fontSize: 13, lineHeight: "36px" }}>
             {["MIGRATE", "CONTAIN", "ACCEPT"].map((v) => <span key={v} className={`pill ${v}`}>{v} {verdicts[v]}</span>)}
           </div>
-          <div className="dim text-[12px] mt-2">Verdict split</div>
+          <div className="kpi-l">Verdict split</div>
         </div>
       </div>
-      <div className="panel p-4">
+      <div className="card">
         <div className="h mb-1">Risk field <span className="dim font-normal">— each dot is one asset: Mosca overexposure (X+Y−Z, years) vs business criticality</span></div>
         <div style={{ height: 340 }}>
           <ResponsiveContainer>
@@ -82,10 +86,10 @@ export default function Dashboard({ summary, onScanned }) {
       </div>
       <div><button className="btn ghost" style={{ width: 200 }} onClick={() => setMore(!more)}>{more ? "Hide full findings" : "View full findings"}</button></div>
       {more && (
-        <div className="panel p-4 flex flex-col gap-3">
+        <div className="card flex flex-col gap-3">
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             {MORE.map(([k, l]) => (
-              <div key={k}><div className="text-2xl font-semibold">{kpi[k]}</div><div className="dim text-[12px]">{l}</div></div>
+              <div key={k}><div className="kpi-n" style={{ fontSize: 28 }}>{kpi[k]}</div><div className="kpi-l">{l}</div></div>
             ))}
           </div>
           <div className="flex h-7 rounded overflow-hidden">

@@ -60,9 +60,9 @@ export default function App() {
         <div className="topbar">
           <div className="dim">{scan ? <>Target <b style={{ color: "var(--text)" }}>{scan.target.split(/[\/]/).pop()}</b></> : "No scan yet"}</div>
           <div className="sp" />
-          {scan && <div className="chip">{scan.files_scanned} files · {Object.keys(scan.planes).length} planes · {scan.seconds} s</div>}
-          <div className="chip">Offline — 0 outbound calls</div>
-          <button className="chip" onClick={() => api.logout().then(() => setUser(null))}>{user.username} · sign out</button>
+          {scan && <div className="chip">{scan.files_scanned} files Â· {Object.keys(scan.planes).length} planes Â· {scan.seconds} s</div>}
+          <div className="chip">Offline â€” 0 outbound calls</div>
+          <button className="chip" onClick={() => api.logout().then(() => setUser(null))}>{user.username} Â· sign out</button>
         </div>
       <Routes>
         <Route path="/" element={<Dashboard summary={summary} onScanned={refresh} />} />
