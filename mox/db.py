@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS fixes(
   created_at TEXT, data TEXT);
 CREATE TABLE IF NOT EXISTS audit(
   id INTEGER PRIMARY KEY, ts TEXT, actor TEXT, action TEXT, detail TEXT);
+CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT);
+CREATE TABLE IF NOT EXISTS overrides(asset_key TEXT PRIMARY KEY, x INTEGER, criticality INTEGER);
 CREATE TABLE IF NOT EXISTS users(
   id INTEGER PRIMARY KEY, username TEXT UNIQUE, pw_hash TEXT, role TEXT, created_at TEXT);
 """

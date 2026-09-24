@@ -33,13 +33,13 @@ run.ps1  README.md  requirements.txt  .gitignore
 - [x] Test: verdict rules CONTAIN/ACCEPT/MIGRATE; replacement map; wave 1–5 assigned
 
 ## Phase 3 — API + auth + UI (Login, Dashboard, Work queue, Asset detail)
-- [ ] Argon2id; `create-admin`; JWT httpOnly cookie; secret from MOX_SECRET or data/keys/secret
-- [ ] Test: no public admin registration; role never from request; login ok/failed audited
-- [ ] /api auth, scans, assets, settings (threat horizon, X, criticality edits) — httpx tests
-- [ ] Dashboard: 8 KPI cards from real scan, risk scatter, verdict split bar; "Offline — 0 outbound" chip
-- [ ] Work queue (sorted, chips, tier, confidence, Verify-first tab); Asset detail (N→1 graph, breakdown,
+- [x] Argon2id; `create-admin`; JWT httpOnly cookie; secret from MOX_SECRET or data/keys/secret
+- [x] Test: no public admin registration; role never from request; login ok/failed audited
+- [x] /api auth, scans, assets, settings (threat horizon, X, criticality edits) — httpx tests
+- [x] Dashboard: 8 KPI cards from real scan, risk scatter, verdict split bar; "Offline — 0 outbound" chip
+- [x] Work queue (sorted, chips, tier, confidence, Verify-first tab); Asset detail (N→1 graph, breakdown,
       NIST now/2030/2035, verdict, replacement + size note, what breaks)
-- [ ] `npm --prefix web run build` passes; FastAPI serves web/dist
+- [x] `npm --prefix web run build` passes; FastAPI serves web/dist
 
 ## Phase 4 — fix-and-verify + CBOM + roadmap (+ Fix, CBOM, Roadmap screens)
 - [ ] Fixers: md5/sha1→sha256 (py/js/java), RSA keygen→3072 + interim comment, nginx hardening

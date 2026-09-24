@@ -49,7 +49,14 @@ def main(argv=None):
     c.add_argument("path")
     c.add_argument("--probe", metavar="HOST:PORT")
     c.set_defaults(fn=_scan)
-    for name, phase in (("create-admin", 3), ("demo-attestations", 5), ("bench", 5)):
+    c = sub.add_parser("create-admin", help="create an admin user (the only way to get one)")
+    c.add_argument("--username")
+    c.add_argument("--password")
+    c.set_defaults(fn=lambda a: __import__("mox.auth", fromlist=["x"]).cli_create_admin(a))
+    c = sub.add_parser("serve", help="serve API + web UI on 127.0.0.1:8000")
+    c.add_argument("--port", type=int, default=8000)
+    c.set_defaults(fn=lambda a: __import__("mox.api", fromlist=["x"]).serve(port=a.port))
+    for name, phase in (("demo-attestations", 5), ("bench", 5)):
         c = sub.add_parser(name)
         c.add_argument("paths", nargs="*")
         c.set_defaults(fn=_later(phase, name))

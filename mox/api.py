@@ -1,0 +1,221 @@
+"""FastAPI app: /api/* (SPEC section 13) + serves web/dist. Offline; no outbound calls."""
+import json
+import sqlite3
+
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+
+from . import auth, db, scanner
+from .analyze import analyze
+from .db import ROOT
+from .score import DEFAULTS
+
+DIST = ROOT / "web" / "dist"
+
+
+def _conn():
+    conn = db.connect()
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
+def _user(request: Request):
+    u = auth.read_token(request.cookies.get(auth.COOKIE))
+    if not u:
+        raise HTTPException(401, "not authenticated")
+    return u
+
+
+class Login(BaseModel):
+    username: str
+    password: str
+
+
+class ScanReq(BaseModel):
+    path: str | None = None
+    probe: str | None = None
+
+
+class SettingsReq(BaseModel):
+    threat_horizon: int | None = None
+
+
+class OverrideReq(BaseModel):
+    x: int | None = None
+    criticality: int | None = None
+
+
+def _settings(conn) -> dict:
+    st = dict(DEFAULTS)
+    for r in conn.execute("SELECT key,value FROM settings"):
+        st[r["key"]] = json.loads(r["value"])
+    return st
+
+
+def _overrides(conn) -> dict:
+    return {r["asset_key"]: {"x": r["x"], "criticality": r["criticality"]}
+            for r in conn.execute("SELECT * FROM overrides")}
+
+
+def _latest(conn):
+    return conn.execute("SELECT * FROM scans ORDER BY id DESC LIMIT 1").fetchone()
+
+
+def _reanalyze(conn, scan_id):
+    analyze(scan_id, conn, _settings(conn), _overrides(conn))
+
+
+def _asset(conn, row, full=False) -> dict:
+    d = json.loads(row["data"])
+    d["id"] = row["id"]
+    d.pop("finding_ids", None)
+    d.pop("hybrid_finding_ids", None)
+    if full:
+        d["findings"] = [dict(r) for r in conn.execute(
+            "SELECT f.* FROM findings f JOIN asset_locations l ON l.finding_id=f.id"
+            " WHERE l.asset_id=? ORDER BY f.file,f.line", (row["id"],))]
+    else:
+        d.pop("findings", None)
+        d.pop("locations", None)
+    return d
+
+
+def _assets(conn, scan_id):
+    rows = conn.execute("SELECT * FROM assets WHERE scan_id=?", (scan_id,)).fetchall()
+    return sorted((_asset(conn, r) for r in rows), key=lambda a: -a["score"])
+
+
+def _summary(scan, assets) -> dict:
+    qv = [a for a in assets if a["breakdown"]["quantum_vulnerable"]]
+    hndl = [a for a in qv if a["breakdown"]["mosca"]["exposure"] > 0]
+    verdicts = {"MIGRATE": 0, "CONTAIN": 0, "ACCEPT": 0}
+    for a in assets:
+        verdicts[a["verdict"]] += 1
+    planes = json.loads(scan["planes_hit"])
+    return {"scan": {k: scan[k] for k in ("id", "target", "started_at", "seconds", "files_scanned",
+                                          "findings_count")} | {"planes": planes},
+            "kpi": {"files": scan["files_scanned"], "planes": len(planes), "seconds": scan["seconds"],
+                    "assets": len(assets), "hndl": len(hndl), "quantum_vulnerable": len(qv),
+                    "safe": len(assets) - len(qv), "hybrid": sum(1 for a in assets if a["hybrid"])},
+            "verdicts": verdicts,
+            "field": [{"id": a["id"], "label": a["label"], "exposure": a["breakdown"]["mosca"]["exposure"],
+                       "criticality": a["breakdown"]["criticality"], "tier": a["tier"], "score": a["score"]}
+                      for a in assets]}
+
+
+def create_app() -> FastAPI:
+    app = FastAPI(title="MOX", docs_url=None, redoc_url=None, openapi_url=None)
+
+    @app.post("/api/auth/login")
+    def login(body: Login, response: Response, conn: sqlite3.Connection = Depends(_conn)):
+        row = auth.check_login(conn, body.username, body.password)
+        if not row:
+            auth.audit(conn, body.username[:64], "login-failed")
+            raise HTTPException(401, "invalid credentials")
+        auth.audit(conn, row["username"], "login-ok")
+        response.set_cookie(auth.COOKIE, auth.make_token(row), httponly=True, samesite="strict", max_age=auth.TTL)
+        return {"username": row["username"], "role": row["role"]}
+
+    @app.post("/api/auth/logout")
+    def logout(response: Response):
+        response.delete_cookie(auth.COOKIE)
+        return {"ok": True}
+
+    @app.get("/api/auth/me")
+    def me(u=Depends(_user)):
+        return {"username": u["sub"], "role": u["role"]}
+
+    @app.post("/api/scans")
+    def start_scan(body: ScanReq, u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
+        target = body.path or str(ROOT / "demo_target")
+        try:
+            s = scanner.scan(target, probe=body.probe, conn=conn)
+        except FileNotFoundError as e:
+            raise HTTPException(400, str(e))
+        _reanalyze(conn, s["scan_id"])
+        auth.audit(conn, u["sub"], "scan", f"{target} -> {s['findings']} findings, {s['assets']} assets")
+        return s
+
+    @app.get("/api/scans/latest")
+    def latest(u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
+        scan = _latest(conn)
+        if not scan:
+            return {"scan": None}
+        return _summary(scan, _assets(conn, scan["id"]))
+
+    @app.get("/api/assets")
+    def assets(u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
+        scan = _latest(conn)
+        return _assets(conn, scan["id"]) if scan else []
+
+    @app.get("/api/assets/{asset_id}")
+    def asset(asset_id: int, u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
+        row = conn.execute("SELECT * FROM assets WHERE id=?", (asset_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, "asset not found")
+        return _asset(conn, row, full=True)
+
+    @app.put("/api/assets/{asset_id}/override")
+    def override(asset_id: int, body: OverrideReq, u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
+        row = conn.execute("SELECT * FROM assets WHERE id=?", (asset_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, "asset not found")
+        if body.criticality not in (None, 1, 2, 3) or (body.x is not None and not 0 <= body.x <= 50):
+            raise HTTPException(422, "criticality must be 1-3, x 0-50")
+        key = json.loads(row["data"])["key"]
+        conn.execute("INSERT OR REPLACE INTO overrides(asset_key,x,criticality) VALUES(?,?,?)",
+                     (key, body.x, body.criticality))
+        conn.commit()
+        _reanalyze(conn, row["scan_id"])
+        auth.audit(conn, u["sub"], "override", f"{row['label']} x={body.x} criticality={body.criticality}")
+        new = next(r for r in conn.execute("SELECT * FROM assets WHERE scan_id=?", (row["scan_id"],))
+                   if json.loads(r["data"])["key"] == key)
+        return _asset(conn, new, full=True)
+
+    @app.get("/api/settings")
+    def get_settings(u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
+        return _settings(conn)
+
+    @app.put("/api/settings")
+    def put_settings(body: SettingsReq, u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
+        if body.threat_horizon is not None:
+            if not 1 <= body.threat_horizon <= 40:
+                raise HTTPException(422, "threat_horizon must be 1-40")
+            conn.execute("INSERT OR REPLACE INTO settings(key,value) VALUES('threat_horizon',?)",
+                         (json.dumps(body.threat_horizon),))
+            conn.commit()
+            scan = _latest(conn)
+            if scan:
+                _reanalyze(conn, scan["id"])
+            auth.audit(conn, u["sub"], "settings", f"threat_horizon={body.threat_horizon}")
+        return _settings(conn)
+
+    @app.get("/api/audit")
+    def audit_log(u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
+        return [dict(r) for r in conn.execute("SELECT * FROM audit ORDER BY id DESC LIMIT 200")]
+
+    if DIST.is_dir():
+        app.mount("/assets", StaticFiles(directory=DIST / "assets"), name="assets")
+
+        @app.get("/{path:path}")
+        def spa(path: str):
+            if path.startswith("api/"):
+                raise HTTPException(404)
+            f = (DIST / path).resolve()
+            if path and f.is_file() and DIST.resolve() in f.parents:
+                return FileResponse(f)
+            return FileResponse(DIST / "index.html")
+
+    return app
+
+
+app = create_app()
+
+
+def serve(host="127.0.0.1", port=8000):
+    import uvicorn
+    uvicorn.run("mox.api:app", host=host, port=port, log_level="warning")
