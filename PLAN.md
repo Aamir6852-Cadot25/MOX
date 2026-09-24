@@ -111,4 +111,14 @@ run.ps1  README.md  requirements.txt  .gitignore
 - [x] tests/test_phase12.py: exhaustive risk arithmetic (1,512 combos), Mosca/CMCS never move risk, CMCS orthogonal
 - [x] Blueprint contradictions found: its score card shows 70 for 40+15+8 x1.2 (= 75.6); it labels a certificate signature as HNDL (it is forgery). UI uses real values
 - [ ] Visual review screenshots (Chrome extension not connected)
-- [ ] Next: research-notes.md, then Dashboard (tiles, verdict bar, risk field plot with break-even line)
+
+## Phase 13 — research notes + Dashboard
+- [x] docs/research-notes.md: standards status verified on CSRC (131A Rev3 + IR 8547 still drafts; SP 800-227 final), CycloneDX 1.6 crypto schema from bundled schema, NCIIPC 70A + sectors, NQM, Mosca critique, 8 recorded contradictions
+- [x] Sector names aligned with NCIIPC's six critical sectors
+- [x] HNDL count now = Shor-class + hndl threat + Mosca > 0 (was every exposed quantum-vulnerable asset); forgery-exposed counted separately (score.exposed)
+- [x] Readiness index in /api/scans/latest kpi
+- [x] Dashboard: 4 fixed-height tiles (88 px), verdict split bar linking to filtered queue, 7-plane coverage ring, pipeline card, SVG risk field (break-even line, size = score, tier by fill style for CVD/greyscale, keyboard + hover)
+- [x] Recharts no longer used by any screen (dependency kept for later charts)
+- [ ] Visual review screenshots (Chrome extension not connected)
+- [ ] Gaps noted for later: SQLite WAL mode; CBOM certificateProperties beyond certificateFormat
+- [ ] Next: Work queue (sortable, filterable, j/k/Enter/"/" keyboard)

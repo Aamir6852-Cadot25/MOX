@@ -200,3 +200,10 @@ def score_asset(asset: dict, settings: dict | None = None, override: dict | None
                           "mosca": {"x": x, "x_basis": x_basis, "y": y, "y_basis": f"CMCS {c['score']} / 2, rounded up",
                                     "z": z, "exposure": x + y - z},
                           "cmcs": c}}
+
+
+def exposed(a: dict, threat: str) -> bool:
+    """Quantum-exposed for one threat: Shor-breakable, that threat applies, and Mosca exposure > 0.
+    'hndl' = harvest-now-decrypt-later; 'forgery' = signatures trusted past the quantum horizon."""
+    b = a["breakdown"]
+    return b["quantum_vulnerable"] and threat in b.get("threats", []) and b["mosca"]["exposure"] > 0

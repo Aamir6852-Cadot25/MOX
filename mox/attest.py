@@ -10,6 +10,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 
 from . import cbom, db
+from .score import exposed
 
 SCHEMA = "mox.attestation/v1"
 SCANNER = f"mox {cbom.VERSION}"
@@ -75,7 +76,7 @@ def stats(conn, scan_id: int) -> dict:
     qv = [a for a in assets if a["breakdown"]["quantum_vulnerable"]]
     v = {k: sum(1 for a in assets if a["verdict"] == k.upper()) for k in ("migrate", "contain", "accept")}
     return {"total": len(assets), "quantum_vulnerable": len(qv),
-            "hndl_exposed": sum(1 for a in qv if a["breakdown"]["mosca"]["exposure"] > 0),
+            "hndl_exposed": sum(1 for a in qv if exposed(a, "hndl")),
             "safe_or_out_of_scope": len(assets) - len(qv), "verdicts": v,
             "hybrid": sum(1 for a in assets if a["hybrid"])}
 

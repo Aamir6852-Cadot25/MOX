@@ -84,3 +84,13 @@ def test_quantum_exposed_asset_is_never_accepted_on_low_risk_alone():
     d = decide(a, sc)
     assert sc["tier"] == "Low" and sc["breakdown"]["mosca"]["exposure"] > 0
     assert d["verdict"] == "MIGRATE" and d["wave"] == 2 and "Mosca exposure +7" in d["wave_reason"]
+
+
+def test_hndl_and_forgery_exposure_are_distinct():
+    from mox.score import exposed
+    sig = asset(F(plane="certificates", confidence="high", file="auth/sig.crt"))  # X=15 -> exposed
+    kex = asset(F(algorithm="ECDH", curve="P-256", file="auth/kex.py"))
+    for a in (sig, kex):
+        a.update(score_asset(a))
+    assert exposed(sig, "forgery") and not exposed(sig, "hndl")
+    assert exposed(kex, "hndl") and not exposed(kex, "forgery")

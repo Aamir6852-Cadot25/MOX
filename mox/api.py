@@ -11,7 +11,7 @@ from . import attest, auth, cbom, db, jobs, netguard, report, scanner
 from .fixers import flow
 from .analyze import analyze
 from .db import ROOT
-from .score import DEFAULTS
+from .score import DEFAULTS, exposed
 
 DIST = ROOT / "web" / "dist"
 
@@ -110,7 +110,7 @@ def _assets(conn, scan_id):
 
 def _summary(scan, assets) -> dict:
     qv = [a for a in assets if a["breakdown"]["quantum_vulnerable"]]
-    hndl = [a for a in qv if a["breakdown"]["mosca"]["exposure"] > 0]
+    hndl = [a for a in qv if exposed(a, "hndl")]
     verdicts = {"MIGRATE": 0, "CONTAIN": 0, "ACCEPT": 0}
     for a in assets:
         verdicts[a["verdict"]] += 1
@@ -120,6 +120,10 @@ def _summary(scan, assets) -> dict:
                                                                 "net": json.loads(scan["net"] or "null")},
             "kpi": {"files": scan["files_scanned"], "planes": len(planes), "seconds": scan["seconds"],
                     "assets": len(assets), "hndl": len(hndl), "quantum_vulnerable": len(qv),
+                    "forgery": sum(1 for a in qv if exposed(a, "forgery")),
+                    "readiness": attest.readiness({"total": len(assets), "hndl_exposed": len(hndl),
+                                                   "quantum_vulnerable": len(qv)},
+                                                  {"migrate": verdicts["MIGRATE"]}, len(planes)),
                     "safe": len(assets) - len(qv), "hybrid": sum(1 for a in assets if a["hybrid"])},
             "verdicts": verdicts,
             "stages": json.loads(scan["stages"] or "[]"),

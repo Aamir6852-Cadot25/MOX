@@ -1,107 +1,112 @@
 import { useState } from "react";
-import { CartesianGrid, ReferenceLine, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis, ZAxis } from "recharts";
-import { Link, useNavigate } from "react-router-dom";
-import { api, tierColor } from "../api.js";
+import { Link } from "react-router-dom";
+import { api } from "../api.js";
 import Pipeline from "../components/Pipeline.jsx";
+import RiskField, { Swatch } from "../components/RiskField.jsx";
+import CoverageRing from "../components/CoverageRing.jsx";
 
-const TIERS = ["Critical", "High", "Medium", "Low"];
-const MORE = [["safe", "Quantum-safe or out of scope"], ["hybrid", "Hybrid PQ endpoints found"], ["files", "Files scanned"],
-  ["planes", "Planes hit (of 7)"], ["seconds", "Scan time (s)"]];
+const VERDICTS = [["MIGRATE", "m", "replace per the PQC map"], ["CONTAIN", "c", "isolate; cannot patch in place"], ["ACCEPT", "a", "monitor; validate at next scan"]];
 
-function Kpi({ n, label, accent }) {
+function Tile({ n, unit, label, sub, tone, to, title }) {
   return (
-    <div className="card" style={accent ? { borderLeft: `4px solid ${accent}` } : undefined}>
-      <div className="kpi-n">{n}</div><div className="kpi-l">{label}</div>
-    </div>
+    <Link to={to} className={`tile ${tone || ""}`} title={title}>
+      <span className="n mono">{n}{unit && <span className="u">{unit}</span>}</span>
+      <span className="l">{label}{sub && <><br /><span className="s">{sub}</span></>}</span>
+    </Link>
   );
 }
 
 export default function Dashboard({ summary, onScanned }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [more, setMore] = useState(false);
-  const nav = useNavigate();
-  const run = async () => {
+  const scanDemo = async () => {
     setBusy(true);
     setErr("");
     try {
       await api.scan();
       await onScanned();
     } catch (e) {
-      setErr(e.message);
+      setErr(`${e.message}. Generate it first with: python -m mox make-demo`);
     }
     setBusy(false);
   };
 
   if (!summary?.scan)
     return (
-      <div className="p-10 max-w-xl mx-auto">
-        <div className="panel p-6 flex flex-col gap-3">
-          <div className="h">No scan yet</div>
-          <div className="dim">Scan the demo repository (run <span className="mono">python -m mox make-demo</span> first).</div>
-          <button className="btn" disabled={busy} onClick={run}>{busy ? "Scanning…" : "Scan demo repository"}</button>
-          {err && <div className="red">{err}</div>}
+      <div className="p-6">
+        <div className="bp-card" style={{ maxWidth: 560 }}>
+          <div className="card-h"><h2>No scan recorded yet</h2></div>
+          <div className="card-b flex flex-col gap-3">
+            <div className="hint">Point MOX at a folder on this machine from New Scan, or scan the bundled demo target to see every screen populated.</div>
+            <div className="flex gap-2">
+              <Link className="bp-btn pri" to="/scan">Open New Scan</Link>
+              <button className="bp-btn" disabled={busy} onClick={scanDemo}>{busy ? "Scanning demo target" : "Scan the demo target"}</button>
+            </div>
+            {err && <div className="errbox">{err}</div>}
+          </div>
         </div>
       </div>
     );
 
   const { kpi, verdicts, field } = summary;
-  const total = Object.values(verdicts).reduce((a, b) => a + b, 0) || 1;
+  const total = kpi.assets || 1;
   return (
-    <div className="p-5 flex flex-col gap-4 max-w-[1300px] mx-auto">
-      <div className="flex justify-between items-center">
-        <div className="h text-base">Dashboard <span className="dim font-normal">— {kpi.assets} cryptographic assets from {summary.scan.findings_count} findings</span></div>
-        <div className="w-40"><button className="btn ghost" disabled={busy} onClick={run}>{busy ? "Scanning…" : "Re-scan"}</button></div>
-      </div>
-      {err && <div className="red">{err}</div>}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Kpi n={kpi.assets} label="Cryptographic assets" />
-        <Kpi n={kpi.hndl} label="Harvest-now-decrypt-later exposed" accent="#B42318" />
-        <Kpi n={kpi.quantum_vulnerable} label="Quantum-vulnerable assets" accent="#D9822B" />
-        <div className="card">
-          <div className="flex gap-1.5 flex-wrap kpi-n" style={{ fontSize: 13, lineHeight: "36px" }}>
-            {["MIGRATE", "CONTAIN", "ACCEPT"].map((v) => <span key={v} className={`pill ${v}`}>{v} {verdicts[v]}</span>)}
-          </div>
-          <div className="kpi-l">Verdict split</div>
+    <div className="dash">
+      <div className="head">
+        <h1>Dashboard</h1>
+        <span className="sub"><span className="mono">{kpi.assets}</span> cryptographic assets correlated from <span className="mono">{summary.scan.findings_count}</span> findings</span>
+        <div className="head-act">
+          <Link className="bp-btn" to="/report">Compliance report</Link>
+          <Link className="bp-btn pri" to="/scan">Re-scan</Link>
         </div>
       </div>
-      <Pipeline stages={summary.stages} net={summary.scan.net} />
-      <div className="card">
-        <div className="h mb-1">Risk field <span className="dim font-normal">— each dot is one asset: Mosca overexposure (X+Y−Z, years) vs business criticality</span></div>
-        <div style={{ height: 340 }}>
-          <ResponsiveContainer>
-            <ScatterChart margin={{ top: 10, right: 20, bottom: 20, left: 0 }}>
-              <CartesianGrid stroke="#E3E7ED" />
-              <XAxis type="number" dataKey="exposure" name="Overexposure (yrs)" stroke="#6B7785" label={{ value: "years overexposed (X+Y−Z)", position: "insideBottom", offset: -10, fill: "#6B7785" }} />
-              <YAxis type="number" dataKey="criticality" name="Criticality" domain={[0.5, 3.5]} ticks={[1, 2, 3]} stroke="#6B7785" />
-              <ZAxis type="number" dataKey="score" range={[50, 220]} name="Score" />
-              <ReferenceLine x={0} stroke="#6B7785" strokeDasharray="4 4" />
-              <Tooltip cursor={{ stroke: "#6B7785" }} contentStyle={{ background: "#fff", border: "1px solid #E3E7ED" }} />
-              {TIERS.map((t) => (
-                <Scatter key={t} name={t} data={field.filter((f) => f.tier === t)} fill={tierColor(t)} fillOpacity={0.85}
-                  onClick={(d) => nav(`/asset/${d.id}`)} cursor="pointer" />
-              ))}
-            </ScatterChart>
-          </ResponsiveContainer>
+      <div className="dash-b">
+        <div className="tiles">
+          <Tile n={kpi.assets} label="Cryptographic assets" sub={`from ${summary.scan.findings_count} findings`} to="/queue" />
+          <Tile n={kpi.hndl} tone="crit" label="Harvest-now-decrypt-later exposed" to="/queue"
+            sub={`plus ${kpi.forgery ?? 0} signature asset${kpi.forgery === 1 ? "" : "s"} exposed to forgery`}
+            title="Shor-breakable key exchange or encryption whose Mosca exposure is above zero. Signature assets are counted separately: their threat is forgery, not decryption." />
+          <Tile n={kpi.quantum_vulnerable} tone="high" label="Quantum-vulnerable (Shor) assets" sub={`${kpi.safe} not Shor-breakable`} to="/queue" />
+          <Tile n={kpi.readiness ?? "–"} unit="/100" tone="safe" label="Readiness index" sub="as disclosed in the attestation" to="/attest"
+            title="100 − (50 × HNDL-exposed + 30 × quantum-vulnerable + 20 × MIGRATE) / assets, scaled 0.8–1.0 by plane coverage (mox/attest.py)" />
         </div>
-        <div className="flex gap-4 dim text-[11px]">{TIERS.map((t) => <span key={t}><span style={{ color: tierColor(t) }}>●</span> {t}</span>)}<span>Dot size = score · click a dot to open the asset</span></div>
+
+        <div className="dash-row">
+          <div className="bp-card" style={{ flex: 1, minWidth: 0 }}>
+            <div className="card-h"><h2>Verdict split</h2><span className="note">every asset resolves to exactly one verdict</span></div>
+            <div className="card-b">
+              <div className="vbar">
+                {VERDICTS.map(([v, c]) => verdicts[v] > 0 && (
+                  <Link key={v} to={`/queue?verdict=${v}`} className={`vseg ${c}`} style={{ flex: verdicts[v] }}
+                    aria-label={`${v}: ${verdicts[v]} assets`}>{v} <span className="mono">{verdicts[v]}</span></Link>
+                ))}
+              </div>
+              <div className="vkey">
+                {VERDICTS.map(([v, , d]) => <span key={v}><b>{v}</b> <span className="mono">{Math.round((100 * verdicts[v]) / total)}%</span> {d}</span>)}
+              </div>
+            </div>
+          </div>
+          <div className="bp-card" style={{ width: "var(--aside)", flex: "0 0 var(--aside)" }}>
+            <div className="card-h"><h2>Plane coverage</h2><span className="note">latest scan</span></div>
+            <div className="card-b"><CoverageRing stages={summary.stages} /></div>
+          </div>
+        </div>
+
+        <Pipeline stages={summary.stages} net={summary.scan.net} />
+
+        <div className="bp-card">
+          <div className="card-h"><h2>Risk field</h2><span className="note">each dot is one asset; open it with a click or Enter</span></div>
+          <div className="card-b">
+            <div className="rf-key">
+              {["Critical", "High", "Medium", "Low"].map((t) => <span key={t}><Swatch tier={t} />{t}</span>)}
+              <span>dot size = risk score</span>
+              <span>dashed line = Mosca break-even, X + Y = Z</span>
+              <Link to="/queue" className="rf-table">Same data as a table: work queue</Link>
+            </div>
+            <RiskField field={field} />
+          </div>
+        </div>
       </div>
-      <div><button className="btn ghost" style={{ width: 200 }} onClick={() => setMore(!more)}>{more ? "Hide full findings" : "View full findings"}</button></div>
-      {more && (
-        <div className="card flex flex-col gap-3">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            {MORE.map(([k, l]) => (
-              <div key={k}><div className="kpi-n" style={{ fontSize: 28 }}>{kpi[k]}</div><div className="kpi-l">{l}</div></div>
-            ))}
-          </div>
-          <div className="flex h-7 rounded overflow-hidden">
-            {["MIGRATE", "CONTAIN", "ACCEPT"].map((v) => (
-              verdicts[v] > 0 && <div key={v} className={`${v} grid place-items-center text-[11px] font-bold`} style={{ width: `${(verdicts[v] / total) * 100}%` }}>{v} {verdicts[v]}</div>
-            ))}
-          </div>
-          <div><Link to="/queue" className="link">Open the work queue →</Link></div>
-        </div>
-      )}
     </div>
   );
 }

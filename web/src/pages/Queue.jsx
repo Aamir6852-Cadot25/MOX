@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { api, tierClass } from "../api.js";
 import { Pager, Search, usePaged } from "../lib.jsx";
 
@@ -8,7 +8,8 @@ const match = (a, t) => t === "all" || (t === "verify" ? a.verify_first : a.verd
 
 export default function Queue({ summary }) {
   const [assets, setAssets] = useState([]);
-  const [tab, setTab] = useState("all");
+  const [params] = useSearchParams();
+  const [tab, setTab] = useState(() => (TABS.some(([k]) => k === params.get("verdict")) ? params.get("verdict") : "all"));
   const nav = useNavigate();
   useEffect(() => { api.assets().then(setAssets); }, [summary]);
   const p = usePaged(assets.filter((a) => match(a, tab)), (a) => `${a.label} ${a.summary} ${a.tier} ${a.verdict}`);

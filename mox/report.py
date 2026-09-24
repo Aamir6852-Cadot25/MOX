@@ -11,6 +11,7 @@ from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from . import cbom
+from .score import exposed
 
 PLANES = [("Source code", "regex/AST rules over source files"), ("Dependencies", "known crypto libraries and versions"),
           ("Configuration", "TLS/SSH/crypto settings in config files"), ("Certificates & keys", "X.509 and key files, metadata only"),
@@ -39,7 +40,7 @@ def build(conn, scan) -> dict:
     tiers = {t: sum(1 for a in assets if a["tier"] == t) for t in TIERS}
     verdicts = {v: sum(1 for a in assets if a["verdict"] == v) for v in ("MIGRATE", "CONTAIN", "ACCEPT")}
     qv = [a for a in assets if a["breakdown"]["quantum_vulnerable"]]
-    hndl = [a for a in qv if a["breakdown"]["mosca"]["exposure"] > 0]
+    hndl = [a for a in qv if exposed(a, "hndl")]
     cleared = conn.execute("SELECT COUNT(*) FROM fixes WHERE status='cleared'").fetchone()[0]
     return {"generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
             "target": scan["target"].replace("\\", "/").split("/")[-1],
