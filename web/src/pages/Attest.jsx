@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { Check } from "../components/Marks.jsx";
 import Icon from "../components/Icon.jsx";
+import { useConfirm } from "../motion.js";
 
 const LEAVES = ["Sector and scan date", "Asset counts: total, quantum-vulnerable, HNDL-exposed", "Verdict split — migrate / contain / accept",
   "Readiness index (0–100)", "Merkle root of the local CBOM", "Scanner version + Ed25519 signature"];
@@ -23,6 +24,8 @@ function download(sector) {
 export default function Attest({ summary }) {
   const [sector, setSector] = useState("government");
   const [d, setD] = useState(null);
+  const [copyLabel, confirmCopy] = useConfirm("Copy root", "Copied");
+  const copyRoot = (root) => navigator.clipboard.writeText(root).then(() => confirmCopy(), () => confirmCopy("Copy blocked"));
   useEffect(() => { setD(null); api.attest(sector).then(setD).catch(() => setD(false)); }, [summary, sector]);
   if (d === false) return <div className="p-6 dim">Run a scan first.</div>;
   if (!d) return <div className="p-6 dim">Building attestation…</div>;
@@ -54,7 +57,8 @@ export default function Attest({ summary }) {
         <div className="panel p-4"><div className="h mb-1">Signing</div>
           <div className="kv"><span className="dim">Algorithm</span><span>{a.signature.alg}</span></div>
           <div className="kv"><span className="dim">Operator key</span><span>{a.signature.key_id}</span></div>
-          <div className="kv"><span className="dim">CBOM Merkle root</span><span>{a.cbom_merkle_root.slice(0, 6)}…{a.cbom_merkle_root.slice(-4)}</span></div>
+          <div className="kv"><span className="dim">CBOM Merkle root</span><span title={a.cbom_merkle_root}>{a.cbom_merkle_root.slice(0, 6)}…{a.cbom_merkle_root.slice(-4)}</span></div>
+          <button type="button" className="bp-btn" style={{ marginTop: 8 }} aria-live="polite" onClick={() => copyRoot(a.cbom_merkle_root)}>{copyLabel}</button>
           <div className="kv"><span className="dim">Leaves</span><span>{fields} fields, 0 paths</span></div>
           <label className="dim block mt-2 text-[12px]">Sector</label>
           <select className="chip w-full mt-1" value={sector} onChange={(e) => setSector(e.target.value)}>

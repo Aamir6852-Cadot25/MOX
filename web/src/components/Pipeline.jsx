@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { reducedMotion, token, tween } from "../motion.js";
 
 export const STAGES = ["Ingest", "Detect", "Correlate", "Score", "Verdict"];
 // Display order matches mox/scanner.py ALL_PLANES.
@@ -9,20 +10,13 @@ const PLANE_LABEL = { code: "source", dependencies: "deps", configs: "configs", 
 export const fmtMs = (ms) => (ms >= 1000 ? `${(ms / 1000).toFixed(2)} s` : ms >= 10 ? `${ms.toFixed(0)} ms` : `${ms.toFixed(2)} ms`);
 const nums = (o, keys) => keys.map((k) => o?.[k] ?? 0);
 
-/** Counts `from` down to `to` over ~600 ms when `run` is set; otherwise shows `to` at once. */
+/** Counts `from` down to `to` over --t-slow while a scan is live (C2: "the correlate count counts down").
+ * Reduced motion: no counting; the value is simply replaced. */
 function useCountDown(from, to, run) {
   const [v, setV] = useState(run ? from : to);
-  const raf = useRef(0);
   useEffect(() => {
-    if (!run || from === to || matchMedia("(prefers-reduced-motion: reduce)").matches) return setV(to);
-    const t0 = performance.now();
-    const tick = (now) => {
-      const k = Math.min(1, (now - t0) / 600);
-      setV(Math.round(from - (from - to) * (1 - (1 - k) ** 3)));
-      if (k < 1) raf.current = requestAnimationFrame(tick);
-    };
-    raf.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf.current);
+    if (!run || from === to || reducedMotion()) return setV(to);
+    return tween(from, to, token("--t-slow"), (x) => setV(Math.round(x)));
   }, [from, to, run]);
   return v;
 }
@@ -103,7 +97,7 @@ export default function Pipeline({ stages, progress, state, error, disabled, net
         <span className="note">{note}</span>
       </div>
       <div className="card-b">
-        <div className="pipe">{STAGES.map(cell)}</div>
+        <div className={`pipe${live ? " live" : ""}`}>{STAGES.map(cell)}</div>
         {net && (
           <div className={`net-line ${net.outbound ? "bad" : ""}`}>
             {net.guard

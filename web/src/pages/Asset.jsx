@@ -3,6 +3,8 @@ import { Link, useParams } from "react-router-dom";
 import { api } from "../api.js";
 import Icon from "../components/Icon.jsx";
 import { Badge, Evidence, Tier, Verdict } from "../components/Marks.jsx";
+import { Disclosure } from "../components/Motion.jsx";
+import { useConfirm } from "../motion.js";
 
 // Every number on this page is a server value from breakdown (see docs/SCORING.md); nothing is recomputed
 // here except the Mosca preview while an analyst types, which is replaced by the server's answer on save.
@@ -71,11 +73,12 @@ function MoscaCard({ a, onX }) {
   const [x, setX] = useState(m.x);
   useEffect(() => setX(m.x), [m.x]);
   const deb = useRef(0);
+  const [savedLabel, confirmSaved] = useConfirm("", "Saved");
   const edit = (set, save) => (e) => {
     const v = e.target.value === "" ? null : Math.max(0, Math.min(50, Math.round(+e.target.value)));
     set(v ?? "");
     clearTimeout(deb.current);
-    if (v != null) deb.current = setTimeout(() => save(v), 400);
+    if (v != null) deb.current = setTimeout(() => Promise.resolve(save(v)).then(() => confirmSaved(), () => confirmSaved("Not saved")), 400);
   };
   if (m.exposure == null)
     return (
@@ -143,7 +146,8 @@ function MoscaCard({ a, onX }) {
         <div className={`verdict-line ${cls}`}>{line}</div>
         <div className="fields">
           <div className="fr"><label htmlFor="fx">X {sigOnly ? "signature trust life" : "data shelf life"}</label>
-            <input id="fx" className="mono" type="number" min="0" max="50" value={x} onChange={edit(setX, onX)} /><span className="u">yrs</span></div>
+            <input id="fx" className="mono" type="number" min="0" max="50" value={x} onChange={edit(setX, onX)} /><span className="u">yrs</span>
+            <span className="hint" aria-live="polite" style={{ minWidth: 48 }}>{savedLabel}</span></div>
           <div className="hint">{m.x_basis}</div>
           <div className="fr"><label>Y migration time</label><span className="mono" style={{ fontSize: 11 }}>{Y}</span><span className="u">yrs</span></div>
           <div className="hint">{m.y_basis}; see Migration complexity below</div>
@@ -197,7 +201,7 @@ export default function Asset({ onChanged }) {
 
   const b = a.breakdown, m = b.mosca;
   const first = a.findings[0];
-  const save = async (body) => { setA(await api.override(a.id, { x: m.x, criticality: b.criticality, ...body })); onChanged(); };
+  const save = async (body) => { setA(await api.override(a.id, { x: m.x, criticality: b.criticality, ...body })); onChanged(); };  // throws on failure: the caller shows "Not saved"
   const planes = [...new Set(a.locations.map((l) => l.plane))];
   const nFiles = new Set(a.locations.map((l) => l.file)).size;
   const top = b.threats[0];
@@ -227,8 +231,13 @@ export default function Asset({ onChanged }) {
             <div style={{ flex: 1 }}>
               {b.threats.map((t) => <div key={t} style={{ marginBottom: 4 }}><div className="ti">{THREAT[t][0]}</div><div className="de">{THREAT[t][1]}</div></div>)}
               {b.purposes?.length > 0 && (
-                <div className="de" style={{ marginTop: 8 }}>Declared purpose, per location:{" "}
-                  {b.purposes.map((p, i) => <span key={i}>{i ? "; " : ""}<span className="mono">{p.file}{p.line ? `:${p.line}` : ""}</span> {p.purpose} ({p.evidence})</span>)}.
+                <div className="de" style={{ marginTop: 8 }}>
+                  <Disclosure summary={<>Declared purpose at {b.purposes.length} location{b.purposes.length === 1 ? "" : "s"}:{" "}
+                    {[...new Set(b.purposes.map((p) => p.purpose))].join(", ")}</>}>
+                    <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
+                      {b.purposes.map((p, i) => <li key={i}><span className="mono">{p.file}{p.line ? `:${p.line}` : ""}</span> {p.purpose}: {p.evidence}</li>)}
+                    </ul>
+                  </Disclosure>
                 </div>)}
             </div>
             {fixable && a.verdict !== "ACCEPT" && <Link className="bp-btn" to={`/fix/${fixable.finding_id}`}><Icon name="wrench" />Open fix</Link>}

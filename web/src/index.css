@@ -82,12 +82,12 @@ input, select { background: var(--surface); border: 1px solid var(--line-2); bor
 .stage-c.failed { background: var(--crit-bg); }
 .stage-c.failed .sv, .stage-c.failed .sd { color: var(--crit-ink); }
 .stage-c .fill { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--line); }
-.stage-c .fill i { display: block; height: 100%; background: var(--pri); transition: width .12s linear; }
+.stage-c .fill i { display: block; height: 100%; background: var(--pri); transition: width var(--t-fast) linear; }
 .stage-c.failed .fill i { background: var(--crit-ink); }
 .plane-rows { margin-top: var(--s2); display: flex; flex-direction: column; gap: var(--s1); }
 .plane-row { display: grid; grid-template-columns: 64px 1fr 40px 52px; align-items: center; gap: var(--s2); font-size: 10.5px; color: var(--ink-2); min-height: 16px; }
 .plane-row .bar { height: 6px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 99px; overflow: hidden; }
-.plane-row .bar i { display: block; height: 100%; background: var(--pri); transition: width .12s linear; }
+.plane-row .bar i { display: block; height: 100%; background: var(--pri); transition: width var(--t-fast) linear; }
 .plane-row .pc, .plane-row .pm { font-size: 10px; text-align: right; color: var(--ink-2); }
 .plane-row.off, .plane-row.off .pc, .plane-row.wait, .plane-row.idle { color: var(--ink-4); }
 .plane-row.failed .bar i, .plane-row.partial .bar i { background: var(--crit-ink); }
@@ -120,3 +120,46 @@ input, select { background: var(--surface); border: 1px solid var(--line-2); bor
 .bp-btn:disabled { opacity: .5; cursor: not-allowed; }
 .bp-input { height: 28px; border: 1px solid var(--line-2); border-radius: var(--r); padding: 0 var(--s2); background: var(--surface); color: var(--ink); font-size: 11.5px; }
 .errbox { border: 1px solid var(--crit-line); background: var(--crit-bg); color: var(--crit-ink); border-radius: var(--r); padding: var(--s2) var(--s3); font-size: 11.5px; }
+
+/* ── C2 motion (docs/JUDGE-AUDIT.md). Only token durations and curves. Motion shows what changed. ── */
+/* 1. Button press: scale(.98) for --t-fast, nothing else */
+.bp-btn, .btn, .fchip, button.chip, .filt, .ptog, .linkbtn { transition: transform var(--t-fast) var(--ease); }
+.bp-btn:active:not(:disabled), .btn:active:not(:disabled), .fchip:active, button.chip:active, .filt:active, .ptog:active:not(:disabled) { transform: scale(.98); }
+/* 2. Row hover: background to --surface-2 over --t-fast; no lift, shadow or scale */
+.qt td, .row, .nav, .kv, .bp-table td { transition: background-color var(--t-fast) var(--ease); }
+/* 3. Row select: 2px --pri left border grows in over --t-fast */
+.qt tbody tr td:first-child { box-shadow: inset 0 0 0 var(--pri); transition: background-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
+/* 4. Route change: outgoing fades out; incoming fades in and rises 4px over --t-base, once per route */
+.route.out { opacity: 0; transition: opacity var(--t-route-out) var(--ease); }
+.route.in { animation: route-in var(--t-base) var(--ease-out) both; }
+@keyframes route-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+/* 5. Panel / drawer open: slide from the edge over --t-slow (no drawer exists yet; the class is the contract) */
+.drawer-in { animation: drawer-in var(--t-slow) var(--ease-out) both; }
+@keyframes drawer-in { from { transform: translateX(100%); } to { transform: none; } }
+/* 6. Expand / collapse: height over --t-base; the chevron rotates in the same duration */
+.expander { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--t-base) var(--ease); }
+.expander.open { grid-template-rows: 1fr; }
+.expander > div { overflow: hidden; min-height: 0; }
+.chev { transition: transform var(--t-base) var(--ease); }
+.chev.open { transform: rotate(180deg); }
+.disclose { display: inline-flex; align-items: center; gap: var(--s1); background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; }
+/* 7. Number change: counted in JS over --t-slow; reduced motion cross-fades instead */
+.num-fade { animation: num-fade var(--t-slow) var(--ease) both; }
+@keyframes num-fade { from { opacity: 0; } to { opacity: 1; } }
+/* 8. Filter applied: leaving rows fade over --t-fast; the list settles over --t-base (transform set in JS) */
+.qt tr.leaving { opacity: 0; transition: opacity var(--t-fast) var(--ease); }
+.qt tr.settle { transition: transform var(--t-base) var(--ease); }
+/* 9. Scan pipeline: only while a scan is live, each stage's value and timing appear as it lands */
+.pipe.live .stage-c.done .sv, .pipe.live .stage-c.done .sm { animation: num-fade var(--t-base) var(--ease-out) both; }
+
+/* Reduced motion: opacity only, same durations */
+@media (prefers-reduced-motion: reduce) {
+  .bp-btn:active:not(:disabled), .btn:active:not(:disabled), .fchip:active, button.chip:active, .filt:active, .ptog:active:not(:disabled) { transform: none; }
+  @keyframes route-in { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes drawer-in { from { opacity: 0; } to { opacity: 1; } }
+  .expander { transition: none; }
+  .expander > div { transition: opacity var(--t-base) var(--ease); opacity: 0; }
+  .expander.open > div { opacity: 1; }
+  .qt tr.settle { transition: none; }
+  .qt tbody tr td:first-child { transition: background-color var(--t-fast) var(--ease); }
+}

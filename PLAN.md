@@ -175,3 +175,17 @@ run.ps1  README.md  requirements.txt  .gitignore
 - [x] Attest no longer overflows at 1366 (grid minmax); .kv value styling only on two-column rows
 - [x] tests/test_ui_rules.py: permanent lint (spacing, shadows, hex outside tokens, glyphs, dots, eyebrows, vendored icons, no external URLs)
 - [x] Screenshots of all 12 screens at 1366x768, greyscale and deuteranopia queue reviewed against the checklist
+
+## Phase 18 — Part D step 5: C2 motion, in table order
+- [x] Tokens --t-fast 120 / --t-base 200 / --t-slow 320 / --t-route-out 80 ms, --ease, --ease-out; web/src/motion.js reads them (no durations in JS)
+- [x] 1 press scale(.98) · 2 row hover to --surface-2 · 3 selected-row 2px --pri border grows in · 4 route change: out 80 ms, in fade + 4px rise over --t-base, once, not on query/hash change or first load
+- [x] 5 drawer: .drawer-in contract defined; no drawer exists in the product, none invented
+- [x] 6 expand/collapse (Asset "declared purpose"): height over --t-base, chevron rotates in step
+- [x] 7 number change: dashboard metrics count old -> new over --t-slow after a re-scan (values remembered across in-app navigation); plain on first paint
+- [x] 8 filter: leaving queue rows fade over --t-fast, remaining rows settle (FLIP) over --t-base; sort/reload swap instantly
+- [x] 9 pipeline: bars on --t-fast, correlate countdown on --t-slow, stage reveal only while a scan is live (never on dashboard load)
+- [x] 10 copy/save confirm: Attest "Copy root" -> "Copied" (or "Copy blocked"), Settings "Saved", Asset X field "Saved" / "Not saved", 1.2 s
+- [x] prefers-reduced-motion: opacity only, same durations (press no scale, route no rise, height instant with fade, numbers cross-fade, no FLIP)
+- [x] Fixed: leaving-row fade on the tr (first cell skipped it); .collapse renamed .expander (Tailwind utility clash: visibility collapse)
+- [x] tests/test_ui_rules.py: token values, token-only durations, no transition:all / infinite, no hover lift, reduced-motion block, no motion literals in JSX, no Tailwind class shadowing
+- [x] Verified live in headless Chrome by sampling mid-transition values, both motion modes (headless defaults to reduce)

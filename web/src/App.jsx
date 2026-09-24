@@ -16,6 +16,7 @@ import NewScan from "./pages/NewScan.jsx";
 import Settings from "./pages/Settings.jsx";
 import AirGapPill from "./components/AirGapPill.jsx";
 import Icon from "./components/Icon.jsx";
+import { RouteStage } from "./components/Motion.jsx";
 
 export default function App() {
   const [user, setUser] = useState(undefined);
@@ -73,7 +74,8 @@ export default function App() {
           <span className="dim" style={{ fontSize: 11 }}>{user.username}</span>
           <button className="bp-btn" onClick={() => api.logout().then(() => setUser(null))}><Icon name="log-out" />Sign out</button>
         </div>
-      <Routes>
+      <RouteStage>{(loc) => (
+      <Routes location={loc}>
         <Route path="/" element={<Dashboard summary={summary} onScanned={refresh} />} />
         <Route path="/scan" element={<NewScan summary={summary} onScanned={refresh} />} />
         <Route path="/queue" element={<Queue summary={summary} />} />
@@ -89,6 +91,7 @@ export default function App() {
         <Route path="/settings" element={<Settings summary={summary} onChanged={refresh} />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
+      )}</RouteStage>
       </div>
     </div>
   );

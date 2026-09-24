@@ -5,6 +5,7 @@ import Pipeline from "../components/Pipeline.jsx";
 import RiskField, { Swatch } from "../components/RiskField.jsx";
 import CoverageRing from "../components/CoverageRing.jsx";
 import Icon from "../components/Icon.jsx";
+import { Num } from "../components/Motion.jsx";
 
 const VERDICTS = [["MIGRATE", "m", "replace per the PQC map"], ["CONTAIN", "c", "isolate; cannot patch in place"], ["ACCEPT", "a", "monitor; validate at next scan"]];
 
@@ -79,12 +80,12 @@ export default function Dashboard({ summary, onScanned }) {
           </div>
         )}
         <div className="tiles">
-          <Tile n={kpi.assets} label="Cryptographic assets" sub={`from ${summary.scan.findings_count} findings`} to="/queue" />
-          <Tile n={kpi.hndl} tone="crit" label="Harvest-now-decrypt-later exposed" to="/queue"
+          <Tile n={<Num k="kpi.assets" value={kpi.assets} />} label="Cryptographic assets" sub={`from ${summary.scan.findings_count} findings`} to="/queue" />
+          <Tile n={<Num k="kpi.hndl" value={kpi.hndl} />} tone="crit" label="Harvest-now-decrypt-later exposed" to="/queue"
             sub={`plus ${kpi.forgery ?? 0} exposed to forgery${kpi.undetermined ? `, ${kpi.undetermined} of undeclared purpose` : ""}`}
             title="Shor-breakable key exchange, key transport or encryption whose Mosca exposure is above zero, counted only where the key's own config or code declares that use. Signing keys are counted as forgery; keys whose use is not declared are not counted as either." />
-          <Tile n={kpi.quantum_vulnerable} tone="high" label="Quantum-vulnerable (Shor) assets" sub={`${kpi.safe} not Shor-breakable`} to="/queue" />
-          <Tile n={kpi.readiness ?? "–"} unit="/100" tone="safe" label="Readiness index" sub="as disclosed in the attestation" to="/attest"
+          <Tile n={<Num k="kpi.qv" value={kpi.quantum_vulnerable} />} tone="high" label="Quantum-vulnerable (Shor) assets" sub={`${kpi.safe} not Shor-breakable`} to="/queue" />
+          <Tile n={kpi.readiness == null ? "–" : <Num k="kpi.readiness" value={kpi.readiness} />} unit="/100" tone="safe" label="Readiness index" sub="as disclosed in the attestation" to="/attest"
             title="100 − (50 × HNDL-exposed + 30 × quantum-vulnerable + 20 × MIGRATE) / assets, scaled 0.8–1.0 by plane coverage (mox/attest.py)" />
         </div>
 
@@ -95,11 +96,11 @@ export default function Dashboard({ summary, onScanned }) {
               <div className="vbar">
                 {VERDICTS.map(([v, c]) => verdicts[v] > 0 && (
                   <Link key={v} to={`/queue?verdict=${v}`} className={`vseg ${c}`} style={{ flex: verdicts[v] }}
-                    aria-label={`${v}: ${verdicts[v]} assets`}>{v} <span className="mono">{verdicts[v]}</span></Link>
+                    aria-label={`${v}: ${verdicts[v]} assets`}>{v} <span className="mono"><Num k={`verdict.${v}`} value={verdicts[v]} /></span></Link>
                 ))}
               </div>
               <div className="vkey">
-                {VERDICTS.map(([v, , d]) => <span key={v}><b>{v}</b> <span className="mono">{Math.round((100 * verdicts[v]) / total)}%</span> {d}</span>)}
+                {VERDICTS.map(([v, , d]) => <span key={v}><b>{v}</b> <span className="mono"><Num k={`verdict.${v}.pct`} value={Math.round((100 * verdicts[v]) / total)} />%</span> {d}</span>)}
               </div>
             </div>
           </div>

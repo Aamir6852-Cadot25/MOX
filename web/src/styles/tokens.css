@@ -53,4 +53,12 @@
 
   /* C4 icons: Lucide, vendored */
   --ic-nav:16px; --ic-inline:14px; --ic-stroke:1.5;
+
+  /* C2 motion: the only durations and curves in the product. Motion shows what changed; it is never decoration. */
+  --t-fast:120ms;       /* hover, focus, press */
+  --t-base:200ms;       /* open, close, reveal */
+  --t-slow:320ms;       /* route change, panel slide, number change */
+  --t-route-out:80ms;   /* outgoing route content (C2 table: route change) */
+  --ease:cubic-bezier(0.2, 0, 0.2, 1);
+  --ease-out:cubic-bezier(0.16, 1, 0.3, 1);   /* things entering */
 }

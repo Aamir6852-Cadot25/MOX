@@ -84,3 +84,48 @@ def test_c4_icons_are_vendored_lucide(name):
     assert f'"{name}":' in src and "lucide-static" in src
     assert (WEB / "vendor" / "lucide" / "LICENSE").exists()
     assert not _offenders(JSX + CSS, lambda l: re.search(r"https?://(?!www\.w3\.org)", l))
+
+
+# ── C2 motion: token durations only, no decoration, reduced motion honoured ──
+def _css_text():
+    return "\n".join(p.read_text(encoding="utf-8") for p in CSS)
+
+
+def test_c2_motion_tokens_have_the_specified_values():
+    tok = (WEB / "styles" / "tokens.css").read_text(encoding="utf-8")
+    for name, val in (("--t-fast", "120ms"), ("--t-base", "200ms"), ("--t-slow", "320ms"), ("--t-route-out", "80ms"),
+                      ("--ease", "cubic-bezier(0.2, 0, 0.2, 1)"), ("--ease-out", "cubic-bezier(0.16, 1, 0.3, 1)")):
+        assert re.search(re.escape(name) + r":\s*" + re.escape(val) + ";", tok), name
+
+
+def test_c2_css_durations_come_only_from_tokens():
+    bad = _offenders([p for p in CSS if p.name != "tokens.css"], lambda l: re.search(
+        r"(transition|animation)[^;{]*?\b\d*\.?\d+m?s\b", l) or re.search(r"transition:\s*all\b", l) or "infinite" in l)
+    assert bad == []
+
+
+def test_c2_no_hover_lift_scale_or_shadow():
+    rules = re.findall(r"([^{}]*:hover[^{}]*)\{([^}]*)\}", _css_text())
+    assert [sel.strip() for sel, body in rules if re.search(r"transform|box-shadow|translate|scale", body)] == []
+
+
+def test_c2_reduced_motion_drops_to_opacity():
+    css = (WEB / "index.css").read_text(encoding="utf-8")
+    block = css.split("@media (prefers-reduced-motion: reduce)", 1)[1]
+    assert "transform: none" in block and "@keyframes route-in { from { opacity: 0; } to { opacity: 1; } }" in block
+
+
+def test_c2_no_motion_literals_in_jsx():
+    motion_file = WEB / "motion.js"
+    assert _offenders([p for p in JSX if p != motion_file], lambda l: "requestAnimationFrame" in l) == []
+    assert _offenders(JSX, lambda l: re.search(r"\b(transition|animation)\s*:", l)) == []
+
+
+def test_no_custom_class_shadows_a_tailwind_utility():
+    """A custom class named like a Tailwind utility silently inherits it (".collapse" got visibility: collapse)."""
+    utilities = {"collapse", "visible", "invisible", "hidden", "block", "inline", "flex", "grid", "table", "contents",
+                 "static", "fixed", "absolute", "relative", "sticky", "isolate", "truncate", "italic", "underline",
+                 "uppercase", "lowercase", "capitalize", "container", "border", "rounded", "shadow", "outline", "ring",
+                 "blur", "grow", "shrink", "transform", "transition", "filter", "invert", "sepia", "grayscale", "visible"}
+    defined = set(re.findall(r"(?:^|[\s,}>+~])\.([a-zA-Z][\w-]*)", "\n".join(p.read_text(encoding="utf-8") for p in CSS)))
+    assert defined & utilities == set()

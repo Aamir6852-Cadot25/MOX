@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
+import { useConfirm } from "../motion.js";
 
 const split = (v) => (v ? `${v.MIGRATE} / ${v.CONTAIN} / ${v.ACCEPT}` : "–");
 
@@ -10,7 +11,8 @@ export default function Settings({ summary, onChanged }) {
   const [saved, setSaved] = useState(null);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
-  const [change, setChange] = useState(null); // {from, to, before, after}
+  const [change, setChange] = useState(null);
+  const [saveLabel, confirmSave] = useConfirm("Save and re-score", "Saved"); // {from, to, before, after}
   const load = () => { setErr(""); api.settings().then((s) => { setSaved(s.threat_horizon); setZ(String(s.threat_horizon)); }).catch((e) => setErr(e.message)); };
   useEffect(load, []);
   useEffect(() => { if (change && !change.after && summary?.verdicts) setChange((c) => ({ ...c, after: summary.verdicts })); }, [summary]);
@@ -25,6 +27,7 @@ export default function Settings({ summary, onChanged }) {
       const s = await api.setSettings({ threat_horizon: n });
       setChange({ from: saved, to: s.threat_horizon, before, after: null });
       setSaved(s.threat_horizon);
+      confirmSave();
       await onChanged();
     } catch (e2) { setErr(e2.message); }
     setBusy(false);
@@ -45,7 +48,7 @@ export default function Settings({ summary, onChanged }) {
             <input id="z" className="bp-input mono" style={{ width: 80 }} type="number" min="1" max="40" value={z}
               onChange={(e) => setZ(e.target.value)} disabled={saved == null} />
             <span className="hint">years (1–40)</span>
-            <button className="bp-btn pri" disabled={busy || !valid || n === saved}>{busy ? "Re-scoring" : "Save and re-score"}</button>
+            <button className="bp-btn pri" disabled={busy || !valid || n === saved}>{busy ? "Re-scoring" : saveLabel}</button>
           </div>
           {!valid && z !== "" && <div className="errbox">Z must be a whole number of years from 1 to 40.</div>}
           {err && <div className="errbox">Could not save: {err}. The previous value <span className="mono">{saved}</span> is still in force.</div>}

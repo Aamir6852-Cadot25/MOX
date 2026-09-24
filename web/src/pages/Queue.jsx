@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../api.js";
 import Icon from "../components/Icon.jsx";
 import { Badge, Evidence, Tier, Verdict } from "../components/Marks.jsx";
+import { reducedMotion, token } from "../motion.js";
 
 const TIER_B = { Critical: "crit", High: "high", Medium: "med", Low: "low" };
 const TIER_RANK = { Critical: 4, High: 3, Medium: 2, Low: 1 };
@@ -56,6 +57,40 @@ export default function Queue({ summary }) {
     });
   }, [base, tab, sort]);
   useEffect(() => setSel((s) => Math.min(s, Math.max(0, rows.length - 1))), [rows.length]);
+
+  // Filter applied (C2): rows that leave fade out over --t-fast, then the list settles over --t-base (FLIP).
+  // Only a filter change animates; sorting and data reloads swap the list at once.
+  const filterKey = `${tab}|${q}|${ev}|${plane}`;
+  const [shown, setShown] = useState(rows);
+  const [leaving, setLeaving] = useState(null);
+  const lastFilter = useRef(filterKey);
+  const tops = useRef(null);
+  const measure = () => Object.fromEntries([...(body.current?.querySelectorAll("tr[data-id]") || [])]
+    .map((tr) => [tr.dataset.id, tr.getBoundingClientRect().top]));
+  useEffect(() => {
+    const filtered = lastFilter.current !== filterKey;
+    lastFilter.current = filterKey;
+    const keep = new Set(rows.map((r) => r.id));
+    const gone = shown.filter((r) => !keep.has(r.id)).map((r) => r.id);
+    if (!filtered || !gone.length) { tops.current = filtered ? measure() : null; setLeaving(null); return setShown(rows); }
+    setLeaving(new Set(gone));
+    const t = setTimeout(() => { tops.current = measure(); setLeaving(null); setShown(rows); }, token("--t-fast"));
+    return () => clearTimeout(t);
+  }, [rows]);
+  useLayoutEffect(() => {
+    const before = tops.current;
+    tops.current = null;
+    if (!before || reducedMotion()) return;
+    for (const tr of body.current?.querySelectorAll("tr[data-id]") || []) {
+      const dy = (before[tr.dataset.id] ?? tr.getBoundingClientRect().top) - tr.getBoundingClientRect().top;
+      if (!dy) continue;
+      tr.classList.remove("settle");
+      tr.style.transform = `translateY(${dy}px)`;
+      tr.getBoundingClientRect(); // commit the start position before transitioning to the end
+      tr.classList.add("settle");
+      tr.style.transform = "";
+    }
+  }, [shown]);
   useEffect(() => { body.current?.querySelector(`[data-i="${sel}"]`)?.scrollIntoView({ block: "nearest" }); }, [sel]);
 
   useEffect(() => {
@@ -127,10 +162,10 @@ export default function Queue({ summary }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((a, i) => {
+            {shown.map((a, i) => {
               const b = a.breakdown, e = b.mosca.exposure;
               return (
-                <tr key={a.id} data-i={i} aria-selected={i === sel} onClick={() => { setSel(i); nav(`/asset/${a.id}`); }}>
+                <tr key={a.id} data-i={i} data-id={a.id} className={leaving?.has(a.id) ? "leaving" : undefined} aria-selected={shown === rows && i === sel} onClick={() => { setSel(i); nav(`/asset/${a.id}`); }}>
                   <td className="c-asset">
                     <Link to={`/asset/${a.id}`} className="a1 mono" tabIndex={-1}>{a.label}</Link>
                     <div className="a2">
