@@ -174,7 +174,7 @@ def _summary(conn, scan, assets) -> dict:
             "kpi": {"files": scan["files_scanned"], "planes": len(ran), "seconds": scan["seconds"],
                     "assets": len(assets), "hndl": len(hndl), "quantum_vulnerable": len(qv),
                     "forgery": sum(1 for a in qv if exposed(a, "forgery")),
-                    "undetermined": sum(1 for a in qv if "undetermined" in a["breakdown"]["threats"]),
+                    "undetermined": sum(1 for a in qv if "undetermined" in a["breakdown"].get("threats", [])),
                     "readiness": attest.readiness({"total": len(assets), "hndl_exposed": len(hndl),
                                                    "quantum_vulnerable": len(qv)},
                                                   {"migrate": verdicts["MIGRATE"]}, len(ran)),
