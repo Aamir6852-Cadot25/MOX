@@ -491,3 +491,175 @@ earlier bad nginx fix still on disk), headless Chrome over the DevTools protocol
 - The Minor list.
 - Part B: B2 (plane coverage), B3 (label collisions — still visible at −2 and on the right edge), B4 (paper
   token) and B5 (verdict-card dead space).
+
+---
+
+# Third pass — after Part D steps 2–6 (phases 15b–19)
+
+**Build:** `270bd17`. `pytest` 207 passed; `npm --prefix web run build` passes.
+
+**Method:** same as the earlier passes. Isolated `MOX_DATA` with the analyst override and Z reset to 10. The
+same audit-state copy of `demo_target`. Headless Chrome over DevTools at 1366×768. Motion was checked in both
+`no-preference` and `reduce` modes: headless Chrome defaults to `reduce`, so the first motion run tested only
+that path.
+
+**Baseline, full 6-plane scan:**
+- 23 files, 31 findings, 22 assets, **MIGRATE 11 / CONTAIN 4 / ACCEPT 7**;
+- HNDL 1, forgery 2, purpose undeclared 2, hybrid 1;
+- readiness 73.
+
+## Verdict, third pass
+
+**Shortlisted.** The things I would have seen in my first ninety seconds are gone:
+- the false-empty dashboard;
+- the dead-end fix button;
+- the verdict collapse;
+- the report's hard-coded claims.
+
+The honesty class that disqualifies teams is now handled the way I want it. A fix states what took effect, what
+didn't, and what can't be checked offline. HNDL comes from each key's own declared purpose. Disallowed crypto
+can never be accepted. A narrower rescan is flagged instead of silently shrinking coverage.
+
+Cold open to "most urgent asset and why" took 92 ms, above the fold. I could reconstruct every number I tried
+by hand.
+
+What keeps this from being unconditional is a short list of claims that still say more than MOX has measured:
+1. **The pill says "Air-gapped"** where it counted Python `connect()` calls (Major 2).
+2. **Sector attestations are "verified"** against keys the same database registered (Major 3).
+3. **AES-ECB's "now" status comes from a draft** (Major 1).
+4. **The Merkle root changes on an unchanged rescan** (Major 5).
+
+None is hard to fix. All four are the first things a second NTRO evaluator would press on.
+
+## Probe record, third pass
+
+| # | First | Second | Third | Evidence (third pass) |
+|---|---|---|---|---|
+| P1 | Pass | Pass | **Pass** | RSA-1024 `legacy-portal.crt`: 40 + 15 + 8 = 63, × 1.0 × 1.0 = 63.0 |
+| P2 | Partial | Partial | **Partial** | Asset cards and the report label IR 8547 and 131A Rev.3 as "initial public draft", and X25519 carries its not-FIPS-listed note. AES-ECB `now: deprecated` still comes from the 131A Rev.3 draft, and the After 2030/2035 boxes are unmarked (Major 1) |
+| P3 | Partial | Partial | **Partial** | `node-forge`: amber "No algorithm identified: use not verified"; reason ends "not verified: MOX has not found a call into it"; report counts 6 unverified ACCEPTs. The verdict is still ACCEPT, by documented rule (SCORING.md §4.1 rule 2) |
+| P4 | Fail | Partial | **Partial** | Grounded claims: fix claims "In effect / Not in effect / Not verified"; CBOM "Schema valid (CycloneDX 1.6, bundled schema)" from a real validation; report fixes counted per scan. Still ungrounded: Sector "37 signed attestations verified" checks against keys the same DB registered (Major 3) |
+| P5 | Pass | Pass | **Pass** | Recomputed `5a19e0d0e6a6a9c0…` = attested; export fields match the Attest page. The root is still not stable across rescans (Major 5) |
+| P6 | Fail | Pass | **Pass** | 11 / 4 / 7; all three verdicts at every Z from 1 to 40 (12/4/6, 11/4/7, 10/4/8); disallowed never ACCEPT; no coverage warning on a full scan |
+| P7 | Partial | Partial | **Pass** | Lowest MIGRATE, RSA-3072 `Crypto.java:11`: "approved today under NIST SP 800-131A Rev.2 (2019); Shor-breakable; Mosca +7 yrs (X 15 + Y 2 − Z 10), so quantum-exposed; evidence declared. MIGRATE because it is quantum-exposed by 7 yrs". A CISO can contest X = 15 (a path tag, editable) and the undeclared purpose, and the screen shows both |
+| P8 | Fail | Fail | **Fail** | Ties unchanged: 43.4 ×2, 30.6 ×2, 28.0 ×2, 24.5 ×2. In wave 2, `kms.tf` (CONTAIN, +2, CMCS 10) still precedes `Crypto.java:11` (MIGRATE, +7, CMCS 4) by insertion order (Major 10) |
+| P9 | Partial | Pass | **Pass** | "Mosca exposure is −2 yrs: it is not quantum-exposed, but no quantum computer is needed to break it", consistent with the Mosca card |
+| P10 | Partial | Pass | **Pass** | `kms.tf` forgery (`SIGN_VERIFY`), `sign.js` forgery (`createSign`), `Crypto.java:11` undetermined, `api-gw` HNDL via `AES128-SHA` plus forgery |
+| P11 | Pass | Pass | **Pass** | No AI, telemetry or analytics in `requirements.txt`, the venv or `package.json`. Plex's `telemetry.yml` was not vendored. Unpinned installs and the pip version check remain (Major 15) |
+| P12 | Pass | Pass | **Pass** | IBM Plex Sans/Mono self-hosted (5 woff2 + OFL) and Lucide vendored (ISC); 0 non-loopback requests across all screens |
+| P13 | Pass | Pass | **Pass** | A probe to 127.0.0.1:9 moved `loopback` 1 → 2. The report says "counted 0 outbound and 1 loopback … DNS lookups and other processes are not counted" |
+| P14 | Partial | Partial | **Partial** | Unchanged: the New Scan TLS field accepts any `host:port`; demo TLS listener; uvicorn on 127.0.0.1; `run.ps1` pip (Majors 16, 17) |
+| P15 | Fail | Partial | **Pass** | No screen scrolls horizontally at 1366 (Attest was 1928). Asset Locations fully visible. No card more than 24 px taller than its content on 13 screens |
+| P16 | Partial | Partial | **Partial** | Greyscale queue: tiers differ by severity mark (octagon-x, triangle, circle-!, circle-dot). Verdict badges differ by text only. Printing the queue still gives 1 page; there is no `@media print` (Major 20) |
+| P17 | Fail | Fail | **Partial** | Queue and badges are distinct under deuteranopia by shape. The risk field still draws Critical and High as the same solid olive (Major 19) |
+| P18 | Partial | Pass | **Pass** | From the queue with focus nowhere: 15 × Tab to "Open first fix" (the 13 rail links come first; there is no skip link), then Enter shows the diff. `j` Enter then 2 × Tab to "Open fix" also works |
+| P19 | Fail | Partial | **Pass** | Empty database and forced HTTP 500 on all 13 screens: every empty state gives a direction and a control, and every error names what failed, what it means and "Retry". Search with no match on Roadmap / Report / Sector / Queue offers "Clear search" |
+| P20 | Pass | Pass | **Pass** | 92 ms from cold navigation to "On fire now: 4 assets in wave 1. Most urgent: RSA-1024 legacy-portal.crt, Critical, disallowed today…", above the fold. 0/30 false-empty loads, 0/193 API 5xx |
+
+## Status of every first-pass finding
+
+### Critical (C1–C7)
+All seven are closed (second pass). Regression checks this pass: 0/30 false-empty dashboards, 0 API 5xx, and 0
+server tracebacks.
+
+### Major
+
+| # | Finding | Status | Where it closed / what remains |
+|---|---|---|---|
+| 1 | Draft NIST documents drive "now" statuses; future columns unmarked | **Open** | Report and cards label drafts, but ECB `now` still comes from the 131A Rev.3 draft (`data/nist_status.json`), and the 2030/2035 boxes carry no "proposed" mark |
+| 2 | "Air-gapped" asserted from a narrower measurement | **Open** | The report wording is fixed (phase 15). The top-bar pill still says "Air-gapped" |
+| 3 | Attestation "verified" with no trust anchor | **Open** | Sector tile unchanged |
+| 4 | Attest page promised tier counts it does not export | **Closed** | Phase 17: the list now matches the JSON fields |
+| 5 | Merkle root not stable for an unchanged tree | **Open** | `bom-ref` still uses DB row ids |
+| 6 | Green "no weakness" ACCEPT on unverified evidence | **Partly closed** | Phases 15 and 16: amber banner, "not verified" reason, report count. The verdict is still ACCEPT |
+| 7 | Wave text contradicts the Mosca card | **Closed** | Phase 15 |
+| 8 | "exposed: N" on the risk field includes non-quantum assets | **Partly closed** | Library-only assets are no longer plotted. DES and MD5 still count toward "exposed: 6" |
+| 9 | Readiness shown in a "safe" colour whatever its value; triple-counted formula | **Open** | Tile tone unchanged |
+| 10 | Ties broken by insertion order | **Open** | P8 |
+| 11 | Queue order and wave order disagree | **Closed** | Phase 19: default order is wave, then risk, with a Wave column |
+| 12 | Same algorithm, different verdict from detector confidence (ECDSA cert MIGRATE, ECDSA code ACCEPT) | **Open** | Unchanged |
+| 13 | Dashboard tiles do not filter | **Open** | The verdict columns and "most urgent" link through, but the tiles still open the unfiltered queue |
+| 14 | Roadmap has waves but no time | **Disclosed, not fixed** | Phase 19: the screen says MOX orders the work but does not set dates |
+| 15 | Install not reproducible offline | **Open** | Unpinned, no wheelhouse, pip version check in `run.ps1` |
+| 16 | A user can open an outbound socket by typing | **Open** | |
+| 17 | Per-plane socket claim is shallow | **Open** | |
+| 18 | Attest overflows at 1366 | **Closed** | Phase 17 |
+| 19 | Critical = High in greyscale / deuteranopia | **Partly closed** | Phase 17 severity marks on badges. The risk field is still open |
+| 20 | Printing loses most of the queue | **Open** | No print stylesheet |
+| 21 | Risk-field labels collide (B3) | **Closed** | Phase 19: 0 overlaps measured |
+| 22 | Page and card both near-white (B4) | **Closed** | Phase 16 |
+| 23 | Dead space in the verdict card (B5) | **Closed** | Phase 19 |
+
+### Minor
+
+| Finding | Status |
+|---|---|
+| CBOM thin (libraries typed as algorithms, sparse certificate properties) | Open |
+| Non-standard Merkle construction; no inclusion proof | Open |
+| Scan time disagrees on one screen (chip vs pipeline "at +N ms") | Open: the chip measures detect, the pipeline includes correlate and score |
+| Failed probe looks complete in the pipeline | Open |
+| Three findings from one config line | Open |
+| `kms.tf` shows "Vendor +0" beside "KMS +10" | Open |
+| Top bar shows the full path, wrapping | Closed (phase 17: single line with ellipsis; the path still appears in screenshots) |
+| Glyphs used as icons | Closed (phase 17: Lucide; lint forbids glyphs) |
+| Reduced motion only in the pipeline | Closed (phase 18) |
+
+### Part B and Part C
+
+| Item | Status | Phase |
+|---|---|---|
+| B1 verdict collapse | Closed | 15, 16b (rule and boundary cases in SCORING.md §4.1) |
+| B2 coverage regression | Closed | 16: root cause found (planes toggled off, nothing warned); now warned on New Scan, Dashboard, report and CLI |
+| B3 label collisions | Closed | 19 |
+| B4 paper / surface | Closed | 16 |
+| B5 dead space | Closed | 19 |
+| B6 pills | Closed | 17 (one badge geometry) |
+| C1 surface, no shadows | Closed | 17 (0 computed shadows) |
+| C2 motion | Closed | 18 (10 interactions measured mid-transition, both motion modes) |
+| C3 marks | Closed | 17 |
+| C4 icons | Closed | 17 |
+| C5 spacing | Closed | 17 (lint enforces the scale) |
+| C6 one question per screen | Closed, with one disclosed gap | 19: `docs/SCREENS.md`; Roadmap cannot answer "over 30 months" |
+| C7 empty and error states | Closed | 19 |
+
+### Defects found and fixed after the audit (not in the first-pass list)
+
+- **Coverage counted the wrong thing.** Coverage, readiness and the attestation counted planes that *found
+  something*, not planes that *ran* (phase 16).
+- **X25519 fallback outranked live DES.** X25519 was rated `not_approved` (the MD5 base), so a TLS 1.3 hybrid
+  endpoint outranked live DES. Now rated like ECDH P-256, with a permanent ordering test (phase 15b).
+- **Static-RSA suites scored "unknown".** They now take the certificate's key size (phase 15b).
+- **Disallowed crypto could be ACCEPTed.** X ≤ 1 (a test / log / tmp path) accepted it at any tier; now never
+  (phase 16b).
+- **"Quantum-exposed" was used for Grover-class assets** such as DES and SHA-1 (phase 16).
+- **Bugs caught in the UI passes (phases 16–19):**
+  - Attest single-column rows rendered right-aligned in mono.
+  - The first cell of a leaving queue row did not fade.
+  - A `.collapse` class clashed with Tailwind's utility and hid expanded content.
+  - Settings showed a save error when it had actually failed to load.
+  - The Fix list implied a scan existed when there was none.
+  - New Scan did not pre-fill the folder on a direct link.
+
+## Still open, in the order I would fix them
+
+1. **Major 2:** the pill reads "0 outbound connects counted", not "Air-gapped".
+2. **Major 3:** "verified" on Sector becomes "signature valid against a registered key", with a note that key
+   enrolment is out of scope.
+3. **Major 1:** ECB `now` follows Rev.2 (approved), with the Rev.3 draft shown as proposed; the 2030/2035
+   boxes are marked "proposed".
+4. **Major 5:** stable `bom-ref` from the asset key, and scoring properties excluded from the Merkle leaves.
+5. **Major 10:** tie-break by Mosca exposure, then CMCS (lower first), then label.
+6. **Major 19 (risk field) and Major 20:** severity shapes on the risk-field dots; a print stylesheet for queue
+   and report.
+7. **Majors 9, 12, 13, 15, 16, 17** and the Minor list.
+
+## The three Q&A questions, revisited
+
+1. **The hybrid handshake.** Now answered honestly. MOX credits hybrid only when the declared config can
+   negotiate it (TLS 1.3 enabled). It says "Not verified" for server library support, and says it cannot
+   observe the group offline. It still cannot *show* a handshake.
+2. **Averaging readiness across operators with different Z and plane coverage.** Still open. The attestation
+   carries neither Z nor the plane list, and there is no trust anchor for operator keys.
+3. **ML-DSA for a public RSA-1024 TLS certificate, and "forgery-only" despite static RSA.** Half answered. The
+   static-RSA path is now found and counted as HNDL (on `api-gw`). The replacement map still recommends ML-DSA-65
+   for a WebPKI certificate no public CA will issue today.

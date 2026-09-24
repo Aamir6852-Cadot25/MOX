@@ -200,3 +200,8 @@ run.ps1  README.md  requirements.txt  .gitignore
 - [x] B5: verdict card holds real content; cards size to content on Dashboard, New Scan, CBOM, Attest (0 cards > 24px taller than content across 13 screens)
 - [x] C7: shared LoadError / NoScan / Failed / NoMatch states; 404 = no scan, other failures = load error with Retry; CBOM, Attest, Report, Roadmap, Sector, Audit, Fix list, Settings, New Scan network panel, Login; no failure shown as empty
 - [x] Verified live: empty database and forced HTTP 500 on every screen; tests/test_ui_rules.py adds no-apology, no masked-failure and route-question checks
+
+## Phase 20 — Part D step 7: twenty probes re-run, third pass in docs/AUDIT.md
+- [x] P1–P20 re-run on the audit-state target (API, static, headless Chrome at 1366x768, both motion modes); 14 pass, 5 partial, 1 fail (P8 ties)
+- [x] Closure table for every first-pass finding: C1–C7 closed; Majors 4, 7, 11, 18, 21–23 closed, 6/8/19 partly, 14 disclosed; B1–B6 and C1–C7 closed
+- [x] Still open, ordered: Majors 2, 3, 1, 5, 10, 19/20, then 9, 12, 13, 15–17 and the Minor list
