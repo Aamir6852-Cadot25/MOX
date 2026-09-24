@@ -16,7 +16,7 @@ function List() {
       {rows.length === 0 && <div className="dim">Nothing left to fix automatically.</div>}
       {rows.map((f) => (
         <Link key={f.id} to={`/fix/${f.id}`} className="kv" style={{ textDecoration: "none" }}>
-          <span>{f.algorithm}{f.key_size ? `-${f.key_size}` : ""} · {f.file}:{f.line}</span><span className="min">Preview fix →</span>
+          <span>{f.algorithm}{f.key_size ? `-${f.key_size}` : ""} · {f.file}:{f.line}</span><span className="link">Preview fix →</span>
         </Link>
       ))}
     </div></div>
@@ -35,7 +35,7 @@ export default function Fix({ onChanged }) {
     if (findingId) api.fixPreview(+findingId).then(setFix).catch((e) => setErr(e.message));
   }, [findingId]);
   if (!findingId) return <List />;
-  if (err) return <div className="p-6"><div className="panel p-4 amb">{err}</div><Link to="/fix" className="dim text-[12px]">← All fixes</Link></div>;
+  if (err) return <div className="p-6"><div className="panel p-4">{err}</div><Link to="/fix" className="dim text-[12px]">← All fixes</Link></div>;
   if (!fix) return <div className="p-6 dim">Generating patch…</div>;
 
   const applied = fix.status !== "previewed";
@@ -48,7 +48,7 @@ export default function Fix({ onChanged }) {
       <div className="flex flex-col gap-4">
         <div className="panel p-5">
           <Link to="/fix" className="dim text-[12px]">← All fixes</Link>
-          <div className="text-xl font-bold mt-2" style={{ color: "#f2f7f4" }}>{fix.algorithm}{fix.key_size ? `-${fix.key_size}` : ""} at <span className="mono">{fix.file}:{fix.line}</span></div>
+          <div className="text-xl font-bold mt-2">{fix.algorithm}{fix.key_size ? `-${fix.key_size}` : ""} at <span className="mono">{fix.file}:{fix.line}</span></div>
           <div className="dim">Proposed change for 1 file · {fix.lines_changed} changed lines · nothing is written until you approve</div>
         </div>
         <div className="panel py-2"><div className="diff">{lines.map((l, i) => <div key={i} className={cls(l)}>{l || " "}</div>)}</div></div>
@@ -71,13 +71,13 @@ export default function Fix({ onChanged }) {
           <div className="h mb-3">Fix and verify</div>
           {STEPS.map(([t, d], i) => (
             <div key={t} className="flex gap-3 mb-3" style={{ opacity: i < step ? 1 : 0.4 }}>
-              <div className="mono font-bold" style={{ width: 26, height: 26, borderRadius: 13, background: i < step ? "#79d9ae" : "#1a2a24", color: "#0b1511", textAlign: "center", lineHeight: "26px" }}>{i + 1}</div>
+              <div className="mono font-bold" style={{ width: 26, height: 26, borderRadius: 13, background: i < step ? "#1B2A41" : "#EEF1F5", color: i < step ? "#fff" : "#1B2A41", textAlign: "center", lineHeight: "26px" }}>{i + 1}</div>
               <div><div className="font-bold">{t}</div><div className="dim text-[12px]">{d}</div></div>
             </div>
           ))}
           {applied && (
-            <div className="panel p-3" style={{ borderColor: fix.cleared ? "#79d9ae" : "#f0b43c" }}>
-              <div className={`h ${fix.cleared ? "min" : "amb"}`}>{fix.cleared ? "Finding cleared" : "Finding still present"}</div>
+            <div className="panel p-3" style={{ borderColor: "#1B2A41" }}>
+              <div className="h">{fix.cleared ? "Finding cleared" : "Finding still present"}</div>
               <div className="dim text-[12px]">{fix.cleared
                 ? `Re-scan of ${fix.file} no longer reports ${fix.algorithm}${fix.key_size ? `-${fix.key_size}` : ""} at this location. Assets, scores and the CBOM were refreshed.`
                 : "The re-scan still reports this finding; the backup is kept."}</div>

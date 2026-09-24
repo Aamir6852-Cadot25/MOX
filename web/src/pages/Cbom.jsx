@@ -10,9 +10,9 @@ export default function Cbom({ summary }) {
   return (
     <div className="p-5 max-w-[1300px] mx-auto flex flex-col gap-4">
       <div className="panel p-5 flex items-center gap-4 flex-wrap">
-        <div><div className="text-xl font-bold" style={{ color: "#f2f7f4" }}>Cryptographic Bill of Materials</div>
+        <div><div className="text-xl font-bold">Cryptographic Bill of Materials</div>
           <div className="dim">CycloneDX {c.spec} · version {c.version} · {c.components} cryptographic assets</div></div>
-        <span className={`chip ${c.valid ? "ok" : ""}`}>{c.valid ? "schema valid" : "schema INVALID"}</span>
+        <span className={`chip`}>{c.valid ? "schema valid" : "schema INVALID"}</span>
         <div className="flex-1" />
         <a className="btn" style={{ width: 220, textDecoration: "none" }} href="/api/cbom/download">Download CBOM (JSON)</a>
       </div>

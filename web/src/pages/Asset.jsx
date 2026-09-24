@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, tierClass } from "../api.js";
 
-const nistCls = (s) => (s === "disallowed" ? "red" : s === "approved" || s === "hybrid" ? "min" : "amb");
+const nistCls = (s) => (s === "disallowed" ? "red" : "");
 
 export default function Asset({ onChanged }) {
   const { id } = useParams();
@@ -33,13 +33,13 @@ export default function Asset({ onChanged }) {
         <div className="panel p-5">
           <Link to="/queue" className="dim text-[12px]">← Work queue</Link>
           <div className="flex items-center gap-3 mt-2">
-            <div className="text-2xl font-bold" style={{ color: "#f2f7f4" }}>{a.label}</div>
+            <div className="text-2xl font-bold">{a.label}</div>
             <span className={`pill ${a.verdict}`}>{a.verdict}</span>
             {a.verify_first && <span className="pill CONTAIN">verify first</span>}
           </div>
           {a.fingerprint && <div className="mono dim mt-1 text-[12px]">SPKI SHA-256 {a.fingerprint.slice(0, 32)}…</div>}
-          <div className="mt-4 flex items-center gap-3 rounded-lg p-3" style={{ background: "#15241f", border: "1px dashed #37574b" }}>
-            <div className="mono text-xl font-bold min whitespace-nowrap">{a.findings.length} → 1</div>
+          <div className="mt-4 flex items-center gap-3 rounded-lg p-3" style={{ background: "#F7F8FA", border: "1px dashed #E3E7ED" }}>
+            <div className="mono text-xl font-bold whitespace-nowrap">{a.findings.length} → 1</div>
             <div>{a.summary}. Fix this one asset and every location below is covered.</div>
           </div>
         </div>
@@ -49,7 +49,7 @@ export default function Asset({ onChanged }) {
             <div className="flex flex-col gap-2">
               {a.locations.map((l) => (
                 <div key={l.finding_id} className="node"><div className="p">{l.plane}</div><div className="f">{l.file}{l.line ? `:${l.line}` : ""}</div>
-                  <Link to={`/fix/${l.finding_id}`} className="text-[11px] min">Fix →</Link></div>
+                  <Link to={`/fix/${l.finding_id}`} className="text-[11px] link">Fix →</Link></div>
               ))}
             </div>
             <div className="dim text-2xl text-center">→</div>
@@ -77,7 +77,7 @@ export default function Asset({ onChanged }) {
           <div className="grid grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr] items-center gap-2 text-center">
             {mosca.map((c, i) => typeof c === "string"
               ? <span key={i} className="dim">{c}</span>
-              : <div key={i} className="node" style={{ padding: 8, ...(i === 6 && m.exposure > 0 ? { borderColor: "#e5534b" } : {}) }}>
+              : <div key={i} className="node" style={{ padding: 8, ...(i === 6 && m.exposure > 0 ? { borderColor: "#1B2A41" } : {}) }}>
                   <div className="text-lg font-bold">{c[0]}</div><div className="dim text-[10px]">{c[1]}</div>
                 </div>)}
           </div>
@@ -97,7 +97,7 @@ export default function Asset({ onChanged }) {
         <div className="panel p-4">
           <div className="h mb-1">Recommended replacement</div>
           {a.replacements.length
-            ? a.replacements.map((r, i) => <div key={i} className="kv"><span>{r.from}</span><span className="min">{r.to}</span></div>)
+            ? a.replacements.map((r, i) => <div key={i} className="kv"><span>{r.from}</span><span>{r.to}</span></div>)
             : <div className="dim">No replacement needed</div>}
           {a.size_notes.map((n) => <div key={n} className="dim text-[11px] mt-2">{n}</div>)}
           <div className="kv mt-2"><span>Migration wave</span><span>{a.wave} of 5</span></div>

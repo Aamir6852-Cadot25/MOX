@@ -31,8 +31,9 @@ export const api = {
   attest: (sector) => call("GET", `/api/attest?sector=${sector}`),
   sectors: () => call("GET", "/api/sectors"),
   audit: () => call("GET", "/api/audit"),
+  report: () => call("GET", "/api/report"),
   setSettings: (body) => call("PUT", "/api/settings", body),
 };
 
-export const tierColor = (t) => (t === "Critical" ? "#ef6a60" : t === "High" ? "#f0b43c" : t === "Medium" ? "#d9c26a" : "#79d9ae");
+export const tierColor = (t) => (t === "Critical" ? "#B42318" : t === "High" ? "#D9822B" : t === "Medium" ? "#C9A227" : "#2E9E5B");
 export const tierClass = (t) => (t === "Critical" ? "red" : t === "High" || t === "Medium" ? "amb" : "min");

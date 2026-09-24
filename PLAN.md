@@ -62,3 +62,9 @@ run.ps1  README.md  requirements.txt  .gitignore
 - [x] README: setup, CLI, 7-step demo script matching SPEC §1, bench numbers for slides
 - [x] Clean clone → run.ps1 → full demo story works with no network after install
 - [x] Grep: no runtime network calls/telemetry; no hard-coded UI numbers; demo data labelled
+
+## Phase 7 — UI redesign + Compliance Report
+- [x] Light enterprise theme, left sidebar (5 groups), risk colours only on tier/verdict badges
+- [x] Dashboard: 4 KPIs + risk scatter; rest behind "View full findings"
+- [x] Queue/Roadmap/Sector: search + 10-row pagination + "View all N"
+- [x] Compliance Report (PDF, stdlib writer, /api/report[/download]) + Reports tab

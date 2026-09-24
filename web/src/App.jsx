@@ -11,6 +11,7 @@ import Roadmap from "./pages/Roadmap.jsx";
 import Attest from "./pages/Attest.jsx";
 import Sector from "./pages/Sector.jsx";
 import Audit from "./pages/Audit.jsx";
+import Report from "./pages/Report.jsx";
 
 export default function App() {
   const [user, setUser] = useState(undefined);
@@ -34,23 +35,35 @@ export default function App() {
     );
 
   const scan = summary?.scan;
+  const topAsset = summary?.field?.[0]?.id;
+  const groups = [
+    ["Overview", [["/", "Dashboard", true]]],
+    ["Findings", [["/queue", "Work queue"], [topAsset ? `/asset/${topAsset}` : "/queue", "Asset detail"]]],
+    ["Remediate", [["/fix", "Fix"]]],
+    ["Compliance", [["/cbom", "CBOM"], ["/roadmap", "Roadmap"]]],
+    ["Reports", [["/attest", "Attest"], ["/report", "Compliance Report"], ["/sector", "Sector"], ["/audit", "Audit"]]],
+  ];
   return (
-    <>
-      <div className="top">
-        <div className="logo"><span className="m">MO</span><span className="x">X</span></div>
-        <div className="tgt">{scan ? <>Target <b>{scan.target.split(/[\\/]/).pop()}</b></> : "No scan yet"}</div>
-        <div className="tabs">
-          <NavLink to="/" end className={({ isActive }) => "tab" + (isActive ? " on" : "")}>Dashboard</NavLink>
-          <NavLink to="/queue" className={({ isActive }) => "tab" + (isActive ? " on" : "")}>Work queue</NavLink>
-          {[["/fix", "Fix"], ["/cbom", "CBOM"], ["/roadmap", "Roadmap"], ["/attest", "Attest"], ["/sector", "Sector"], ["/audit", "Audit"]].map(([to, l]) => (
-            <NavLink key={to} to={to} className={({ isActive }) => "tab" + (isActive ? " on" : "")}>{l}</NavLink>
-          ))}
+    <div className="shell">
+      <aside className="side">
+        <div className="logo">MOX</div>
+        {groups.map(([g, items]) => (
+          <div key={g}>
+            <div className="grp">{g}</div>
+            {items.map(([to, l, end]) => (
+              <NavLink key={l} to={to} end={end} className={({ isActive }) => "nav" + (isActive ? " on" : "")}>{l}</NavLink>
+            ))}
+          </div>
+        ))}
+      </aside>
+      <div className="main">
+        <div className="topbar">
+          <div className="dim">{scan ? <>Target <b style={{ color: "var(--text)" }}>{scan.target.split(/[\/]/).pop()}</b></> : "No scan yet"}</div>
+          <div className="sp" />
+          {scan && <div className="chip">{scan.files_scanned} files · {Object.keys(scan.planes).length} planes · {scan.seconds} s</div>}
+          <div className="chip">Offline — 0 outbound calls</div>
+          <button className="chip" onClick={() => api.logout().then(() => setUser(null))}>{user.username} · sign out</button>
         </div>
-        <div className="sp" />
-        {scan && <div className="chip">{scan.files_scanned} files Â· {Object.keys(scan.planes).length} planes Â· {scan.seconds} s</div>}
-        <div className="chip ok">Offline â€” 0 outbound calls</div>
-        <button className="chip" onClick={() => api.logout().then(() => setUser(null))}>{user.username} Â· sign out</button>
-      </div>
       <Routes>
         <Route path="/" element={<Dashboard summary={summary} onScanned={refresh} />} />
         <Route path="/queue" element={<Queue summary={summary} />} />
@@ -62,8 +75,10 @@ export default function App() {
         <Route path="/attest" element={<Attest summary={summary} />} />
         <Route path="/sector" element={<Sector />} />
         <Route path="/audit" element={<Audit />} />
+        <Route path="/report" element={<Report summary={summary} />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
-    </>
+      </div>
+    </div>
   );
 }

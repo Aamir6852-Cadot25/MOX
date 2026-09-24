@@ -83,3 +83,11 @@ def test_roadmap_five_waves_cover_all_assets(client):
     rm = client.get("/api/roadmap").json()
     assert [w["wave"] for w in rm] == [1, 2, 3, 4, 5]
     assert sum(w["count"] for w in rm) == client.get("/api/scans/latest").json()["kpi"]["assets"]
+
+
+def test_compliance_report_pdf(client):
+    d = client.get("/api/report").json()
+    assert d["counts"]["assets"] == len(d["findings"]) and sum(d["tiers"].values()) == d["counts"]["assets"]
+    r = client.get("/api/report/download")
+    assert r.status_code == 200 and r.content.startswith(b"%PDF-1.4") and r.content.rstrip().endswith(b"%%EOF")
+    assert b"Auditor's Declaration" in r.content and b"FIPS 205" in r.content

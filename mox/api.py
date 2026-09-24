@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import attest, auth, cbom, db, scanner
+from . import attest, auth, cbom, db, report, scanner
 from .fixers import flow
 from .analyze import analyze
 from .db import ROOT
@@ -260,6 +260,23 @@ def create_app() -> FastAPI:
     def roadmap(u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
         scan = _latest(conn)
         return cbom.roadmap(conn, scan["id"]) if scan else []
+
+    def _report(conn):
+        scan = _latest(conn)
+        if not scan:
+            raise HTTPException(404, "no scan yet")
+        return report.build(conn, scan)
+
+    @app.get("/api/report")
+    def report_data(u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
+        return _report(conn)
+
+    @app.get("/api/report/download")
+    def report_download(u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
+        d = _report(conn)
+        auth.audit(conn, u["sub"], "report-export", f"{d['counts']['assets']} assets")
+        return Response(report.render_pdf(d), media_type="application/pdf",
+                        headers={"Content-Disposition": 'attachment; filename="mox-compliance-report.pdf"'})
 
     def _attest(conn, sector):
         scan = _latest(conn)
