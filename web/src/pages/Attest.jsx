@@ -37,7 +37,7 @@ export default function Attest({ summary }) {
     <div className="p-4 max-w-[1400px] mx-auto grid gap-4 items-start lg:grid-cols-[280px_minmax(0,1fr)_280px]">
       <div className="flex flex-col gap-4">
         <div className="panel p-4">
-          <div className="h">Leaves the premises</div><div className="dim mb-2">Counts and proofs — never locations</div>
+          <div className="h">Leaves the organisation</div><div className="dim mb-2">Counts and proofs — never locations</div>
           {LEAVES.map((t) => <div key={t} className="kv"><Check ok>{t}</Check></div>)}
         </div>
         <div className="panel p-4">

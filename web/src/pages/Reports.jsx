@@ -1,4 +1,4 @@
-import { Navigate, NavLink, useParams } from "react-router-dom";
+import { Link, Navigate, NavLink, useParams } from "react-router-dom";
 import Cbom from "./Cbom.jsx";
 import Roadmap from "./Roadmap.jsx";
 import Attest from "./Attest.jsx";
@@ -6,25 +6,34 @@ import Report from "./Report.jsx";
 import Audit from "./Audit.jsx";
 import Sector from "./Sector.jsx";
 
-const TABS = [
-  ["cbom", "CBOM"], ["attestation", "Attestation"], ["national", "National view"], ["roadmap", "Roadmap"],
-  ["compliance", "Compliance"], ["audit", "Audit log"], ["history", "History"], ["reference", "Reference"],
-];
-const KNOWN = new Set(TABS.map(([k]) => k));
+const PRIMARY = [["cbom", "CBOM"], ["attestation", "Attestation"], ["national", "National view"], ["more", "More"]];
+const MORE = [["roadmap", "Roadmap"], ["compliance", "Compliance"], ["audit", "Audit log"], ["history", "History"], ["reference", "Reference"]];
+const MORE_KEYS = new Set(MORE.map(([k]) => k));
+const KNOWN = new Set(["cbom", "attestation", "national", ...MORE_KEYS]);
 
-/** D1: what do I hand over, and what changed since last time? History and Reference tabs land in Phase 6. */
+/** D1: what do I hand over, and what changed since last time? "More" groups the less-used reports (Task 5). */
 export default function Reports({ summary }) {
   const { tab } = useParams();
   if (!tab || !KNOWN.has(tab)) return <Navigate to="/reports/cbom" replace />;
+  const inMore = MORE_KEYS.has(tab);
   return (
     <div className="p-4 flex flex-col gap-3">
       <div className="tabs" role="tablist">
-        {TABS.map(([key, label]) => (
-          <NavLink key={key} to={`/reports/${key}`} role="tab" className={({ isActive }) => `tab${isActive ? " on" : ""}`}>
+        {PRIMARY.map(([key, label]) => (
+          <NavLink key={key} to={key === "more" ? "/reports/roadmap" : `/reports/${key}`} role="tab"
+            className={`tab${key === "more" ? (inMore ? " on" : "") : ""}`}
+            aria-current={key === "more" && inMore ? "page" : undefined}>
             {label}
           </NavLink>
         ))}
       </div>
+      {inMore && (
+        <div className="tabs" role="tablist" style={{ borderBottom: "none" }}>
+          {MORE.map(([key, label]) => (
+            <Link key={key} to={`/reports/${key}`} className={`tab${tab === key ? " on" : ""}`} style={{ fontSize: 11 }}>{label}</Link>
+          ))}
+        </div>
+      )}
       {tab === "cbom" && <Cbom summary={summary} />}
       {tab === "roadmap" && <Roadmap summary={summary} />}
       {tab === "compliance" && <Report summary={summary} />}

@@ -30,8 +30,12 @@ export default function Cbom({ summary }) {
               <span className="flex items-center gap-2"><Tier tier={prop(x, "tier")} /><Verdict verdict={prop(x, "verdict")} /><span>wave {prop(x, "wave")}</span></span></div>
           ))}
         </div>
-        <div className="panel p-4"><div className="h mb-2">JSON preview <span className="dim font-normal">(first 2 components)</span></div>
-          <pre className="mono text-[11px] dim overflow-auto" style={{ maxHeight: 520 }}>{JSON.stringify({ ...c.bom, components: c.bom.components.slice(0, 2) }, null, 2)}</pre>
+        <div className="panel p-4"><div className="h mb-2">JSON preview <span className="dim font-normal">(one component, capped at 12 lines)</span></div>
+          <pre className="mono text-[11px] dim overflow-auto">{(() => {
+            const withFields = c.bom.components.find((x) => x.cryptoProperties?.algorithmProperties?.mode
+              || x.cryptoProperties?.protocolProperties?.version) || c.bom.components[0];
+            return JSON.stringify(withFields, null, 2).split("\n").slice(0, 12).join("\n");
+          })()}</pre>
         </div>
       </div>
     </div>
