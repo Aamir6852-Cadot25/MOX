@@ -2,6 +2,7 @@
 @import "./styles/tokens.css";
 @import "./styles/asset.css";
 @import "./styles/dashboard.css";
+@import "./styles/queue.css";
 
 /* Enterprise light theme. Red/amber/green are reserved for risk tier and verdict badges only. */
 :root { --bg: #F7F8FA; --card: #FFFFFF; --line: #E3E7ED; --text: #1B2A41; --muted: #6B7785; --accent: #2F5D8C; --soft: #EEF1F5; }

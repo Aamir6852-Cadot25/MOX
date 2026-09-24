@@ -98,8 +98,11 @@ def _asset(conn, row, full=False) -> dict:
             "SELECT f.* FROM findings f JOIN asset_locations l ON l.finding_id=f.id"
             " WHERE l.asset_id=? ORDER BY f.file,f.line", (row["id"],))]
     else:
+        locs = d.pop("locations", None) or []
         d.pop("findings", None)
-        d.pop("locations", None)
+        d["planes"] = sorted({l["plane"] for l in locs})  # plane tag on every queue row
+        d["files"] = sorted({l["file"] for l in locs})
+        d["fix_finding"] = next((l["finding_id"] for l in locs if l["plane"] != "binaries"), None)
     return d
 
 

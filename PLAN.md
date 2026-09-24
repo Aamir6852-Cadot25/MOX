@@ -121,4 +121,13 @@ run.ps1  README.md  requirements.txt  .gitignore
 - [x] Recharts no longer used by any screen (dependency kept for later charts)
 - [ ] Visual review screenshots (Chrome extension not connected)
 - [ ] Gaps noted for later: SQLite WAL mode; CBOM certificateProperties beyond certificateFormat
-- [ ] Next: Work queue (sortable, filterable, j/k/Enter/"/" keyboard)
+
+## Phase 14 — Work queue
+- [x] Risk / Mosca / CMCS as three sortable numeric columns; Tier, Evidence (4 grades), Verdict sortable; aria-sort headers
+- [x] Filters: search over label, algorithm, tier, verdict and file paths; verdict chips with live counts; Evidence and Plane selects; ?verdict= deep link
+- [x] Keyboard: j/k move (selection scrolls into view), Enter opens, / focuses search, Esc leaves it
+- [x] Plane tag on every row; Verify first badge; "Open first fix" = first MIGRATE asset with a patchable location (omitted when none)
+- [x] Only the table body scrolls (sticky header); pagination removed; empty / filtered-empty / error / loading states give the next action
+- [x] Blueprint "Assign owners" omitted: no owner model until the Roadmap phase (no dead controls)
+- [ ] Visual review screenshots (Chrome extension not connected)
+- [ ] Next: Fix & verify (six-step rail, two-person approval, verification contract)

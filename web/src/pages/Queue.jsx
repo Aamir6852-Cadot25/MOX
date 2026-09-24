@@ -1,53 +1,158 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { api, tierClass } from "../api.js";
-import { Pager, Search, usePaged } from "../lib.jsx";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { api } from "../api.js";
 
+const TIER_B = { Critical: "crit", High: "high", Medium: "med", Low: "low" };
+const VERDICT_B = { MIGRATE: "crit", CONTAIN: "med", ACCEPT: "low" };
+const TIER_RANK = { Critical: 4, High: 3, Medium: 2, Low: 1 };
+const EV_RANK = { observed: 4, declared: 3, unverified: 2, textual: 1 };
+const V_RANK = { MIGRATE: 3, CONTAIN: 2, ACCEPT: 1 };
 const TABS = [["all", "All"], ["MIGRATE", "Migrate"], ["CONTAIN", "Contain"], ["ACCEPT", "Accept"], ["verify", "Verify first"]];
+const PLANE_NAME = { code: "source", dependencies: "deps", configs: "config", certificates: "cert", containers: "container",
+  binaries: "binary", tls: "live TLS" };
+// [key, header, sort value, default direction (-1 = high first), title]
+const COLS = [
+  ["asset", "Asset", (a) => a.label.toLowerCase(), 1],
+  ["risk", "Risk", (a) => a.score, -1, "Risk score 0–75.6; open an asset for its arithmetic"],
+  ["mosca", "Mosca", (a) => a.breakdown.mosca.exposure, -1, "Mosca exposure in years, X + Y − Z; above 0 means quantum-exposed"],
+  ["cmcs", "CMCS", (a) => a.breakdown.cmcs.score, -1, "How hard this asset is to migrate, independent of how risky it is"],
+  ["tier", "Tier", (a) => TIER_RANK[a.tier] * 1000 + a.score, -1],
+  ["evidence", "Evidence", (a) => EV_RANK[a.breakdown.evidence], -1, "How the crypto was seen; separate from severity"],
+  ["verdict", "Verdict", (a) => V_RANK[a.verdict] * 10 - a.wave, -1],
+];
 const match = (a, t) => t === "all" || (t === "verify" ? a.verify_first : a.verdict === t);
+const signed = (n) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : "0");
 
 export default function Queue({ summary }) {
-  const [assets, setAssets] = useState([]);
   const [params] = useSearchParams();
+  const [assets, setAssets] = useState(null);
+  const [err, setErr] = useState("");
   const [tab, setTab] = useState(() => (TABS.some(([k]) => k === params.get("verdict")) ? params.get("verdict") : "all"));
+  const [q, setQ] = useState("");
+  const [ev, setEv] = useState("");
+  const [plane, setPlane] = useState("");
+  const [sort, setSort] = useState(["risk", -1]);
+  const [sel, setSel] = useState(0);
+  const search = useRef(null);
+  const body = useRef(null);
   const nav = useNavigate();
-  useEffect(() => { api.assets().then(setAssets); }, [summary]);
-  const p = usePaged(assets.filter((a) => match(a, tab)), (a) => `${a.label} ${a.summary} ${a.tier} ${a.verdict}`);
+
+  const load = () => { setErr(""); api.assets().then(setAssets).catch((e) => setErr(e.message)); };
+  useEffect(load, [summary]);
+
+  const base = useMemo(() => (assets || []).filter((a) => {
+    const needle = q.trim().toLowerCase();
+    return (!ev || a.breakdown.evidence === ev) && (!plane || a.planes?.includes(plane)) &&
+      (!needle || [a.label, a.algorithm, a.tier, a.verdict, ...(a.files || [])].join(" ").toLowerCase().includes(needle));
+  }), [assets, q, ev, plane]);
+  const rows = useMemo(() => {
+    const [k, dir] = sort;
+    const f = COLS.find((c) => c[0] === k)[2];
+    return base.filter((a) => match(a, tab)).sort((a, b) => {
+      const x = f(a), y = f(b);
+      return (x < y ? -1 : x > y ? 1 : 0) * dir || b.score - a.score;
+    });
+  }, [base, tab, sort]);
+  useEffect(() => setSel((s) => Math.min(s, Math.max(0, rows.length - 1))), [rows.length]);
+  useEffect(() => { body.current?.querySelector(`[data-i="${sel}"]`)?.scrollIntoView({ block: "nearest" }); }, [sel]);
+
+  useEffect(() => {
+    const onKey = (e) => {
+      const typing = /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName);
+      if (e.key === "/" && !typing) { e.preventDefault(); search.current?.focus(); return; }
+      if (e.key === "Escape" && typing) { e.target.blur(); return; }
+      if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key === "j") setSel((s) => Math.min(rows.length - 1, s + 1));
+      else if (e.key === "k") setSel((s) => Math.max(0, s - 1));
+      else if (e.key === "Enter" && rows[sel] && !/^(A|BUTTON)$/.test(e.target.tagName)) nav(`/asset/${rows[sel].id}`);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [rows, sel, nav]);
+
+  const planes = useMemo(() => [...new Set((assets || []).flatMap((a) => a.planes || []))].sort(), [assets]);
+  const firstFix = rows.find((a) => a.verdict === "MIGRATE" && a.fix_finding);
+  const clear = () => { setQ(""); setEv(""); setPlane(""); setTab("all"); };
+  const sortBy = (k, d) => setSort(([sk, sd]) => (sk === k ? [k, -sd] : [k, d]));
+
+  let empty = null;
+  if (err) empty = <div className="errbox">Could not load the work queue: {err}. Check the server is running, then <button className="linkbtn" onClick={load}>retry</button>.</div>;
+  else if (!assets) empty = <div className="hint">Loading assets from the latest scan</div>;
+  else if (!assets.length) empty = <div className="hint">No assets yet. <Link to="/scan">Start a scan from New Scan</Link> and the queue fills from its results.</div>;
+  else if (!rows.length) empty = <div className="hint">No asset matches these filters{q ? <> and the search <span className="mono">{q}</span></> : null}. <button className="linkbtn" onClick={clear}>Clear filters</button> to see all {assets.length}.</div>;
+
   return (
-    <div className="p-5 max-w-[1100px] mx-auto">
-      <div className="panel pt-4">
-        <div className="flex justify-between items-center gap-3 flex-wrap px-4 pb-3 border-b border-[#E3E7ED]">
-          <div className="h">Work queue <span className="dim font-normal">— sorted by risk score</span></div>
-          <div className="flex gap-2 items-center flex-wrap">
-            <Search p={p} placeholder="Search assets…" />
-            {TABS.map(([k, l]) => (
-              <button key={k} className={"filt" + (tab === k ? " on" : "")} onClick={() => setTab(k)}>
-                {l} {assets.filter((a) => match(a, k)).length}
-              </button>
-            ))}
-          </div>
+    <div className="queue">
+      <div className="head">
+        <h1>Work queue</h1>
+        <span className="sub">sorted by {COLS.find((c) => c[0] === sort[0])[1].toLowerCase()}, {sort[1] < 0 ? "highest" : "lowest"} first. Keys: <kbd>j</kbd> <kbd>k</kbd> move, <kbd>Enter</kbd> open, <kbd>/</kbd> search</span>
+        <div className="head-act">
+          {firstFix && <Link className="bp-btn pri" to={`/fix/${firstFix.fix_finding}`} title={firstFix.label}>Open first fix</Link>}
         </div>
-        <div className="px-4 py-2 dim text-[11px] border-b border-[#E3E7ED]">
-          Evidence, separate from severity: <b>Observed</b> parsed certificate or TLS handshake; <b>Declared</b> named in code or config; <b>Declared, unverified</b> a dependency or package that can do it; <b>Textual</b> a string match in bytes.
-        </div>
-        <div className="row dim text-[11px]" style={{ cursor: "default" }}>
-          <span>Asset</span><span className="text-center">Score</span><span title="Code Migration Complexity: how hard this asset is to migrate, independent of how risky it is">CMCS</span><span>Tier</span><span>Evidence</span><span>Verdict</span>
-        </div>
-        {p.shown.map((a) => (
-          <div key={a.id} className="row" onClick={() => nav(`/asset/${a.id}`)}>
-            <div>
-              <div>{a.label}{a.verify_first && <span className="pill CONTAIN ml-2">verify first</span>}</div>
-              <div className="sub">{a.summary} · wave {a.wave}</div>
-            </div>
-            <div className={`sc ${tierClass(a.tier)}`}>{a.score}</div>
-            <div className="mono" title={a.breakdown.cmcs?.basis}>{a.breakdown.cmcs ? `${a.breakdown.cmcs.score}/10` : "—"}</div>
-            <div className={tierClass(a.tier)}>{a.tier}</div>
-            <div className="dim">{a.breakdown.evidence_label}</div>
-            <div><span className={`pill ${a.verdict}`}>{a.verdict}</span></div>
-          </div>
+      </div>
+      <div className="filters">
+        <input ref={search} className="search" placeholder="Search assets, files, algorithms" aria-label="Search the work queue"
+          value={q} onChange={(e) => setQ(e.target.value)} />
+        {TABS.map(([k, l]) => (
+          <button key={k} className="fchip" aria-pressed={tab === k} onClick={() => setTab(k)}>
+            {l} <span className="n mono">{base.filter((a) => match(a, k)).length}</span>
+          </button>
         ))}
-        {!p.shown.length && <div className="p-6 dim">Nothing here{assets.length ? "" : " — run a scan from the Dashboard"}.</div>}
-        <Pager p={p} />
+        <span className="sp" />
+        <select aria-label="Filter by evidence" value={ev} onChange={(e) => setEv(e.target.value)} className="fsel">
+          <option value="">All evidence</option>
+          <option value="observed">Observed</option><option value="declared">Declared</option>
+          <option value="unverified">Declared, unverified</option><option value="textual">Textual</option>
+        </select>
+        <select aria-label="Filter by plane" value={plane} onChange={(e) => setPlane(e.target.value)} className="fsel">
+          <option value="">All planes</option>
+          {planes.map((p) => <option key={p} value={p}>{p}</option>)}
+        </select>
+      </div>
+      <div className="legend">
+        Evidence is separate from severity. <b>Observed</b> parsed certificate or TLS handshake. <b>Declared</b> named in code or config.
+        <b> Declared, unverified</b> a dependency or package that can do it; use not proven, so it stays in Verify first. <b>Textual</b> a string match in bytes.
+      </div>
+      <div className="qbody" ref={body}>
+        <table className="qt">
+          <thead>
+            <tr>
+              {COLS.map(([k, h, , d, title]) => (
+                <th key={k} className={`c-${k}`} aria-sort={sort[0] === k ? (sort[1] < 0 ? "descending" : "ascending") : "none"}>
+                  <button onClick={() => sortBy(k, d)} title={title}>{h}{sort[0] === k ? (sort[1] < 0 ? " ▾" : " ▴") : ""}</button>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((a, i) => {
+              const b = a.breakdown, e = b.mosca.exposure;
+              return (
+                <tr key={a.id} data-i={i} aria-selected={i === sel} onClick={() => { setSel(i); nav(`/asset/${a.id}`); }}>
+                  <td className="c-asset">
+                    <Link to={`/asset/${a.id}`} className="a1 mono" tabIndex={-1}>{a.label}</Link>
+                    <div className="a2">
+                      <span className="mono">{a.summary}</span>, wave <span className="mono">{a.wave}</span>
+                      {(a.planes || []).map((p) => <span key={p} className="ptag">{PLANE_NAME[p] || p}</span>)}
+                      {a.verify_first && <span className="b high vf">Verify first</span>}
+                    </div>
+                  </td>
+                  <td className="num mono" style={{ color: `var(--${TIER_B[a.tier]}-ink)` }}>{a.score}</td>
+                  <td className={`num mono${e > 0 ? " exp" : ""}`}>{signed(e)}</td>
+                  <td className="num mono">{b.cmcs.score}<span className="of">/10</span></td>
+                  <td><span className={`b ${TIER_B[a.tier]}`}>{a.tier}</span></td>
+                  <td className="ev">{b.evidence_label}</td>
+                  <td><span className={`b ${VERDICT_B[a.verdict]}`}>{a.verdict}</span></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {empty && <div className="qempty">{empty}</div>}
+      </div>
+      <div className="qfoot">
+        <span>Showing <span className="mono">{rows.length}</span> of <span className="mono">{assets?.length ?? 0}</span> assets</span>
+        {rows[sel] && <span>Selected: <span className="mono">{rows[sel].label}</span></span>}
       </div>
     </div>
   );
