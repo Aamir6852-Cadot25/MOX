@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
+import { Check } from "../components/Marks.jsx";
+import Icon from "../components/Icon.jsx";
 
-const LEAVES = ["Sector and scan date", "Asset counts by risk tier", "Verdict split — migrate / contain / accept",
+const LEAVES = ["Sector and scan date", "Asset counts: total, quantum-vulnerable, HNDL-exposed", "Verdict split — migrate / contain / accept",
   "Readiness index (0–100)", "Merkle root of the local CBOM", "Scanner version + Ed25519 signature"];
 const STAYS = ["File paths, hostnames, IP addresses", "Which key is weak, and where it lives",
   "Source code and configuration", "The CBOM itself"];
@@ -24,31 +26,30 @@ export default function Attest({ summary }) {
   useEffect(() => { setD(null); api.attest(sector).then(setD).catch(() => setD(false)); }, [summary, sector]);
   if (d === false) return <div className="p-6 dim">Run a scan first.</div>;
   if (!d) return <div className="p-6 dim">Building attestation…</div>;
-  const a = d.attestation, r = a.readiness_index, col = "#1B2A41";
+  const a = d.attestation, r = a.readiness_index;
   const fields = [a, a.assets, a.verdicts, a.coverage, a.signature].reduce((n, o) => n + Object.keys(o).length, 0);
   return (
-    <div className="p-5 max-w-[1400px] mx-auto grid gap-4 lg:grid-cols-[340px_1fr_340px]">
+    <div className="p-4 max-w-[1400px] mx-auto grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)_280px]">
       <div className="flex flex-col gap-4">
         <div className="panel p-4">
-          <div className="h">LEAVES THE PREMISES</div><div className="dim mb-2">Counts and proofs — never locations</div>
-          {LEAVES.map((t) => <div key={t} className="kv"><span>✓ {t}</span></div>)}
+          <div className="h">Leaves the premises</div><div className="dim mb-2">Counts and proofs — never locations</div>
+          {LEAVES.map((t) => <div key={t} className="kv"><Check ok>{t}</Check></div>)}
         </div>
         <div className="panel p-4">
-          <div className="h">NEVER LEAVES</div><div className="dim mb-2">Stays in local SQLite, on-premises</div>
-          {STAYS.map((t) => <div key={t} className="kv"><span>✕ {t}</span></div>)}
+          <div className="h">Never leaves</div><div className="dim mb-2">Stays in local SQLite, on-premises</div>
+          {STAYS.map((t) => <div key={t} className="kv"><span className="flex items-center gap-2"><Icon name="x" label="does not leave" />{t}</span></div>)}
         </div>
       </div>
       <div className="panel p-4">
         <div className="flex items-center mb-2"><div><div className="h">attestation.json</div><div className="dim">preview — exactly what will be exported</div></div>
           <div className="flex-1" /><span className="chip">{(d.bytes / 1024).toFixed(1)} KB</span></div>
         <pre className="mono text-[12px] overflow-auto" style={{ maxHeight: 560 }}>{JSON.stringify(a, null, 2)}</pre>
-        <div className="dim mono text-[11px] mt-2">// no paths · no hosts · no key material · no code</div>
+        <div className="dim text-[11px] mt-2">No paths, hosts, key material or code: checked by the self-check on the right.</div>
       </div>
       <div className="flex flex-col gap-4">
-        <div className="panel p-4"><div className="dim text-[11px]" style={{ letterSpacing: 1 }}>READINESS INDEX</div>
-          <div className="mono text-[30px] font-bold" style={{ color: col }}>{r}<span className="dim text-[16px]"> / 100</span></div>
-          <div style={{ height: 10, background: "#EEF1F5", borderRadius: 6, margin: "8px 0", overflow: "hidden" }}>
-            <div style={{ width: `${r}%`, height: "100%", background: col }} /></div>
+        <div className="panel p-4"><div className="h">Readiness index</div>
+          <div className="mono text-[30px] font-bold" style={{ color: "var(--ink)" }}>{r}<span className="dim text-[16px]"> / 100</span></div>
+          <div className="meter-bar"><i style={{ width: `${r}%` }} /></div>
           <div className="dim">Weighted by HNDL exposure, quantum-vulnerable share, MIGRATE share and plane coverage</div></div>
         <div className="panel p-4"><div className="h mb-1">Signing</div>
           <div className="kv"><span className="dim">Algorithm</span><span>{a.signature.alg}</span></div>
@@ -60,9 +61,9 @@ export default function Attest({ summary }) {
             {Object.entries(d.sectors).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select></div>
         <div className="panel p-4"><div className="h mb-1">Operator self-check</div>
-          {d.checks.map((c) => <div key={c.name} className="kv"><span className={c.ok ? "" : "red"}>{c.ok ? "✓" : "✕"} {c.name}</span></div>)}
+          {d.checks.map((c) => <div key={c.name} className="kv"><Check ok={c.ok}>{c.name}</Check></div>)}
           <button className="btn w-full" style={{ marginTop: 12 }} disabled={!d.checks.every((c) => c.ok)}
-            onClick={() => download(sector)}>Export signed attestation</button></div>
+            onClick={() => download(sector)}><Icon name="download" />Export signed attestation</button></div>
       </div>
     </div>
   );

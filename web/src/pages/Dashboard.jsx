@@ -4,6 +4,7 @@ import { api } from "../api.js";
 import Pipeline from "../components/Pipeline.jsx";
 import RiskField, { Swatch } from "../components/RiskField.jsx";
 import CoverageRing from "../components/CoverageRing.jsx";
+import Icon from "../components/Icon.jsx";
 
 const VERDICTS = [["MIGRATE", "m", "replace per the PQC map"], ["CONTAIN", "c", "isolate; cannot patch in place"], ["ACCEPT", "a", "monitor; validate at next scan"]];
 
@@ -67,14 +68,14 @@ export default function Dashboard({ summary, onScanned }) {
         <span className="sub"><span className="mono">{kpi.assets}</span> cryptographic assets correlated from <span className="mono">{summary.scan.findings_count}</span> findings</span>
         <div className="head-act">
           <Link className="bp-btn" to="/report">Compliance report</Link>
-          <Link className="bp-btn pri" to="/scan">Re-scan</Link>
+          <Link className="bp-btn pri" to="/scan"><Icon name="refresh-cw" />Re-scan</Link>
         </div>
       </div>
       <div className="dash-b">
         {summary.coverage?.warning && (
           <div className="alert warn" role="status">
             <div style={{ flex: 1 }}><div className="ti">Coverage shrank</div><div className="de">{summary.coverage.warning}</div></div>
-            <Link className="bp-btn" to="/scan">Re-scan with all planes</Link>
+            <Link className="bp-btn" to="/scan"><Icon name="refresh-cw" />Re-scan with all planes</Link>
           </div>
         )}
         <div className="tiles">

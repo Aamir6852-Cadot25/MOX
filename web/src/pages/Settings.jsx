@@ -31,7 +31,7 @@ export default function Settings({ summary, onChanged }) {
   };
 
   return (
-    <div className="p-5 flex flex-col gap-3" style={{ maxWidth: 760 }}>
+    <div className="p-4 flex flex-col gap-3" style={{ maxWidth: 760 }}>
       <form className="bp-card" onSubmit={save}>
         <div className="card-h"><h2>Quantum threat horizon (Z)</h2><span className="note">organisation-wide</span></div>
         <div className="card-b flex flex-col gap-3">

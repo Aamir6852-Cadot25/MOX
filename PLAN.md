@@ -163,3 +163,15 @@ run.ps1  README.md  requirements.txt  .gitignore
 - [x] verdict.decide: worst status disallowed skips both ACCEPT branches (was reachable via X <= 1 at any tier)
 - [x] Permanent invariant in tests/test_scoring_order.py (DES / 3DES / RSA-1024 x criticality x confidence x evidence x Z x path); phase 2 test updated
 - [x] P6 re-run: all three verdicts at every Z 1-40 on all 6 planes (audit copy 11/4/7 at Z 10, unchanged; pristine 14/4/7)
+
+## Phase 17 — Part D step 4: C1 surface, C3 marks, C4 icons, C5 spacing (token-first, every screen)
+- [x] Tokens: --font-sans/--font-mono, spacing scale --s1..--s6, --card-h, badge geometry (--badge-*), icon sizes/stroke
+- [x] IBM Plex Sans/Mono self-hosted (woff2 + OFL in web/src/vendor/plex); Lucide 1.48.0 vendored as generated data (25 icons + ISC LICENSE); fetched once from npm tarballs, no package.json change, Plex telemetry.yml not copied
+- [x] C1: legacy .panel/.card/.btn/.pill/.chip mapped onto tokens; every drop shadow removed (0 computed on 12 screens)
+- [x] C3: one Badge (18 px, 3 px radius, 10 px/500, +0.02em); Tier (with severity mark), Verdict, Evidence, plane tags all use it
+- [x] C4: rail icons 16 px, action-button icons 14 px, severity marks on tiers (octagon-x / triangle / circle-alert / circle-dot); ✓ ✕ ▾ ▴ ← replaced; icon-only marks carry aria-label + title
+- [x] C5: all CSS / inline / Tailwind spacing on 4·8·12·16·24·32; rail 180 px and top bar 44 px from tokens
+- [x] Checklist: no middle-dot meta strings, no → in buttons, no ALL-CAPS eyebrows; top-bar planes = planes run
+- [x] Attest no longer overflows at 1366 (grid minmax); .kv value styling only on two-column rows
+- [x] tests/test_ui_rules.py: permanent lint (spacing, shadows, hex outside tokens, glyphs, dots, eyebrows, vendored icons, no external URLs)
+- [x] Screenshots of all 12 screens at 1366x768, greyscale and deuteranopia queue reviewed against the checklist

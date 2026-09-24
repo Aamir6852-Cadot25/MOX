@@ -1,21 +1,21 @@
 /* Work queue (blueprint s-queue). Tokens only. Only the table body scrolls (master prompt §4 layout law). */
-.queue { display: flex; flex-direction: column; height: calc(100vh - 60px); min-height: 0; }
-.head kbd { font-family: inherit; font-size: 10px; border: 1px solid var(--line-2); border-radius: 4px; padding: 0 4px; background: var(--surface-2); color: var(--ink-2); }
-.filters { display: flex; align-items: center; gap: 6px; padding: 10px var(--pad); border-bottom: 1px solid var(--line); background: var(--surface); flex-wrap: wrap; }
-.search { flex: 1; max-width: 260px; height: 28px; border: 1px solid var(--line-2); border-radius: var(--r); padding: 0 10px; font-size: 11.5px; color: var(--ink); background: var(--surface-2); }
+.queue { display: flex; flex-direction: column; height: calc(100vh - var(--bar)); min-height: 0; }
+.head kbd { font-family: inherit; font-size: 10px; border: 1px solid var(--line-2); border-radius: var(--badge-r); padding: 0 var(--s1); background: var(--surface-2); color: var(--ink-2); }
+.filters { display: flex; align-items: center; gap: var(--s2); padding: var(--s3) var(--pad); border-bottom: 1px solid var(--line); background: var(--surface); flex-wrap: wrap; }
+.search { flex: 1; max-width: 260px; height: 28px; border: 1px solid var(--line-2); border-radius: var(--r); padding: 0 var(--s2); font-size: 11.5px; color: var(--ink); background: var(--surface-2); }
 .search:focus-visible, .fsel:focus-visible, .fchip:focus-visible, .qt th button:focus-visible, .linkbtn:focus-visible { outline: 2px solid var(--pri); outline-offset: 1px; }
-.fchip { height: 26px; padding: 0 11px; border-radius: 99px; border: 1px solid var(--line-2); background: var(--surface); color: var(--ink-2); font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+.fchip { height: 28px; padding: 0 var(--s3); border-radius: 99px; border: 1px solid var(--line-2); background: var(--surface); color: var(--ink-2); font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; gap: var(--s1); }
 .fchip:hover { border-color: var(--pri-line); }
 .fchip[aria-pressed="true"] { background: var(--pri); border-color: var(--pri); color: var(--surface); }
 .fchip .n { font-size: 10px; opacity: .8; }
-.fsel { height: 28px; border: 1px solid var(--line-2); border-radius: var(--r); background: var(--surface); color: var(--ink-2); font-size: 11px; padding: 0 6px; }
-.legend { padding: 8px var(--pad); background: var(--surface-2); border-bottom: 1px solid var(--line); font-size: 10.5px; color: var(--ink-3); line-height: 1.5; }
+.fsel { height: 28px; border: 1px solid var(--line-2); border-radius: var(--r); background: var(--surface); color: var(--ink-2); font-size: 11px; padding: 0 var(--s2); }
+.legend { padding: var(--s2) var(--pad); background: var(--surface-2); border-bottom: 1px solid var(--line); font-size: 10.5px; color: var(--ink-3); line-height: 1.5; }
 .legend b { font-weight: 500; color: var(--ink-2); }
 
 .qbody { flex: 1; min-height: 0; overflow-y: auto; background: var(--surface); }
 .qt { width: 100%; border-collapse: collapse; font-size: 11.5px; table-layout: fixed; }
 .qt th { position: sticky; top: 0; z-index: 1; height: 30px; padding: 0; text-align: left; background: var(--surface-2); border-bottom: 1px solid var(--line); }
-.qt th button { width: 100%; height: 30px; padding: 0 12px; text-align: inherit; background: none; border: 0; font-size: 10.5px; font-weight: 500; color: var(--ink-3); cursor: pointer; }
+.qt th button { width: 100%; height: 30px; padding: 0 var(--s3); text-align: inherit; display: inline-flex; align-items: center; gap: var(--s1); background: none; border: 0; font-size: 10.5px; font-weight: 500; color: var(--ink-3); cursor: pointer; }
 .qt th[aria-sort="ascending"] button, .qt th[aria-sort="descending"] button { color: var(--ink); }
 .qt th.c-risk, .qt th.c-mosca, .qt th.c-cmcs { text-align: right; }
 .qt th.c-risk, .qt th.c-mosca { width: 70px; }
@@ -23,7 +23,7 @@
 .qt th.c-tier { width: 88px; }
 .qt th.c-evidence { width: 140px; }
 .qt th.c-verdict { width: 96px; }
-.qt td { height: var(--row); padding: 5px 12px; border-bottom: 1px solid var(--line); color: var(--ink-2); vertical-align: middle; }
+.qt td { height: var(--row); padding: var(--s1) var(--s3); border-bottom: 1px solid var(--line); color: var(--ink-2); vertical-align: middle; }
 .qt tbody tr { cursor: pointer; }
 .qt tbody tr:hover td { background: var(--surface-2); }
 .qt tbody tr[aria-selected="true"] td { background: var(--pri-soft); }
@@ -32,10 +32,8 @@
 .qt .num.exp { color: var(--crit-ink); }
 .qt .of { color: var(--ink-3); font-weight: 400; }
 .qt .a1 { display: block; font-size: 11.5px; font-weight: 500; color: var(--ink); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.qt .a2 { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; font-size: 10px; color: var(--ink-3); margin-top: 2px; }
-.qt .ptag { font-size: 9.5px; padding: 0 5px; border: 1px solid var(--line-2); border-radius: 4px; color: var(--ink-3); background: var(--surface-2); }
-.qt .vf { height: 16px; font-size: 9.5px; }
+.qt .a2 { display: flex; align-items: center; gap: var(--s1); flex-wrap: wrap; font-size: 10px; color: var(--ink-3); margin-top: var(--s1); }
 .qt .ev { font-size: 11px; }
-.qempty { padding: 20px var(--pad); }
-.qfoot { display: flex; justify-content: space-between; gap: 12px; padding: 7px var(--pad); border-top: 1px solid var(--line); background: var(--surface-2); font-size: 10.5px; color: var(--ink-3); }
+.qempty { padding: var(--s5) var(--pad); }
+.qfoot { display: flex; justify-content: space-between; gap: var(--s3); padding: var(--s2) var(--pad); border-top: 1px solid var(--line); background: var(--surface-2); font-size: 10.5px; color: var(--ink-3); }
 .linkbtn { background: none; border: 0; padding: 0; color: var(--pri); font: inherit; cursor: pointer; text-decoration: underline; }

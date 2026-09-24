@@ -38,5 +38,3 @@ export const api = {
   setSettings: (body) => call("PUT", "/api/settings", body),
 };
 
-export const tierColor = (t) => (t === "Critical" ? "#B42318" : t === "High" ? "#D9822B" : t === "Medium" ? "#C9A227" : "#2E9E5B");
-export const tierClass = (t) => (t === "Critical" ? "red" : t === "High" || t === "Medium" ? "amb" : "min");

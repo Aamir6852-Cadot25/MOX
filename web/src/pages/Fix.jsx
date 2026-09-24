@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api.js";
+import Icon from "../components/Icon.jsx";
 
 const cls = (l) => (l.startsWith("+++") || l.startsWith("---") || l.startsWith("@@") ? "hdr" : l[0] === "+" ? "add" : l[0] === "-" ? "del" : "");
 const CLAIM = { "in-effect": ["In effect", "min"], "not-in-effect": ["Not in effect", "red"], "not-verified": ["Not verified", "amb"] };
@@ -16,7 +17,7 @@ function List() {
   if (err) return <div className="p-6"><div className="errbox">Could not load the fix list: {err}. <button className="linkbtn" onClick={load}>Retry</button></div></div>;
   if (!rows) return <div className="p-6 dim">Loading…</div>;
   return (
-    <div className="p-5 max-w-[1100px] mx-auto"><div className="panel p-4">
+    <div className="p-4 max-w-[1100px] mx-auto"><div className="panel p-4">
       <div className="h mb-2">Auto-fixable findings <span className="dim font-normal">— from the latest scan</span></div>
       {rows.length === 0 && (
         <div className="dim">No finding in the latest scan has an automatic fix. The remaining MIGRATE assets need a manual
@@ -24,7 +25,7 @@ function List() {
           change the code or config, then <Link className="link" to="/scan">re-scan</Link> to verify.</div>)}
       {rows.map((f) => (
         <Link key={f.id} to={`/fix/${f.id}`} className="kv" style={{ textDecoration: "none" }}>
-          <span>{f.algorithm}{f.key_size ? `-${f.key_size}` : ""} · {f.file}:{f.line}</span><span className="link">Preview fix →</span>
+          <span>{f.algorithm}{f.key_size ? `-${f.key_size}` : ""} at {f.file}:{f.line}</span><span className="link">Preview fix</span>
         </Link>
       ))}
     </div></div>
@@ -65,19 +66,19 @@ export default function Fix({ onChanged }) {
   const lines = fix.diff.split("\n").slice(0, -1);
   const interim = fix.diff.includes("interim");
   return (
-    <div className="p-5 grid gap-4 max-w-[1500px] mx-auto lg:grid-cols-[1fr_380px]">
+    <div className="p-4 grid gap-4 max-w-[1500px] mx-auto lg:grid-cols-[minmax(0,1fr)_380px]">
       <div className="flex flex-col gap-4">
-        <div className="panel p-5">
-          <Link to="/fix" className="dim text-[12px]">← All fixes</Link>
+        <div className="panel p-4">
+          <Link to="/fix" className="bp-btn"><Icon name="arrow-left" />All fixes</Link>
           <div className="text-xl font-bold mt-2">{fix.algorithm}{fix.key_size ? `-${fix.key_size}` : ""} at <span className="mono">{fix.file}:{fix.line}</span></div>
-          <div className="dim">Proposed change for 1 file · {fix.lines_changed} changed lines · nothing is written until you approve</div>
+          <div className="dim">Proposed change to 1 file, <span className="mono">{fix.lines_changed}</span> changed lines. Nothing is written until you approve.</div>
         </div>
         <div className="panel py-2"><div className="diff">{lines.map((l, i) => <div key={i} className={cls(l)}>{l || " "}</div>)}</div></div>
         {fix.claims?.length > 0 ? (
           <div className="panel p-4 text-[13px]">
             <div className="h mb-1">What this patch does{applied ? ", checked against the file on disk after the re-scan" : ", checked against the patched text before you approve"}</div>
             {fix.claims.map((c) => (
-              <div key={c.claim} style={{ padding: "6px 0", borderBottom: "1px solid var(--line)" }}>
+              <div key={c.claim} style={{ padding: "8px 0", borderBottom: "1px solid var(--line)" }}>
                 <div><b className={CLAIM[c.state][1]}>{CLAIM[c.state][0]}</b> {c.claim}{c.limit ? " (limit of this patch)" : ""}</div>
                 <div className="dim text-[12px]">{c.detail}</div>
               </div>
@@ -92,7 +93,7 @@ export default function Fix({ onChanged }) {
         {!applied && (
           <div className="panel p-4 flex gap-3 items-center">
             <input className="flex-1" placeholder="Review note (optional)" value={note} maxLength={200} onChange={(e) => setNote(e.target.value)} />
-            <button className="btn" style={{ width: 200 }} disabled={busy} onClick={apply}>Approve &amp; apply</button>
+            <button className="btn" style={{ width: 200 }} disabled={busy} onClick={apply}><Icon name="check" />Approve and apply</button>
             <button className="btn ghost" style={{ width: 100 }} onClick={() => nav("/fix")}>Cancel</button>
           </div>
         )}
@@ -101,13 +102,13 @@ export default function Fix({ onChanged }) {
         <div className="panel p-4">
           <div className="h mb-3">Fix and verify</div>
           {STEPS.map(([t, d], i) => (
-            <div key={t} className="flex gap-3 mb-3" style={{ opacity: i < step ? 1 : 0.4 }}>
-              <div className="mono font-bold" style={{ width: 26, height: 26, borderRadius: 13, background: i < step ? "#1B2A41" : "#EEF1F5", color: i < step ? "#fff" : "#1B2A41", textAlign: "center", lineHeight: "26px" }}>{i + 1}</div>
-              <div><div className="font-bold">{t}</div><div className="dim text-[12px]">{d}</div></div>
+            <div key={t} className="steps flex gap-3 mb-3" style={{ opacity: i < step ? 1 : 0.5 }}>
+              <span className={`n${i < step ? " done" : ""}`}>{i + 1}</span>
+              <div><div className="h">{t}</div><div className="dim text-[12px]">{d}</div></div>
             </div>
           ))}
           {applied && (
-            <div className="panel p-3" style={{ borderColor: "#1B2A41" }}>
+            <div className="panel p-3" style={{ borderColor: "var(--pri)" }}>
               <div className={`h ${fix.status === "cleared" ? "" : "red"}`}>{RESULT[fix.status] || fix.status}</div>
               <div className="dim text-[12px]">{fix.status === "still-present"
                 ? "The re-scan still reports this finding; the backup is kept."

@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api.js";
+import Icon from "../components/Icon.jsx";
+import { Badge, Evidence, Tier, Verdict } from "../components/Marks.jsx";
 
 // Every number on this page is a server value from breakdown (see docs/SCORING.md); nothing is recomputed
 // here except the Mosca preview while an analyst types, which is replaced by the server's answer on save.
-const TIER_B = { Critical: "crit", High: "high", Medium: "med", Low: "low" };
-const VERDICT_B = { MIGRATE: "crit", CONTAIN: "med", ACCEPT: "low" };
 const NIST_B = { disallowed: "crit", not_approved: "high", deprecated: "high", approved: "low", hybrid: "low" };
 const CRIT = { 1: "1 low", 2: "2 normal", 3: "3 mission-critical" };
 const CHANGE = { certificates: "Re-issue", configs: "Config change", code: "Code change", dependencies: "Upgrade",
@@ -56,7 +56,7 @@ function WhyScore({ a, onCrit }) {
             </div>
           ))}
           <div className="brk-r tot">
-            Risk score <span className={`b ${TIER_B[a.tier]}`}>{a.tier}</span>
+            Risk score <Tier tier={a.tier} />
             <span className="bv mono">{product} = {rounded ? `${b.exact} ≈ ` : ""}{a.score}</span>
           </div>
         </div>
@@ -213,13 +213,13 @@ export default function Asset({ onChanged }) {
             <h1 className="mono">{a.label}</h1>
             {a.fingerprint && <div className="spki mono">SPKI SHA-256 {a.fingerprint.slice(0, 32)}…</div>}
             <div className="tags">
-              {planes.map((p) => <span key={p} className="b plain">Plane: {p}</span>)}
-              <span className={`b ${b.criticality === 3 ? "crit" : "plain"}`}>Criticality {CRIT[b.criticality]}</span>
-              <span className="b pri" title="How the finding was seen; separate from severity">Evidence: {b.evidence_label}</span>
-              {a.verify_first && <span className="b high">Verify first</span>}
+              {planes.map((p) => <Badge key={p}>Plane: {p}</Badge>)}
+              <Badge family={b.criticality === 3 ? "crit" : "plain"}>Criticality {CRIT[b.criticality]}</Badge>
+              <Evidence grade={b.evidence} label={`Evidence: ${b.evidence_label}`} />
+              {a.verify_first && <Badge family="high">Verify first</Badge>}
             </div>
           </div>
-          <span className={`b lg ${VERDICT_B[a.verdict]}`}>{a.verdict}</span>
+          <Verdict verdict={a.verdict} />
         </div>
 
         {top ? (
@@ -227,11 +227,11 @@ export default function Asset({ onChanged }) {
             <div style={{ flex: 1 }}>
               {b.threats.map((t) => <div key={t} style={{ marginBottom: 4 }}><div className="ti">{THREAT[t][0]}</div><div className="de">{THREAT[t][1]}</div></div>)}
               {b.purposes?.length > 0 && (
-                <div className="de" style={{ marginTop: 6 }}>Declared purpose, per location:{" "}
+                <div className="de" style={{ marginTop: 8 }}>Declared purpose, per location:{" "}
                   {b.purposes.map((p, i) => <span key={i}>{i ? "; " : ""}<span className="mono">{p.file}{p.line ? `:${p.line}` : ""}</span> {p.purpose} ({p.evidence})</span>)}.
                 </div>)}
             </div>
-            {fixable && a.verdict !== "ACCEPT" && <Link className="bp-btn" to={`/fix/${fixable.finding_id}`}>Open fix</Link>}
+            {fixable && a.verdict !== "ACCEPT" && <Link className="bp-btn" to={`/fix/${fixable.finding_id}`}><Icon name="wrench" />Open fix</Link>}
           </div>
         ) : (
           m.exposure == null ? (
@@ -254,7 +254,7 @@ export default function Asset({ onChanged }) {
                 <tr key={l.finding_id}>
                   <td>{l.plane}</td>
                   <td className="mono" style={{ color: "var(--ink)", wordBreak: "break-all" }}>{l.file}{l.line ? `:${l.line}` : ""}</td>
-                  <td><span className="b plain">{CHANGE[l.plane] || "Review"}</span></td>
+                  <td><Badge>{CHANGE[l.plane] || "Review"}</Badge></td>
                   <td>{l.fixable ? <Link to={`/fix/${l.finding_id}`}>Fix</Link>
                     : <span className="hint" title="No automatic fix for this location: change it by hand; the next scan verifies it">manual</span>}</td>
                 </tr>
@@ -323,10 +323,10 @@ export default function Asset({ onChanged }) {
               {[1, 2, 3, 4, 5].map((w) => <div key={w} role="listitem" className={w === a.wave ? "here" : ""}
                 aria-current={w === a.wave ? "step" : undefined}>{w === a.wave ? `Wave ${w}` : w}</div>)}
             </div>
-            <div className="hint" style={{ marginTop: 6 }}>{a.wave_reason ? a.wave_reason.charAt(0).toUpperCase() + a.wave_reason.slice(1) + "." : ""}</div>
+            <div className="hint" style={{ marginTop: 8 }}>{a.wave_reason ? a.wave_reason.charAt(0).toUpperCase() + a.wave_reason.slice(1) + "." : ""}</div>
           </div>
-          <div className="hint"><span className={`b ${VERDICT_B[a.verdict]}`}>{a.verdict}</span> {a.reason}.</div>
-          {fixable && a.verdict !== "ACCEPT" && <Link className="bp-btn pri" style={{ justifyContent: "center" }} to={`/fix/${fixable.finding_id}`}>Open fix and verify</Link>}
+          <div className="hint"><Verdict verdict={a.verdict} /> {a.reason}.</div>
+          {fixable && a.verdict !== "ACCEPT" && <Link className="bp-btn pri" style={{ justifyContent: "center" }} to={`/fix/${fixable.finding_id}`}><Icon name="wrench" />Open fix and verify</Link>}
           {!fixable && a.verdict === "MIGRATE" && (
             <div className="hint">No automatic fix for this asset. Change it by hand{rep ? <>: {rep.from} to <span className="mono">{rep.to}</span></> : null}.
               Then run a scan from <Link to="/scan">New Scan</Link>; the re-scan shows whether it cleared.</div>)}

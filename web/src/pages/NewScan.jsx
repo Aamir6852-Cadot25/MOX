@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { api } from "../api.js";
 import Pipeline, { PLANES } from "../components/Pipeline.jsx";
+import Icon from "../components/Icon.jsx";
 
 const PLANE_NAME = { code: "Source code", dependencies: "Dependencies", configs: "Configuration",
   certificates: "Certificates", containers: "Containers", binaries: "Binaries", tls: "Live TLS" };
@@ -69,7 +70,7 @@ export default function NewScan({ summary, onScanned }) {
   const dropped = same ? (summary.coverage?.ran || []).filter((p) => p !== "tls" && !on.has(p)) : [];
 
   return (
-    <div className="p-5 flex flex-col gap-3">
+    <div className="p-4 flex flex-col gap-3">
       <div className="grid gap-3" style={{ gridTemplateColumns: "1fr var(--aside)" }}>
         <form className="bp-card" onSubmit={start}>
           <div className="card-h"><h2>New scan</h2><span className="note">a local folder on this machine; read-only</span></div>
@@ -78,7 +79,7 @@ export default function NewScan({ summary, onScanned }) {
               <input className="bp-input mono flex-1" placeholder="D:\code\my-repo" value={path} aria-label="Folder to scan"
                 onChange={(e) => setPath(e.target.value)} disabled={running} />
               <button className="bp-btn pri" disabled={running || !path.trim() || (!on.size && !tlsOn)}>
-                {running ? "Scanning" : "Start scan"}</button>
+                <Icon name="play" />{running ? "Scanning" : "Start scan"}</button>
             </div>
             <div>
               <div className="lbl">Planes to scan</div>

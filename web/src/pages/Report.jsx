@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
+import { Check, Tier, Verdict } from "../components/Marks.jsx";
+import Icon from "../components/Icon.jsx";
+
 import { Pager, Search, usePaged } from "../lib.jsx";
 
 const TIERS = ["Critical", "High", "Medium", "Low"];
@@ -13,12 +16,12 @@ export default function Report({ summary }) {
   const c = d.counts, v = d.verdicts;
   const Sec = ({ n, t, children }) => <div className="panel p-4"><div className="h mb-2">{n}. {t}</div>{children}</div>;
   return (
-    <div className="p-5 max-w-[1000px] mx-auto flex flex-col gap-4">
-      <div className="panel p-5 flex items-center gap-4 flex-wrap">
+    <div className="p-4 max-w-[1000px] mx-auto flex flex-col gap-4">
+      <div className="panel p-4 flex items-center gap-4 flex-wrap">
         <div><div className="text-xl font-semibold">Compliance Report</div>
-          <div className="dim">{d.target} · scan #{d.scan.id} · generated {d.generated}</div></div>
+          <div className="dim">Target <span className="mono">{d.target}</span>, scan <span className="mono">#{d.scan.id}</span>, generated <span className="mono">{d.generated}</span></div></div>
         <div className="flex-1" />
-        <a className="btn" style={{ width: 220, textDecoration: "none" }} href="/api/report/download">Download Compliance Report (PDF)</a>
+        <a className="btn" style={{ width: 220, textDecoration: "none" }} href="/api/report/download"><Icon name="download" />Download report (PDF)</a>
       </div>
       <Sec n={1} t="Auditor's Declaration"><div className="dim">[Placeholder — to be completed by the certifying auditor: name, organisation, accreditation number, date and signature.]</div></Sec>
       <Sec n={2} t="Executive Summary">{d.summary}</Sec>
@@ -30,10 +33,10 @@ export default function Report({ summary }) {
         </div>
       </Sec>
       <div className="panel">
-        <div className="flex justify-between items-center px-4 py-3 border-b border-[#E3E7ED]"><div className="h">5. Findings</div><Search p={p} placeholder="Search findings…" /></div>
+        <div className="flex justify-between items-center px-4 py-3 border-b border-[var(--line)]"><div className="h">5. Findings</div><Search p={p} placeholder="Search findings…" /></div>
         {p.shown.map((f, i) => (
           <div key={i} className="row" style={{ cursor: "default", gridTemplateColumns: "1fr 60px 80px 90px 60px" }}>
-            <span>{f.label}</span><span className="sc">{f.score}</span><span>{f.tier}</span><span><span className={`pill ${f.verdict}`}>{f.verdict}</span></span><span className="dim">wave {f.wave}</span>
+            <span>{f.label}</span><span className="sc">{f.score}</span><span><Tier tier={f.tier} /></span><span><Verdict verdict={f.verdict} /></span><span className="dim">wave {f.wave}</span>
           </div>
         ))}
         <Pager p={p} />
@@ -43,7 +46,7 @@ export default function Report({ summary }) {
       </Sec>
       <Sec n={7} t="Compliance / Closure Status">
         <div className="flex gap-2 flex-wrap items-center">
-          {["MIGRATE", "CONTAIN", "ACCEPT"].map((k) => <span key={k} className={`pill ${k}`}>{k} {v[k]}</span>)}
+          {["MIGRATE", "CONTAIN", "ACCEPT"].map((k) => <span key={k} className="flex items-center gap-1"><Verdict verdict={k} /><span className="mono">{v[k]}</span></span>)}
           <span className="dim ml-2">{c.fixes_cleared} fix(es) verified cleared by re-scan against this scan
             {c.fixes_not_in_effect ? `; ${c.fixes_not_in_effect} applied but not fully in effect` : ""}
             {c.unverified_accepts ? `; ${c.unverified_accepts} ACCEPT on unverified evidence` : ""}</span>

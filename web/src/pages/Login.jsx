@@ -16,8 +16,8 @@ export default function Login({ onLogin }) {
   return (
     <div className="min-h-screen grid place-items-center">
       <form onSubmit={submit} className="panel p-8 w-[360px] flex flex-col gap-3">
-        <div className="logo text-3xl"><span className="m">MO</span><span className="x">X</span></div>
-        <div className="dim mb-2">Quantum-vulnerable crypto scanner · offline</div>
+        <div className="logo text-3xl">MOX</div>
+        <div className="dim mb-2">Offline scanner for quantum-vulnerable cryptography</div>
         <input placeholder="Username" value={u} onChange={(e) => setU(e.target.value)} autoFocus />
         <input placeholder="Password" type="password" value={p} onChange={(e) => setP(e.target.value)} />
         {err && <div className="red">{err}</div>}

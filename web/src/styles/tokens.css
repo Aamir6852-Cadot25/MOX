@@ -37,3 +37,20 @@
   --aside:296px;
   --bar:44px;
 }
+
+/* MOX extensions (docs/JUDGE-AUDIT.md Part C). Components use these, never literal values. */
+:root{
+  /* type: sans = human language, mono = machine truth (master prompt §4) */
+  --font-sans:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  --font-mono:"IBM Plex Mono",Consolas,monospace;
+
+  /* C5 spacing: one scale, nothing off it */
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px;
+  --card-h:34px;
+
+  /* C3 marks: one badge geometry; colour family is the only variable */
+  --badge-h:18px; --badge-px:7px; --badge-r:3px; --badge-fs:10px; --badge-track:.02em;
+
+  /* C4 icons: Lucide, vendored */
+  --ic-nav:16px; --ic-inline:14px; --ic-stroke:1.5;
+}

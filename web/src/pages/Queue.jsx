@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../api.js";
+import Icon from "../components/Icon.jsx";
+import { Badge, Evidence, Tier, Verdict } from "../components/Marks.jsx";
 
 const TIER_B = { Critical: "crit", High: "high", Medium: "med", Low: "low" };
-const VERDICT_B = { MIGRATE: "crit", CONTAIN: "med", ACCEPT: "low" };
 const TIER_RANK = { Critical: 4, High: 3, Medium: 2, Low: 1 };
 const EV_RANK = { observed: 4, declared: 3, unverified: 2, textual: 1 };
 const V_RANK = { MIGRATE: 3, CONTAIN: 2, ACCEPT: 1 };
@@ -88,7 +89,7 @@ export default function Queue({ summary }) {
         <h1>Work queue</h1>
         <span className="sub">sorted by {COLS.find((c) => c[0] === sort[0])[1].toLowerCase()}, {sort[1] < 0 ? "highest" : "lowest"} first. Keys: <kbd>j</kbd> <kbd>k</kbd> move, <kbd>Enter</kbd> open, <kbd>/</kbd> search</span>
         <div className="head-act">
-          {firstFix && <Link className="bp-btn pri" to={`/fix/${firstFix.fix_finding}`} title={firstFix.label}>Open first fix</Link>}
+          {firstFix && <Link className="bp-btn pri" to={`/fix/${firstFix.fix_finding}`} title={firstFix.label}><Icon name="wrench" />Open first fix</Link>}
         </div>
       </div>
       <div className="filters">
@@ -120,7 +121,7 @@ export default function Queue({ summary }) {
             <tr>
               {COLS.map(([k, h, , d, title]) => (
                 <th key={k} className={`c-${k}`} aria-sort={sort[0] === k ? (sort[1] < 0 ? "descending" : "ascending") : "none"}>
-                  <button onClick={() => sortBy(k, d)} title={title}>{h}{sort[0] === k ? (sort[1] < 0 ? " ▾" : " ▴") : ""}</button>
+                  <button onClick={() => sortBy(k, d)} title={title}>{h}{sort[0] === k && <Icon name={sort[1] < 0 ? "chevron-down" : "chevron-up"} />}</button>
                 </th>
               ))}
             </tr>
@@ -134,17 +135,17 @@ export default function Queue({ summary }) {
                     <Link to={`/asset/${a.id}`} className="a1 mono" tabIndex={-1}>{a.label}</Link>
                     <div className="a2">
                       <span className="mono">{a.summary}</span>, wave <span className="mono">{a.wave}</span>
-                      {(a.planes || []).map((p) => <span key={p} className="ptag">{PLANE_NAME[p] || p}</span>)}
-                      {a.verify_first && <span className="b high vf">Verify first</span>}
+                      {(a.planes || []).map((p) => <Badge key={p}>{PLANE_NAME[p] || p}</Badge>)}
+                      {a.verify_first && <Badge family="high">Verify first</Badge>}
                     </div>
                   </td>
                   <td className="num mono" style={{ color: `var(--${TIER_B[a.tier]}-ink)` }}>{a.score}</td>
                   <td className={`num mono${e > 0 ? " exp" : ""}`} title={e == null ? b.mosca.reason : undefined}>
                     {e == null ? <span className="of">n/a</span> : signed(e)}</td>
                   <td className="num mono">{b.cmcs.score}<span className="of">/10</span></td>
-                  <td><span className={`b ${TIER_B[a.tier]}`}>{a.tier}</span></td>
-                  <td className="ev">{b.evidence_label}</td>
-                  <td><span className={`b ${VERDICT_B[a.verdict]}`}>{a.verdict}</span></td>
+                  <td><Tier tier={a.tier} /></td>
+                  <td><Evidence grade={b.evidence} label={b.evidence_label} /></td>
+                  <td><Verdict verdict={a.verdict} /></td>
                 </tr>
               );
             })}
