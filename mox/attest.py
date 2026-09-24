@@ -13,8 +13,9 @@ from . import cbom, db
 
 SCHEMA = "mox.attestation/v1"
 SCANNER = f"mox {cbom.VERSION}"
-SECTORS = {"power": "Power & Energy", "telecom": "Telecom", "government": "Government services",
-           "banking": "Banking & Finance", "transport": "Transport", "strategic": "Strategic & PSUs"}
+SECTORS = {"power": "Power & Energy", "telecom": "Telecom", "government": "Government",  # NCIIPC critical sectors
+           "banking": "Banking, Financial Services & Insurance", "transport": "Transport",
+           "strategic": "Strategic & Public Enterprises"}
 _RAW = serialization.Encoding.Raw, serialization.PublicFormat.Raw
 _LEAK = [re.compile(p, re.I) for p in (
     r"[A-Za-z]:[\\/]", r"(^|[\s\"'=])\.{0,2}/[\w.-]+/", r"\\\\", r"\b\d{1,3}(\.\d{1,3}){3}\b",
