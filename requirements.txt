@@ -6,3 +6,4 @@ pyjwt
 cyclonedx-python-lib[json-validation]
 pytest
 httpx
+reportlab
