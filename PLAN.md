@@ -80,3 +80,12 @@ run.ps1  README.md  requirements.txt  .gitignore
 - [x] Root cause of "no stage data": `mox serve` process started before Phase 8 code (no reload) — restart fixed it; no code bug
 - [x] Integration test: POST /api/scans → GET /api/scans/latest returns 5 stages, increasing t_ms, ms > 0
 - [x] Verified via API: queue evidence values (high/medium/low) and asset evidence chain fields are real per-asset data
+
+## Phase 10 — live scan launcher + CMCS
+- [x] POST /api/scans/start {path} → background job id; GET /api/scans/{id}/status (id = job id; scan_id set when done)
+- [x] Path validation: absolute local folder only (no URLs/UNC shares), must exist + be a dir; one scan at a time (409)
+- [x] Scanner `on_stage` callback streams the 5 Phase-8 stage events live; CLI unchanged; symlinks escaping target skipped
+- [x] New Scan page: 500 ms polling, stage cards light up as they complete, redirect to Dashboard when done
+- [x] Header shows full path of last scanned target
+- [x] CMCS 0-10 from the Y coupling signal (config 2 / source 5 / library 7 / binary 10) in breakdown.cmcs; Queue column + Asset "Why this score"
+- [x] Tests: API scan == CLI scan counts/scores; gated pipeline proves live progress; bad paths rejected; CMCS in range

@@ -39,6 +39,16 @@ def coupling(f: dict) -> int:
     return 2 if f["plane"] == "code" else 1
 
 
+# CMCS (Code Migration Complexity Score, 0-10): same coupling signal as Y, rescaled. Independent of risk.
+CMCS = {1: (2, "config-driven"), 2: (5, "hardcoded in source"), 3: (7, "library dependency"),
+        5: (10, "vendor binary / no source"), 6: (10, "vendor binary / no source")}
+
+
+def cmcs(y: int) -> dict:
+    n, basis = CMCS[y]
+    return {"score": n, "basis": basis}
+
+
 def criticality(files: list[str]) -> int:
     toks = set().union(*(_tokens(f) for f in files)) if files else set()
     if toks & {"auth", "token", "citizen", "payments", "kms", "keystore", "gw"}:
@@ -80,6 +90,7 @@ def score_asset(asset: dict, settings: dict | None = None, override: dict | None
             "breakdown": {"base": base, "base_status": status, "quantum_vulnerable": qv, "qv_points": qv_pts,
                           "qv_halved_for_hybrid": bool(qv and asset["hybrid"]),
                           "mosca": {"x": x, "y": y, "z": z, "exposure": exposure, "points": mosca},
+                          "cmcs": cmcs(y),
                           "criticality": crit, "criticality_mult": CRIT_MULT[crit], "confidence": conf,
                           "confidence_mult": CONF_MULT[conf], "raw": raw, "scaled": round(scaled, 1),
                           "floor_applied": bool(floor and scaled < 70), "floor": 70 if floor else None}}

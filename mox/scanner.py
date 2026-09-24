@@ -41,12 +41,16 @@ class Ctx:
 
     @staticmethod
     def walk(root: Path):
-        for dirpath, dirnames, filenames in os.walk(root):
+        base = Path(root).resolve()
+        for dirpath, dirnames, filenames in os.walk(root):  # os.walk does not follow directory symlinks
             dirnames[:] = sorted(d for d in dirnames if d not in SKIP_DIRS)
             for name in sorted(filenames):
                 p = Path(dirpath, name)
-                if p.suffix.lower() not in SKIP_SUFFIXES and p.is_file():
-                    yield p
+                if p.suffix.lower() in SKIP_SUFFIXES or not p.is_file():
+                    continue
+                if p.is_symlink() and base not in p.resolve().parents:
+                    continue  # never read outside the folder the user chose
+                yield p
 
     def scan_tree(self, root: Path, prefix: str = "", depth: int | None = None, files=None) -> list[Finding]:
         saved = self.depth
@@ -89,27 +93,31 @@ def store_findings(conn, scan_id: int, findings: list[Finding]) -> None:
 class _Stages:
     """Pipeline stage events with real perf_counter timings (ms since scan start + stage duration)."""
 
-    def __init__(self):
+    def __init__(self, on_stage=None):
         self.t0 = self.last = time.perf_counter()
         self.events: list[dict] = []
+        self.on_stage = on_stage
 
     def __call__(self, stage: str, count: int, detail) -> None:
         now = time.perf_counter()
         self.events.append({"stage": stage, "count": count, "detail": detail,
                             "ms": round((now - self.last) * 1000, 3), "t_ms": round((now - self.t0) * 1000, 3)})
         self.last = now
+        if self.on_stage:  # live progress (API scan jobs); called the moment each stage completes
+            self.on_stage(self.events[-1])
 
 
 def scan(target: str | Path, probe: str | None = None, conn=None, settings: dict | None = None,
-         overrides: dict | None = None) -> dict:
-    """Scan `target`, persist scan + findings + stage events, return a summary dict."""
+         overrides: dict | None = None, on_stage=None) -> dict:
+    """Scan `target`, persist scan + findings + stage events, return a summary dict.
+    on_stage(event): optional callback fired as each pipeline stage completes. Read-only on `target`."""
     target = Path(target).resolve()
     if not target.is_dir():
         raise FileNotFoundError(f"scan target is not a directory: {target}")
     own = conn is None
     conn = conn or db.connect()
     started = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    mark = _Stages()
+    mark = _Stages(on_stage)
     t0 = mark.t0
     ctx = Ctx()
     files = list(ctx.walk(target))

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { CartesianGrid, ReferenceLine, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis, ZAxis } from "recharts";
 import { Link, useNavigate } from "react-router-dom";
 import { api, tierColor } from "../api.js";
+import Pipeline from "../components/Pipeline.jsx";
 
 const TIERS = ["Critical", "High", "Medium", "Low"];
 const MORE = [["safe", "Quantum-safe or out of scope"], ["hybrid", "Hybrid PQ endpoints found"], ["files", "Files scanned"],
@@ -11,39 +12,6 @@ function Kpi({ n, label, accent }) {
   return (
     <div className="card" style={accent ? { borderLeft: `4px solid ${accent}` } : undefined}>
       <div className="kpi-n">{n}</div><div className="kpi-l">{label}</div>
-    </div>
-  );
-}
-
-const fmtMs = (ms) => (ms >= 1000 ? `${(ms / 1000).toFixed(2)} s` : ms >= 10 ? `${ms.toFixed(0)} ms` : `${ms.toFixed(2)} ms`);
-const join = (o) => Object.entries(o).filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join(" · ");
-const STAGE_TEXT = {
-  Ingest: (s) => [`${s.count} files`, "found in target tree"],
-  Detect: (s) => [`${s.count} findings`, Object.entries(s.detail).filter(([, p]) => p.findings).map(([k, p]) => `${k} ${p.findings} (${fmtMs(p.ms)})`).join(" · ")],
-  Correlate: (s) => [`${s.detail.findings} → ${s.detail.assets}`, "raw findings → assets"],
-  Score: (s) => [`${s.count} scored`, join(s.detail)],
-  Verdict: (s) => [join(s.detail) || "0", "at scan time"],
-};
-
-function Pipeline({ stages }) {
-  return (
-    <div className="card">
-      <div className="h mb-2">Pipeline <span className="dim font-normal">— recorded stage timings from the latest scan (perf_counter)</span></div>
-      {!stages?.length ? <div className="dim">No stage data for this scan — re-scan to record it.</div> : (
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
-          {stages.map((s, i) => {
-            const [main, sub] = STAGE_TEXT[s.stage]?.(s) ?? [s.count, ""];
-            return (
-              <div key={s.stage} className="node relative" style={{ padding: 10 }}>
-                <div className="p">{i + 1}. {s.stage}</div>
-                <div className="text-lg font-bold">{main}</div>
-                <div className="dim text-[11px]">{sub}</div>
-                <div className="mono text-[11px] mt-1">{fmtMs(s.ms)} <span className="dim">· t+{fmtMs(s.t_ms)}</span></div>
-              </div>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }

@@ -30,7 +30,7 @@ export default function Queue({ summary }) {
           Evidence: <b>Observed</b> = live TLS / parsed certificate · <b>Declared</b> = explicit code/config match · <b>Declared, unverified</b> = dependency/string match (stays in Verify first)
         </div>
         <div className="row dim text-[11px]" style={{ cursor: "default" }}>
-          <span>Asset</span><span className="text-center">Score</span><span>Tier</span><span>Evidence</span><span>Verdict</span>
+          <span>Asset</span><span className="text-center">Score</span><span title="Code Migration Complexity: how hard this asset is to migrate, independent of how risky it is">CMCS</span><span>Tier</span><span>Evidence</span><span>Verdict</span>
         </div>
         {p.shown.map((a) => (
           <div key={a.id} className="row" onClick={() => nav(`/asset/${a.id}`)}>
@@ -39,6 +39,7 @@ export default function Queue({ summary }) {
               <div className="sub">{a.summary} · wave {a.wave}</div>
             </div>
             <div className={`sc ${tierClass(a.tier)}`}>{a.score}</div>
+            <div className="mono" title={a.breakdown.cmcs?.basis}>{a.breakdown.cmcs ? `${a.breakdown.cmcs.score}/10` : "—"}</div>
             <div className={tierClass(a.tier)}>{a.tier}</div>
             <div className="dim">{evidence(a.breakdown.confidence)}</div>
             <div><span className={`pill ${a.verdict}`}>{a.verdict}</span></div>

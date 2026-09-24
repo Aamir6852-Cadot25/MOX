@@ -32,7 +32,7 @@ body { margin: 0; min-height: 100vh; font-family: "Segoe UI", "DejaVu Sans", san
 .btn:disabled { opacity: .5; cursor: not-allowed; }
 .kv { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 12px; }
 .kv span:last-child { font-family: Consolas, "DejaVu Sans Mono", monospace; text-align: right; }
-.row { display: grid; grid-template-columns: 1fr 56px 90px 80px 90px; align-items: center; gap: 8px; padding: 9px 16px; border-bottom: 1px solid var(--line); font-size: 12px; cursor: pointer; }
+.row { display: grid; grid-template-columns: 1fr 56px 56px 90px 80px 90px; align-items: center; gap: 8px; padding: 9px 16px; border-bottom: 1px solid var(--line); font-size: 12px; cursor: pointer; }
 .row:hover { background: var(--bg); }
 .row .sub { color: var(--muted); font-size: 10.5px; margin-top: 2px; }
 .sc { font-family: Consolas, "DejaVu Sans Mono", monospace; font-weight: 700; text-align: center; }

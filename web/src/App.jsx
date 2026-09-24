@@ -12,6 +12,7 @@ import Attest from "./pages/Attest.jsx";
 import Sector from "./pages/Sector.jsx";
 import Audit from "./pages/Audit.jsx";
 import Report from "./pages/Report.jsx";
+import NewScan from "./pages/NewScan.jsx";
 
 export default function App() {
   const [user, setUser] = useState(undefined);
@@ -37,7 +38,7 @@ export default function App() {
   const scan = summary?.scan;
   const topAsset = summary?.field?.[0]?.id;
   const groups = [
-    ["Overview", [["/", "Dashboard", true]]],
+    ["Overview", [["/", "Dashboard", true], ["/scan", "New Scan"]]],
     ["Findings", [["/queue", "Work queue"], [topAsset ? `/asset/${topAsset}` : "/queue", "Asset detail"]]],
     ["Remediate", [["/fix", "Fix"]]],
     ["Compliance", [["/cbom", "CBOM"], ["/roadmap", "Roadmap"]]],
@@ -58,7 +59,7 @@ export default function App() {
       </aside>
       <div className="main">
         <div className="topbar">
-          <div className="dim">{scan ? <>Target <b style={{ color: "var(--text)" }}>{scan.target.split(/[\/]/).pop()}</b></> : "No scan yet"}</div>
+          <div className="dim">{scan ? <>Target <b className="mono" style={{ color: "var(--text)" }} title={scan.target}>{scan.target}</b></> : "No scan yet"}</div>
           <div className="sp" />
           {scan && <div className="chip">{scan.files_scanned} files · {Object.keys(scan.planes).length} planes · {scan.seconds} s</div>}
           <div className="chip">Offline — 0 outbound calls</div>
@@ -66,6 +67,7 @@ export default function App() {
         </div>
       <Routes>
         <Route path="/" element={<Dashboard summary={summary} onScanned={refresh} />} />
+        <Route path="/scan" element={<NewScan summary={summary} onScanned={refresh} />} />
         <Route path="/queue" element={<Queue summary={summary} />} />
         <Route path="/asset/:id" element={<Asset onChanged={refresh} />} />
         <Route path="/fix" element={<Fix onChanged={refresh} />} />

@@ -94,6 +94,12 @@ export default function Asset({ onChanged }) {
           <div className="h mb-1">Why this score</div>
           <div className={`text-4xl font-bold ${tierClass(a.tier)}`}>{a.score} <span className="text-base">{a.tier}</span></div>
           <div className="mt-2">{rows.map(([k, v]) => <div key={k} className="kv"><span>{k}</span><span>{v}</span></div>)}</div>
+          {b.cmcs && (
+            <div className="mt-3 pt-2 border-t border-[#E3E7ED]">
+              <div className="kv"><span className="font-bold">CMCS: {b.cmcs.score}/10</span><span className="dim">{b.cmcs.basis}</span></div>
+              <div className="dim text-[11px]">How hard this asset is to migrate, independent of how risky it is.</div>
+            </div>
+          )}
         </div>
         <div className="panel p-4">
           <div className="h mb-2">Mosca check</div>

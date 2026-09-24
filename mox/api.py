@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import attest, auth, cbom, db, report, scanner
+from . import attest, auth, cbom, db, jobs, report, scanner
 from .fixers import flow
 from .analyze import analyze
 from .db import ROOT
@@ -39,6 +39,10 @@ class Login(BaseModel):
 class ScanReq(BaseModel):
     path: str | None = None
     probe: str | None = None
+
+
+class StartReq(BaseModel):
+    path: str = ""
 
 
 class SettingsReq(BaseModel):
@@ -152,6 +156,20 @@ def create_app() -> FastAPI:
             raise HTTPException(400, str(e))
         auth.audit(conn, u["sub"], "scan", f"{target} -> {s['findings']} findings, {s['assets']} assets")
         return s
+
+    @app.post("/api/scans/start")
+    def scan_start(body: StartReq, u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
+        try:
+            return jobs.start(body.path, u["sub"], _settings(conn), _overrides(conn))
+        except jobs.JobError as e:
+            raise HTTPException(e.status, str(e))
+
+    @app.get("/api/scans/{job_id}/status")
+    def scan_status(job_id: int, u=Depends(_user)):
+        try:
+            return jobs.status(job_id)
+        except jobs.JobError as e:
+            raise HTTPException(e.status, str(e))
 
     @app.get("/api/scans/latest")
     def latest(u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
