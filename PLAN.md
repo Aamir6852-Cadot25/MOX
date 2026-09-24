@@ -75,3 +75,8 @@ run.ps1  README.md  requirements.txt  .gitignore
 - [x] Evidence labels (Observed / Declared / Declared, unverified) + Work queue legend
 - [x] Asset detail evidence chain: Fact → Normalized fact → Analysis → Recommendation
 - [x] test_phase8: monotonic timestamps, Detect total == findings, Correlate output == assets
+
+## Phase 9 — verify Phase 8 end to end
+- [x] Root cause of "no stage data": `mox serve` process started before Phase 8 code (no reload) — restart fixed it; no code bug
+- [x] Integration test: POST /api/scans → GET /api/scans/latest returns 5 stages, increasing t_ms, ms > 0
+- [x] Verified via API: queue evidence values (high/medium/low) and asset evidence chain fields are real per-asset data
