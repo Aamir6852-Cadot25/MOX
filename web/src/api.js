@@ -13,12 +13,23 @@ async function call(method, url, body) {
   return r.json();
 }
 
+async function callForm(url, form) {
+  const r = await fetch(url, { method: "POST", credentials: "same-origin", body: form });
+  if (!r.ok) {
+    const e = new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+    e.status = r.status;
+    throw e;
+  }
+  return r.json();
+}
+
 export const api = {
   me: () => call("GET", "/api/auth/me"),
   login: (username, password) => call("POST", "/api/auth/login", { username, password }),
   logout: () => call("POST", "/api/auth/logout"),
   latest: () => call("GET", "/api/scans/latest"),
-  scanStart: (path, planes, probe) => call("POST", "/api/scans/start", { path, planes, probe }),
+  scanStart: (body) => call("POST", "/api/scans/start", body),
+  scanUpload: (form) => callForm("/api/scans/upload", form),
   netstat: () => call("GET", "/api/netstat"),
   scanStatus: (id) => call("GET", `/api/scans/${id}/status`),
   scan: (path) => call("POST", "/api/scans", path ? { path } : {}),
@@ -36,5 +47,9 @@ export const api = {
   audit: () => call("GET", "/api/audit"),
   report: () => call("GET", "/api/report"),
   setSettings: (body) => call("PUT", "/api/settings", body),
+  projectsMeta: () => call("GET", "/api/projects/meta"),
+  projects: () => call("GET", "/api/projects"),
+  createProject: (body) => call("POST", "/api/projects", body),
+  updateProject: (id, body) => call("PUT", `/api/projects/${id}`, body),
 };
 

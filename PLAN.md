@@ -235,3 +235,43 @@ run.ps1  README.md  requirements.txt  .gitignore
 - [x] Verified live: headless Chrome at 1366x768 and 1280x800 on a real seeded scan — every old URL lands on
       its new page with the entity preserved, `/reports/:tab` tabs and unknown-tab fallback work, no console
       or page errors beyond the expected pre-login 401
+
+## v2 Phase 2 — Scan page (docs/MOX_V2_BUILD_PLAN.md)
+- [x] `mox/extract.py`: safe zip/tar extraction (zip-slip and absolute-path rejection, tar symlink-escape
+      rejection via Python 3.12's "data" filter, uncompressed-size cap 2 GB, compression-ratio cap 100:1,
+      file-count cap), always into a per-scan temp dir the caller removes after scanning; 13 tests including
+      a real decompression bomb and a zip-slip payload, and a check that a corrupt archive never raises a
+      bare traceback
+- [x] `mox/gitsource.py`: local clone -> commit SHA via `git rev-parse`; remote clone opt-in only, via
+      `netguard.record_external` (new: counts a subprocess's own outbound call, since the in-process socket
+      hook can't see one) so `git clone` shows in the same "N outbound connects counted" pill as everything
+      else (AGENTS.md air-gap)
+- [x] `mox/tls_policy.py`: loopback/RFC 1918 allowed by default; any other host needs the per-scan "I am
+      authorised" checkbox (closes audit Major 16); a hostname is never resolved to decide this (only a
+      literal IP is trusted private) so the check itself makes no quiet DNS call
+- [x] `mox/source.py`: every Scan-page source kind (folder, archive, git local/remote, container image,
+      artefacts, live-TLS-only) resolves to `(path, cleanup, meta)` — archive/container/artefacts all reduce
+      to "place real files in a fresh temp dir, then run the ordinary local-folder pipeline"; `mox/scanner.py`
+      generalised `probe` to a `probes` list authorised per-scan (Detect reports "partial" when some
+      endpoints fail, "failed" only when all do, via the same per-plane bookkeeping every file plane uses);
+      `ctx.bytes_read` added (real file sizes, not a guess) for the ledger footer
+- [x] `mox/projects.py` + `/api/projects[/meta]`: CRUD for the Project context form (NCIIPC's six sectors +
+      "other", criticality 1-3 with a one-line meaning each, the four shelf-life presets from the plan)
+- [x] `/api/scans/start` (JSON: folder, git) and the new `/api/scans/upload` (multipart: archive, container,
+      artefacts) both resolve their source via `mox/source.py`, then share the same `jobs.start`/SSE path;
+      `python-multipart` added (required by FastAPI's own `Form`/`UploadFile` support, pinned `>=0.0.20`)
+- [x] Scan page rebuilt: two columns (Source segmented control -> Project context, collapsed by default ->
+      Planes) and a `TerminalSurface` scan ledger (`ScanLedger.jsx`, replacing the light `Pipeline.jsx` board,
+      which is now just shared constants since `CoverageRing.jsx` still needs `PLANES`) — stage rail,
+      per-plane terminal log lines and right-edge checklist derived only from real SSE events (never a timer),
+      the existing correlate count-down, a D10 ripple on a real progress event reporting new findings, and a
+      footer of elapsed time / bytes read / outbound connects, all real
+- [x] New tests: `test_extract.py`, `test_gitsource.py`, `test_tls_policy.py`, `test_source.py`,
+      `test_projects.py`, `test_projects_api.py`, `test_scan_sources.py` (one end-to-end test per source kind
+      through the real API, plus multi-endpoint TLS partial-failure and an SSE-ordering check); 2 lint fixes
+      in `tests/test_ui_rules.py` (a placeholder URL, and D8's own documented terminal-surface exception for
+      `--brand` text); 289 passed (217 baseline + 72 new)
+- [x] Verified live: headless Chrome at 1366x768 and 1280x800 — a real folder scan runs end to end with every
+      ledger line, stage value, checklist row and footer stat matching the API's own numbers; all six source
+      buttons render without a console error; the project-creation flow works and updates the panel; no
+      console or page errors beyond the expected pre-login 401

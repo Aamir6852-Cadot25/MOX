@@ -154,12 +154,14 @@ def test_d8_never_white_text_on_brand_fill():
 
 
 def test_d8_brand_is_never_used_as_text_colour():
-    """#81B500 (--brand) is 2.5:1 on light surfaces; text must use --brand-ink instead.
-    An icon's stroke (driven by `color` via currentColor, e.g. ".logo svg") is not text; D8 names
-    the logo itself as a --brand use, so selectors that colour an svg/icon are exempt."""
+    """#81B500 (--brand) is 2.5:1 on a light surface; text there must use --brand-ink instead.
+    D8's own token table names two exceptions, both 6.3:1+ contrast: an icon's stroke (driven by
+    `color` via currentColor, e.g. ".logo svg") is not text; and on the dark --term-bg terminal
+    surface --brand is explicitly listed for text ("prompt, cursor, correlate count, [ ok ]")."""
     rules = re.findall(r"([^{}]+)\{([^}]*)\}", _css_text())
     bad = [sel.strip() for sel, body in rules
-           if "svg" not in sel and re.search(r"(?<![-\w])color:\s*var\(--brand\)(?!-)", body)]
+           if "svg" not in sel and "ledger" not in sel and "term-" not in sel
+           and re.search(r"(?<![-\w])color:\s*var\(--brand\)(?!-)", body)]
     assert bad == []
     jsx = _offenders(JSX, lambda l: re.search(r'(?<![-\w])color:\s*["\']var\(--brand\)(?!-)', l))
     assert jsx == []

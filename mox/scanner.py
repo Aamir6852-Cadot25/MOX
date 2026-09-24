@@ -5,7 +5,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import db, netguard, nist
+from . import db, netguard, nist, tls_policy
 from .models import Finding
 from .planes import binaries, certs, code, configs, containers, deps, tls
 
@@ -21,6 +21,7 @@ class Ctx:
         self.depth = 0
         self.errors: list[str] = []
         self.files_scanned = 0
+        self.bytes_read = 0  # size on disk of every top-level file actually claimed by a plane (Scan ledger footer)
         self.seen: set = set()
         self.enabled = enabled if enabled is not None else {p.NAME for p in ALL_PLANES if p is not tls}
         self.plane_ms: dict[str, float] = {}  # top-level wall time per plane (container time includes its contents)
@@ -74,6 +75,10 @@ class Ctx:
         if claimed:
             self.files_scanned += 1
             if self.depth == 0:
+                try:
+                    self.bytes_read += path.stat().st_size
+                except OSError:
+                    pass
                 self.progress()
         return out
 
@@ -103,8 +108,10 @@ class Ctx:
         return out
 
 
-def plane_report(ctx: Ctx, findings: list[Finding], probe: str | None, probe_error: str | None) -> dict:
-    """Detect-stage detail for all 7 planes: files, findings (after dedupe), ms, status and failure reason."""
+def plane_report(ctx: Ctx, findings: list[Finding], probe_list: list[str] | None = None) -> dict:
+    """Detect-stage detail for all 7 planes: files, findings (after dedupe), ms, status and failure reason.
+    TLS is bookkept through the same ctx fields as any file plane (one "file" per endpoint probed), so a
+    scan with several live endpoints reports "partial" when some fail and "failed" only when all do."""
     counts: dict[str, int] = {}
     for f in findings:
         counts[f.plane] = counts.get(f.plane, 0) + 1
@@ -115,8 +122,6 @@ def plane_report(ctx: Ctx, findings: list[Finding], probe: str | None, probe_err
         total = ctx.plane_total.get(n, 0)
         if n not in ctx.enabled:
             status = "off"
-        elif mod is tls and probe_error:
-            status, errs = "failed", [probe_error]
         elif errs and len(errs) >= total:
             status = "failed"
         elif errs:
@@ -125,7 +130,7 @@ def plane_report(ctx: Ctx, findings: list[Finding], probe: str | None, probe_err
             status = "ok" if total else "idle"
         out[n] = {"files": total, "findings": counts.get(n, 0), "ms": round(ctx.plane_ms.get(n, 0), 3),
                   "status": status, "errors": len(errs), "error": errs[0] if errs else None,
-                  **({"endpoint": probe} if mod is tls and probe else {})}
+                  **({"endpoints": probe_list} if mod is tls and probe_list else {})}
     return out
 
 
@@ -171,12 +176,16 @@ class _Stages:
             self.on_stage(self.events[-1])
 
 
-def scan(target: str | Path, probe: str | None = None, conn=None, settings: dict | None = None,
-         overrides: dict | None = None, on_stage=None, planes: set[str] | None = None, on_progress=None,
-         project_id: int | None = None) -> dict:
+def scan(target: str | Path, probe: str | None = None, probes: list[str] | None = None, conn=None,
+         settings: dict | None = None, overrides: dict | None = None, on_stage=None,
+         planes: set[str] | None = None, on_progress=None, project_id: int | None = None,
+         tls_authorized: bool = False) -> dict:
     """Scan `target`, persist scan + findings + stage events, return a summary dict. Read-only on `target`.
     on_stage(event): fired as each pipeline stage completes. on_progress(snapshot): per-plane Detect progress.
-    planes: file planes to run (default all six); tls runs only when `probe` is given.
+    planes: file planes to run (default all six); tls runs only when `probe`/`probes` is given.
+    probe: one "host:port" (back-compat); probes: any number more, run in addition to `probe`.
+    tls_authorized: the operator ticked "I am authorised to probe this host" for this scan — required for
+    any endpoint that is not loopback/RFC 1918 (mox/tls_policy.py; closes audit Major 16).
     project_id: the project this scan belongs to (default: the auto-created "Default project")."""
     target = Path(target).resolve()
     if not target.is_dir():
@@ -184,38 +193,44 @@ def scan(target: str | Path, probe: str | None = None, conn=None, settings: dict
     own = conn is None
     conn = conn or db.connect()
     project_id = project_id if project_id is not None else db.ensure_default_project(conn)
+    probe_list = list(dict.fromkeys(([probe] if probe else []) + list(probes or [])))
     started = datetime.now(timezone.utc).isoformat(timespec="seconds")
     net0 = netguard.counts()
     mark = _Stages(on_stage)
     t0 = mark.t0
     enabled = set(planes) if planes is not None else {p.NAME for p in FILE_PLANES + (binaries,)}
-    enabled = (enabled - {tls.NAME}) | ({tls.NAME} if probe else set())
+    enabled = (enabled - {tls.NAME}) | ({tls.NAME} if probe_list else set())
     ctx = Ctx(enabled, on_progress)
-    if probe:
-        ctx.plane_total[tls.NAME] = 1
+    if probe_list:
+        ctx.plane_total[tls.NAME] = len(probe_list)
     plan = ctx.plan(list(ctx.walk(target)))
     mark("Ingest", len(plan), {"files": len(plan), "planes": dict(ctx.plane_total)})
     ctx.progress(final=True)
     findings = ctx.scan_tree(target, plan=plan)
-    probe_error = None
-    if probe:
+    for raw in probe_list:
         t = time.perf_counter()
+        host, _, port_s = raw.rpartition(":")
+        host = host or "127.0.0.1"
+        got: list[Finding] = []
         try:
-            host, _, port = probe.rpartition(":")
-            findings += tls.probe(host or "127.0.0.1", int(port))
+            tls_policy.check(host, tls_authorized)
+            got = tls.probe(host, int(port_s))
             ctx.files_scanned += 1
         except (OSError, ValueError) as e:
-            probe_error = f"probe {probe} failed: {e}"
+            ctx.plane_err.setdefault(tls.NAME, []).append(f"probe {raw} failed: {e}")
+        findings += got
         ctx.plane_ms[tls.NAME] = ctx.plane_ms.get(tls.NAME, 0) + (time.perf_counter() - t) * 1000
-        ctx.plane_done[tls.NAME] = 1
-        ctx.plane_raw[tls.NAME] = sum(f.plane == tls.NAME for f in findings)
+        ctx.plane_done[tls.NAME] = ctx.plane_done.get(tls.NAME, 0) + 1
+        ctx.plane_raw[tls.NAME] = ctx.plane_raw.get(tls.NAME, 0) + sum(f.plane == tls.NAME for f in got)
     ctx.progress(final=True)
     findings = _dedupe(findings)
     seconds = round(time.perf_counter() - t0, 3)
     planes: dict[str, int] = {}
     for f in findings:
         planes[f.plane] = planes.get(f.plane, 0) + 1
-    report = plane_report(ctx, findings, probe, probe_error)
+    report = plane_report(ctx, findings, probe_list)
+    probe_error = (ctx.plane_err.get(tls.NAME) or [None])[0]
+    probe_col = ", ".join(probe_list) or None
     mark("Detect", len(findings), report)
     # Coverage = planes that ran (a plane that ran and found nothing still counts); failed and off planes do not.
     planes_run = [n for n, d in report.items() if d["status"] in ("ok", "idle", "partial")]
@@ -224,7 +239,7 @@ def scan(target: str | Path, probe: str | None = None, conn=None, settings: dict
     cur = conn.execute(
         "INSERT INTO scans(target,probe,started_at,seconds,files_scanned,planes_hit,findings_count,probe_error,"
         "planes_run,planes_off,project_id) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-        (str(target), probe, started, seconds, ctx.files_scanned, json.dumps(planes), len(findings), probe_error,
+        (str(target), probe_col, started, seconds, ctx.files_scanned, json.dumps(planes), len(findings), probe_error,
          json.dumps(planes_run), json.dumps(planes_off), project_id))
     scan_id = cur.lastrowid
     store_findings(conn, scan_id, findings)
@@ -243,5 +258,5 @@ def scan(target: str | Path, probe: str | None = None, conn=None, settings: dict
         conn.close()
     return {"assets": len(assets), "scan_id": scan_id, "target": str(target), "files_scanned": ctx.files_scanned, "seconds": seconds,
             "planes": planes, "planes_run": planes_run, "planes_off": planes_off, "findings": len(findings),
-            "verify_first": verify, "probe_error": probe_error, "errors": ctx.errors, "net": net,
-            "coverage": cov, "coverage_warning": coverage.warning(cov)}
+            "verify_first": verify, "probe_error": probe_error, "probes": probe_list, "errors": ctx.errors, "net": net,
+            "bytes_read": ctx.bytes_read, "coverage": cov, "coverage_warning": coverage.warning(cov)}

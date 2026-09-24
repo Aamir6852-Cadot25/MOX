@@ -2,12 +2,12 @@
 import json
 import sqlite3
 
-from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import attest, auth, cbom, coverage, db, jobs, netguard, report, scanner
+from . import attest, auth, cbom, coverage, db, extract, gitsource, jobs, netguard, projects, report, scanner, source
 from .fixers import flow
 from .analyze import analyze
 from .db import ROOT
@@ -47,10 +47,32 @@ class StartReq(BaseModel):
     path: str = ""
     planes: list[str] | None = None
     probe: str | None = None
+    probes: list[str] | None = None
+    tls_authorized: bool = False
+    project_id: int | None = None
+    source: str = "folder"  # "folder" | "git" | "tls"
+    git_remote: str | None = None
+    git_authorized: bool = False
 
 
 class SettingsReq(BaseModel):
     threat_horizon: int | None = None
+
+
+class ProjectReq(BaseModel):
+    name: str
+    sector: str | None = None
+    system_type: str | None = None
+    criticality: int | None = None
+    shelf_life_years: int | None = None
+
+
+class ProjectUpdateReq(BaseModel):
+    name: str | None = None
+    sector: str | None = None
+    system_type: str | None = None
+    criticality: int | None = None
+    shelf_life_years: int | None = None
 
 
 class FixReq(BaseModel):
@@ -199,12 +221,80 @@ def create_app() -> FastAPI:
         auth.audit(conn, u["sub"], "scan", f"{target} -> {s['findings']} findings, {s['assets']} assets")
         return s
 
+    def _resolve_source(body: StartReq):
+        if body.source == "git":
+            return source.from_git(body.path or None, body.git_remote, body.git_authorized)
+        if body.source == "tls":
+            return source.tls_only()
+        return source.from_folder(body.path)
+
     @app.post("/api/scans/start")
     def scan_start(body: StartReq, u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
         try:
-            return jobs.start(body.path, u["sub"], _settings(conn), _overrides(conn), body.planes, body.probe)
+            resolved = _resolve_source(body)
+        except (source.SourceError, gitsource.GitError) as e:
+            raise HTTPException(400, str(e))
+        try:
+            return jobs.start(resolved.path, u["sub"], _settings(conn), _overrides(conn), body.planes, body.probe,
+                              body.probes, body.tls_authorized, body.project_id, cleanup=resolved.cleanup,
+                              source_meta=resolved.meta)
         except jobs.JobError as e:
+            resolved.cleanup()
             raise HTTPException(e.status, str(e))
+
+    @app.post("/api/scans/upload")
+    async def scan_upload(kind: str = Form(alias="source"), planes: str = Form(""), probes: str = Form(""),
+                          tls_authorized: bool = Form(False), project_id: int | None = Form(None),
+                          files: list[UploadFile] = File(...), u=Depends(_user),
+                          conn: sqlite3.Connection = Depends(_conn)):
+        """Archive / container image / artefacts (D1): the upload is placed or safely extracted into a
+        fresh per-scan temp directory, then scanned exactly like a local folder (mox/source.py)."""
+        try:
+            payload = [(f.filename or "upload", await f.read()) for f in files]
+            resolved = source.from_upload(kind, payload)
+        except (extract.UnsafeArchive, source.SourceError) as e:
+            raise HTTPException(400, str(e))
+        plane_list = [p for p in planes.split(",") if p] or None
+        probe_list = [p for p in probes.split(",") if p]
+        try:
+            return jobs.start(resolved.path, u["sub"], _settings(conn), _overrides(conn), plane_list, None,
+                              probe_list, tls_authorized, project_id, cleanup=resolved.cleanup,
+                              source_meta=resolved.meta)
+        except jobs.JobError as e:
+            resolved.cleanup()
+            raise HTTPException(e.status, str(e))
+
+    @app.get("/api/projects/meta")
+    def projects_meta(u=Depends(_user)):
+        return {"sectors": projects.SECTOR_LABEL, "criticality": projects.CRITICALITY_MEANING,
+                "shelf_life_presets": projects.SHELF_LIFE_PRESETS}
+
+    @app.get("/api/projects")
+    def projects_list(u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
+        return projects.list_all(conn)
+
+    @app.post("/api/projects")
+    def projects_create(body: ProjectReq, u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
+        try:
+            p = projects.create(conn, body.name, body.sector, body.system_type, body.criticality,
+                                body.shelf_life_years, source_kind="folder")
+        except ValueError as e:
+            raise HTTPException(422, str(e))
+        auth.audit(conn, u["sub"], "project-create", p["name"])
+        return p
+
+    @app.put("/api/projects/{project_id}")
+    def projects_update(project_id: int, body: ProjectUpdateReq, u=Depends(_user),
+                        conn: sqlite3.Connection = Depends(_conn)):
+        try:
+            p = projects.update(conn, project_id, body.name, body.sector, body.system_type,
+                                body.criticality, body.shelf_life_years)
+        except KeyError:
+            raise HTTPException(404, "project not found")
+        except ValueError as e:
+            raise HTTPException(422, str(e))
+        auth.audit(conn, u["sub"], "project-update", p["name"])
+        return p
 
     @app.get("/api/scans/{job_id}/events")
     def scan_events(job_id: int, request: Request, u=Depends(_user)):

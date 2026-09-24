@@ -69,43 +69,55 @@ input, select { background: var(--surface); border: 1px solid var(--line-2); bor
 /* D9: TerminalSurface. Dark, monospace, used only for the scan ledger, code editor, JSON previews, command palette. */
 .term-surface { background: var(--term-bg); color: var(--term-ink); border: 1px solid var(--term-line); border-radius: var(--r); font-family: var(--font-mono); }
 
+/* Scan ledger (Phase 2): stage rail, terminal log, per-plane checklist, correlate countdown, footer. */
+.ledger { position: relative; display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+.ledger-hd { position: relative; padding: var(--s3) var(--s4); border-bottom: 1px solid var(--term-line); overflow: hidden; }
+.ledger-hd h2 { font-size: 11.5px; font-weight: 500; color: var(--term-ink); }
+.ledger-hd .note { font-size: 10.5px; color: var(--term-dim); }
+.ledger-ring { position: absolute; left: var(--s5); top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%;
+  border: 1px solid var(--brand); opacity: .8; animation: ledger-ripple var(--t-slow) var(--ease-out) both; pointer-events: none; }
+@keyframes ledger-ripple { from { transform: scale(1); opacity: .8; } to { transform: scale(6); opacity: 0; } }
+.ledger-stages { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--s2); padding: var(--s3) var(--s4); border-bottom: 1px solid var(--term-line); }
+.ledger-stage { position: relative; padding-bottom: var(--s2); min-width: 0; }
+.ledger-stage .st { font-size: 10px; color: var(--term-dim); }
+.ledger-stage .sv { font-size: 13px; font-weight: 500; color: var(--term-ink); font-variant-numeric: tabular-nums; margin-top: var(--s1); }
+.ledger-stage.done .sv { color: var(--brand); }
+.ledger-stage.failed .sv { color: var(--crit-line); }
+.ledger-stage .fill { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--term-line); }
+.ledger-stage .fill i { display: block; height: 100%; background: var(--brand); transition: width var(--t-fast) linear; }
+.ledger-stage.failed .fill i { background: var(--crit-line); }
+.ledger-body { flex: 1; display: flex; min-height: 0; }
+.ledger-log { flex: 1; min-width: 0; padding: var(--s3) var(--s4); overflow-y: auto; font-size: 11.5px; line-height: 1.7; }
+.ledger-line { display: flex; gap: var(--s2); white-space: pre; }
+.ledger-line .tag { color: var(--term-dim); }
+.ledger-line.ok .tag { color: var(--brand); }
+.ledger-line.fail .tag, .ledger-line.fail .detail { color: var(--crit-line); }
+.ledger-line.warn .tag { color: var(--high-line); }
+.ledger-line .detail { color: var(--term-dim); white-space: normal; }
+.ledger-check { width: 168px; flex: 0 0 168px; border-left: 1px solid var(--term-line); padding: var(--s3); display: flex; flex-direction: column; gap: var(--s2); }
+.ledger-check-row { font-size: 10px; color: var(--term-dim); }
+.ledger-check-row.done { color: var(--brand); }
+.ledger-check-row.failed { color: var(--crit-line); }
+.ledger-check-row .bar { height: 4px; background: var(--term-line); border-radius: 99px; overflow: hidden; margin-top: var(--s1); }
+.ledger-check-row .bar i { display: block; height: 100%; background: currentColor; transition: width var(--t-fast) linear; }
+.ledger-correlate { font-size: 24px; font-weight: 500; color: var(--brand); font-variant-numeric: tabular-nums; }
+.ledger-ft { display: flex; gap: var(--s4); padding: var(--s2) var(--s4); border-top: 1px solid var(--term-line); font-size: 10.5px; color: var(--term-dim); }
+.ledger-ft b { color: var(--term-ink); font-weight: 500; }
+.ledger-ft.bad b { color: var(--crit-line); }
+.ledger-done { display: flex; gap: var(--s3); align-items: center; padding: var(--s3) var(--s4); border-top: 1px solid var(--term-line); }
+
 /* Reports hub tabs (/reports/:tab) */
 .tabs { display: flex; gap: var(--s2); border-bottom: 1px solid var(--line); padding-bottom: var(--s1); }
 .tab { padding: var(--s1) var(--s3); border-radius: var(--r); color: var(--ink-2); text-decoration: none; font-size: 12px; }
 .tab:hover { background: var(--surface-2); }
 .tab.on, .tab.on:hover { background: var(--brand-soft); color: var(--brand-ink); font-weight: 500; }
 
-/* ── Phase 11: blueprint-token components (pipeline board, air-gap pill, plane toggles, network panel) ── */
+/* ── Phase 11: blueprint-token components (air-gap pill, plane toggles, network panel) ── */
 .bp-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
 .card-h { height: var(--card-h); display: flex; align-items: center; gap: var(--s2); padding: 0 var(--pad); border-bottom: 1px solid var(--line); background: var(--surface-2); }
 .card-h h2 { font-size: 11.5px; font-weight: 500; color: var(--ink); }
 .card-h .note { font-size: 10.5px; color: var(--ink-3); margin-left: auto; }
 .card-b { padding: var(--pad); }
-.pipe { display: grid; grid-template-columns: 1fr 2fr 1fr 1fr 1fr; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
-.stage-c { position: relative; padding: var(--s3) var(--s3) var(--s4); border-right: 1px solid var(--line); background: var(--surface); min-width: 0; display: flex; flex-direction: column; }
-.stage-c:last-child { border-right: 0; }
-.stage-c .st { font-size: 10.5px; font-weight: 500; color: var(--ink-3); }
-.stage-c .sv { font-size: 16px; font-weight: 500; line-height: 1.2; margin: var(--s2) 0 var(--s1); color: var(--ink); font-variant-numeric: tabular-nums; }
-.stage-c .sd { font-size: 10.5px; color: var(--ink-3); line-height: 1.4; min-height: 16px; }
-.stage-c .sm { font-size: 10px; color: var(--ink-3); margin-top: auto; padding-top: var(--s2); white-space: pre; }
-.stage-c.pending .st, .stage-c.pending .sd { color: var(--ink-4); }
-.stage-c.failed { background: var(--crit-bg); }
-.stage-c.failed .sv, .stage-c.failed .sd { color: var(--crit-ink); }
-.stage-c .fill { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--line); }
-.stage-c .fill i { display: block; height: 100%; background: var(--brand); transition: width var(--t-fast) linear; }
-.stage-c.failed .fill i { background: var(--crit-ink); }
-.plane-rows { margin-top: var(--s2); display: flex; flex-direction: column; gap: var(--s1); }
-.plane-row { display: grid; grid-template-columns: 64px 1fr 40px 52px; align-items: center; gap: var(--s2); font-size: 10.5px; color: var(--ink-2); min-height: 16px; }
-.plane-row .bar { height: 6px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 99px; overflow: hidden; }
-.plane-row .bar i { display: block; height: 100%; background: var(--brand); transition: width var(--t-fast) linear; }
-.plane-row .pc, .plane-row .pm { font-size: 10px; text-align: right; color: var(--ink-2); }
-.plane-row.off, .plane-row.off .pc, .plane-row.wait, .plane-row.idle { color: var(--ink-4); }
-.plane-row.failed .bar i, .plane-row.partial .bar i { background: var(--crit-ink); }
-.plane-row.failed .pn, .plane-row.partial .pn { color: var(--crit-ink); font-weight: 500; }
-.plane-row .perr { grid-column: 1 / -1; font-size: 10px; color: var(--crit-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.net-line { margin-top: var(--s3); font-size: 10.5px; color: var(--ink-3); }
-.net-line b { color: var(--ink); font-weight: 500; }
-.net-line.bad, .net-line.bad b { color: var(--crit-ink); }
 .agp { display: inline-flex; align-items: center; gap: var(--s2); height: 24px; padding: 0 var(--s3); border: 1px solid var(--low-line); border-radius: 99px; font-size: 11px; background: var(--low-bg); color: var(--low-ink); text-decoration: none; white-space: nowrap; }
 .agp .led { width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .8; }
 .agp.bad { background: var(--crit-bg); border-color: var(--crit-line); color: var(--crit-ink); }
@@ -159,8 +171,6 @@ input, select { background: var(--surface); border: 1px solid var(--line-2); bor
 /* 8. Filter applied: leaving rows fade over --t-fast; the list settles over --t-base (transform set in JS) */
 .qt tr.leaving { opacity: 0; transition: opacity var(--t-fast) var(--ease); }
 .qt tr.settle { transition: transform var(--t-base) var(--ease); }
-/* 9. Scan pipeline: only while a scan is live, each stage's value and timing appear as it lands */
-.pipe.live .stage-c.done .sv, .pipe.live .stage-c.done .sm { animation: num-fade var(--t-base) var(--ease-out) both; }
 
 /* Reduced motion: opacity only, same durations */
 @media (prefers-reduced-motion: reduce) {

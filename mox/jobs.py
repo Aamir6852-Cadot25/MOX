@@ -19,23 +19,6 @@ class JobError(Exception):
         self.status = status
 
 
-def validate_path(raw: str) -> Path:
-    """Local folder only: no URLs, no UNC/network shares, must exist and be a directory."""
-    s = (raw or "").strip().strip('"')
-    if not s:
-        raise JobError(400, "enter a folder path")
-    if "://" in s or s.startswith(("\\\\", "//")):
-        raise JobError(400, "only local folders can be scanned (no URLs or network shares)")
-    p = Path(s).expanduser()
-    if not p.is_absolute():
-        raise JobError(400, "enter an absolute folder path, e.g. D:\\code\\my-repo")
-    if not p.exists():
-        raise JobError(400, f"path does not exist: {s}")
-    if not p.is_dir():
-        raise JobError(400, f"not a directory: {s}")
-    return p.resolve()
-
-
 def _emit(job: dict, kind: str, data) -> None:
     """Append one event to the job log (caller holds _lock) and wake SSE streams."""
     job["events"].append({"seq": len(job["events"]) + 1, "type": kind, "data": data})
@@ -55,17 +38,34 @@ def _run(job: dict, user: str, settings: dict, overrides: dict) -> None:
         conn = db.connect()
         try:
             s = scanner.scan(job["path"], conn=conn, settings=settings, overrides=overrides, on_stage=on_stage,
-                             planes=job["planes"], probe=job["probe"], on_progress=on_progress)
-            auth.audit(conn, user, "scan", f"{job['path']} -> {s['findings']} findings, {s['assets']} assets")
+                             planes=job["planes"], probe=job["probe"], probes=job.get("probes"),
+                             tls_authorized=job.get("tls_authorized", False), on_progress=on_progress,
+                             project_id=job.get("project_id"))
+            detail = f"{job['path']} -> {s['findings']} findings, {s['assets']} assets"
+            if job.get("tls_authorized") and s.get("probes"):
+                detail += f"; TLS probe authorised for {len(s['probes'])} endpoint(s)"
+            meta = job.get("source_meta") or {}
+            if meta.get("source_kind") and meta["source_kind"] != "folder":
+                detail += f"; source={meta['source_kind']}"
+                if meta.get("source_ref"):
+                    detail += f" ({meta['source_ref']})"
+            if meta.get("commit"):
+                detail += f"; commit {meta['commit'][:12]}"
+            auth.audit(conn, user, "scan", detail)
         finally:
             conn.close()
         with _lock:
             job.update(state="done", scan_id=s["scan_id"], result=s)
-            _emit(job, "done", {"scan_id": s["scan_id"], "net": s["net"], "errors": s["errors"][:20]})
+            _emit(job, "done", {"scan_id": s["scan_id"], "net": s["net"], "errors": s["errors"][:20],
+                                "bytes_read": s["bytes_read"]})
     except Exception as e:  # surface to the UI; never kill the server
         with _lock:
             job.update(state="error", error=str(e))
             _emit(job, "error", {"error": str(e)})
+    finally:
+        cleanup = job.get("cleanup")
+        if cleanup:
+            cleanup()
 
 
 def _probe(raw: str | None) -> str | None:
@@ -78,19 +78,27 @@ def _probe(raw: str | None) -> str | None:
     return s
 
 
-def start(raw_path: str, user: str, settings: dict, overrides: dict, planes: list[str] | None = None,
-          probe: str | None = None) -> dict:
-    path = validate_path(raw_path)
+def _probes(raw: list[str] | None) -> list[str]:
+    return [_probe(p) for p in (raw or []) if (p or "").strip()]
+
+
+def start(path: Path, user: str, settings: dict, overrides: dict, planes: list[str] | None = None,
+          probe: str | None = None, probes: list[str] | None = None, tls_authorized: bool = False,
+          project_id: int | None = None, cleanup=None, source_meta: dict | None = None) -> dict:
+    """`path` must already be a resolved, existing directory (mox/source.py resolves every source kind
+    to one); this function no longer validates a raw string itself so every source shares the same check."""
     known = {p.NAME for p in scanner.ALL_PLANES}
     if planes is not None and not set(planes) <= known:
         raise JobError(400, f"unknown plane(s): {', '.join(sorted(set(planes) - known))}")
     probe = _probe(probe)
+    probe_list = _probes(probes)
     with _lock:
         if any(j["state"] == "running" for j in _jobs.values()):
             raise JobError(409, "a scan is already running")
         job = {"id": next(_ids), "path": str(path), "state": "running", "stages": [], "scan_id": None,
-               "error": None, "result": None, "events": [], "probe": probe,
-               "planes": set(planes) if planes is not None else None}
+               "error": None, "result": None, "events": [], "probe": probe, "probes": probe_list,
+               "tls_authorized": tls_authorized, "project_id": project_id, "cleanup": cleanup,
+               "source_meta": source_meta, "planes": set(planes) if planes is not None else None}
         _jobs[job["id"]] = job
     threading.Thread(target=_run, args=(job, user, settings, overrides), daemon=True).start()
     return status(job["id"])
@@ -126,6 +134,6 @@ def status(job_id: int) -> dict:
         job = _jobs.get(job_id)
         if not job:
             raise JobError(404, "scan job not found")
-        out = {k: v for k, v in job.items() if k != "events"}
+        out = {k: v for k, v in job.items() if k not in ("events", "cleanup")}
         return {**out, "stages": list(job["stages"]), "running": job["state"] == "running",
                 "planes": sorted(job["planes"]) if job["planes"] is not None else None}

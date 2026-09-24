@@ -60,6 +60,16 @@ def install() -> None:
     socket.socket.connect, socket.socket.connect_ex = counted_connect, counted_connect_ex
 
 
+def record_external(host: str) -> None:
+    """Count an outbound call this process makes indirectly (e.g. `git clone <url>`): a subprocess's own
+    socket connects never reach the in-process hook above, so the caller reports it here instead. Feeds
+    the same counter as a direct connect, so the top-bar pill and AGENTS.md's "counted" claim stay true
+    for git remote clone / push as well (D7, D1's git source)."""
+    with _lock:
+        _state["outbound"] += 1
+        _state["last"] = {"host": host, "at": time.strftime("%Y-%m-%dT%H:%M:%S")}
+
+
 def counts() -> dict:
     with _lock:
         return dict(_state)
