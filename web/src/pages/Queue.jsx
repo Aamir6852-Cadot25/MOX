@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, tierClass } from "../api.js";
+import { api, evidence, tierClass } from "../api.js";
 import { Pager, Search, usePaged } from "../lib.jsx";
 
 const TABS = [["all", "All"], ["MIGRATE", "Migrate"], ["CONTAIN", "Contain"], ["ACCEPT", "Accept"], ["verify", "Verify first"]];
@@ -26,8 +26,11 @@ export default function Queue({ summary }) {
             ))}
           </div>
         </div>
+        <div className="px-4 py-2 dim text-[11px] border-b border-[#E3E7ED]">
+          Evidence: <b>Observed</b> = live TLS / parsed certificate · <b>Declared</b> = explicit code/config match · <b>Declared, unverified</b> = dependency/string match (stays in Verify first)
+        </div>
         <div className="row dim text-[11px]" style={{ cursor: "default" }}>
-          <span>Asset</span><span className="text-center">Score</span><span>Tier</span><span>Confidence</span><span>Verdict</span>
+          <span>Asset</span><span className="text-center">Score</span><span>Tier</span><span>Evidence</span><span>Verdict</span>
         </div>
         {p.shown.map((a) => (
           <div key={a.id} className="row" onClick={() => nav(`/asset/${a.id}`)}>
@@ -37,7 +40,7 @@ export default function Queue({ summary }) {
             </div>
             <div className={`sc ${tierClass(a.tier)}`}>{a.score}</div>
             <div className={tierClass(a.tier)}>{a.tier}</div>
-            <div className="dim">{a.breakdown.confidence}</div>
+            <div className="dim">{evidence(a.breakdown.confidence)}</div>
             <div><span className={`pill ${a.verdict}`}>{a.verdict}</span></div>
           </div>
         ))}

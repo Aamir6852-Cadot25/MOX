@@ -68,3 +68,10 @@ run.ps1  README.md  requirements.txt  .gitignore
 - [x] Dashboard: 4 KPIs + risk scatter; rest behind "View full findings"
 - [x] Queue/Roadmap/Sector: search + 10-row pagination + "View all N"
 - [x] Compliance Report (PDF, stdlib writer, /api/report[/download]) + Reports tab
+
+## Phase 8 — real pipeline visualization + evidence states
+- [x] Stage events (Ingest/Detect/Correlate/Score/Verdict, perf_counter ms) stored in scans.stages, exposed in /api/scans/latest
+- [x] Dashboard Pipeline panel (reads stored stages; no simulation)
+- [x] Evidence labels (Observed / Declared / Declared, unverified) + Work queue legend
+- [x] Asset detail evidence chain: Fact → Normalized fact → Analysis → Recommendation
+- [x] test_phase8: monotonic timestamps, Detect total == findings, Correlate output == assets

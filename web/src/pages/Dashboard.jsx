@@ -15,6 +15,39 @@ function Kpi({ n, label, accent }) {
   );
 }
 
+const fmtMs = (ms) => (ms >= 1000 ? `${(ms / 1000).toFixed(2)} s` : ms >= 10 ? `${ms.toFixed(0)} ms` : `${ms.toFixed(2)} ms`);
+const join = (o) => Object.entries(o).filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join(" · ");
+const STAGE_TEXT = {
+  Ingest: (s) => [`${s.count} files`, "found in target tree"],
+  Detect: (s) => [`${s.count} findings`, Object.entries(s.detail).filter(([, p]) => p.findings).map(([k, p]) => `${k} ${p.findings} (${fmtMs(p.ms)})`).join(" · ")],
+  Correlate: (s) => [`${s.detail.findings} → ${s.detail.assets}`, "raw findings → assets"],
+  Score: (s) => [`${s.count} scored`, join(s.detail)],
+  Verdict: (s) => [join(s.detail) || "0", "at scan time"],
+};
+
+function Pipeline({ stages }) {
+  return (
+    <div className="card">
+      <div className="h mb-2">Pipeline <span className="dim font-normal">— recorded stage timings from the latest scan (perf_counter)</span></div>
+      {!stages?.length ? <div className="dim">No stage data for this scan — re-scan to record it.</div> : (
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
+          {stages.map((s, i) => {
+            const [main, sub] = STAGE_TEXT[s.stage]?.(s) ?? [s.count, ""];
+            return (
+              <div key={s.stage} className="node relative" style={{ padding: 10 }}>
+                <div className="p">{i + 1}. {s.stage}</div>
+                <div className="text-lg font-bold">{main}</div>
+                <div className="dim text-[11px]">{sub}</div>
+                <div className="mono text-[11px] mt-1">{fmtMs(s.ms)} <span className="dim">· t+{fmtMs(s.t_ms)}</span></div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Dashboard({ summary, onScanned }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -64,6 +97,7 @@ export default function Dashboard({ summary, onScanned }) {
           <div className="kpi-l">Verdict split</div>
         </div>
       </div>
+      <Pipeline stages={summary.stages} />
       <div className="card">
         <div className="h mb-1">Risk field <span className="dim font-normal">— each dot is one asset: Mosca overexposure (X+Y−Z, years) vs business criticality</span></div>
         <div style={{ height: 340 }}>

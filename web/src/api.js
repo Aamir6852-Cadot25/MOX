@@ -36,4 +36,7 @@ export const api = {
 };
 
 export const tierColor = (t) => (t === "Critical" ? "#B42318" : t === "High" ? "#D9822B" : t === "Medium" ? "#C9A227" : "#2E9E5B");
+// UI evidence-state words for stored confidence values (DB values unchanged).
+export const EVIDENCE = { high: "Observed", medium: "Declared", low: "Declared, unverified" };
+export const evidence = (c) => EVIDENCE[c] || c;
 export const tierClass = (t) => (t === "Critical" ? "red" : t === "High" || t === "Medium" ? "amb" : "min");

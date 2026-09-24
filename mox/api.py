@@ -115,6 +115,7 @@ def _summary(scan, assets) -> dict:
                     "assets": len(assets), "hndl": len(hndl), "quantum_vulnerable": len(qv),
                     "safe": len(assets) - len(qv), "hybrid": sum(1 for a in assets if a["hybrid"])},
             "verdicts": verdicts,
+            "stages": json.loads(scan["stages"] or "[]"),
             "field": [{"id": a["id"], "label": a["label"], "exposure": a["breakdown"]["mosca"]["exposure"],
                        "criticality": a["breakdown"]["criticality"], "tier": a["tier"], "score": a["score"]}
                       for a in assets]}
@@ -146,10 +147,9 @@ def create_app() -> FastAPI:
     def start_scan(body: ScanReq, u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
         target = body.path or str(ROOT / "demo_target")
         try:
-            s = scanner.scan(target, probe=body.probe, conn=conn)
+            s = scanner.scan(target, probe=body.probe, conn=conn, settings=_settings(conn), overrides=_overrides(conn))
         except FileNotFoundError as e:
             raise HTTPException(400, str(e))
-        _reanalyze(conn, s["scan_id"])
         auth.audit(conn, u["sub"], "scan", f"{target} -> {s['findings']} findings, {s['assets']} assets")
         return s
 

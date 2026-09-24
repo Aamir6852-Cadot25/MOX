@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { api, tierClass } from "../api.js";
+import { api, evidence, tierClass } from "../api.js";
 
+const KIND = Object.fromEntries([
+  ...["RSA", "DSA", "ECDSA", "EdDSA", "DH", "ECDH", "X25519", "X25519MLKEM768"].map((k) => [k, "asymmetric"]),
+  ...["AES", "DES", "3DES", "RC4"].map((k) => [k, "symmetric"]), ...["MD5", "SHA-1", "SHA-256"].map((k) => [k, "hash"]),
+]);
 const nistCls = (s) => (s === "disallowed" ? "red" : "");
 
 export default function Asset({ onChanged }) {
@@ -25,6 +29,14 @@ export default function Asset({ onChanged }) {
     ["Raw", b.raw],
     [`× criticality ${b.criticality} (${b.criticality_mult}) × confidence ${b.confidence} (${b.confidence_mult})`, b.scaled],
     ...(b.floor_applied ? [["Floor: disallowed algorithm, minimum", b.floor]] : []),
+  ];
+  const nFiles = new Set(a.locations.map((l) => l.file)).size;
+  const alg = a.algorithm + (a.key_size ? `-${a.key_size}` : "");
+  const chain = [
+    ["Fact", `${a.algorithm}${a.key_size ? ` key, ${a.key_size} bit` : ""}, found in ${nFiles} file${nFiles === 1 ? "" : "s"} (${evidence(b.confidence)})`],
+    ["Normalized fact", `${alg}, ${KIND[a.algorithm] || (a.algorithm.startsWith("TLS") || a.algorithm.startsWith("SSL") ? "protocol" : "other")}`],
+    ["Analysis", `NIST: ${b.base_status} now${b.quantum_vulnerable ? ", quantum-vulnerable" : ""} · Mosca exposure ${m.exposure > 0 ? "+" : ""}${m.exposure} yrs`],
+    ["Recommendation", `${a.verdict}${a.replacements.length ? ` → ${a.replacements[0].to}` : ""} (wave ${a.wave})`],
   ];
   const mosca = [[m.x, "X data life"], "+", [m.y, "Y migration"], ">", [m.z, "Z quantum"], "=", [(m.exposure > 0 ? "+" : "") + m.exposure, "yrs exposed"]];
   return (
@@ -67,6 +79,17 @@ export default function Asset({ onChanged }) {
         </div>
       </div>
       <div className="flex flex-col gap-4">
+        <div className="panel p-4">
+          <div className="h mb-2">Evidence chain</div>
+          <div className="flex flex-col gap-1">
+            {chain.map(([k, v], i) => (
+              <div key={k}>
+                {i > 0 && <div className="dim text-center text-[11px]">↓</div>}
+                <div className="node" style={{ padding: 8 }}><div className="p">{k}</div><div className="text-[12px]">{v}</div></div>
+              </div>
+            ))}
+          </div>
+        </div>
         <div className="panel p-4">
           <div className="h mb-1">Why this score</div>
           <div className={`text-4xl font-bold ${tierClass(a.tier)}`}>{a.score} <span className="text-base">{a.tier}</span></div>
