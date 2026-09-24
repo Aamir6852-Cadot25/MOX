@@ -223,7 +223,10 @@ export default function Asset({ onChanged }) {
               {a.verify_first && <Badge family="high">Verify first</Badge>}
             </div>
           </div>
-          <Verdict verdict={a.verdict} />
+          <div className="flex flex-col items-end gap-1">
+            <Verdict verdict={a.verdict} />
+            <span className="flex items-center gap-2"><Tier tier={a.tier} /><span className="mono" style={{ fontSize: 17, fontWeight: 500 }} title="Risk score; the arithmetic is in Why this score">{a.score}</span></span>
+          </div>
         </div>
 
         {top ? (
@@ -314,8 +317,6 @@ export default function Asset({ onChanged }) {
       </div>
 
       <aside className="rgt">
-        <MoscaCard a={a} onX={(x) => save({ x })} />
-        <CmcsCard c={b.cmcs} />
         <div className="card-h"><h2>Recommended replacement</h2></div>
         <div className="card-b flex flex-col gap-2">
           {rep ? (
@@ -341,6 +342,8 @@ export default function Asset({ onChanged }) {
               Then run a scan from <Link to="/scan">New Scan</Link>; the re-scan shows whether it cleared.</div>)}
           <Link className="bp-btn" style={{ justifyContent: "center" }} to="/roadmap">Open roadmap</Link>
         </div>
+        <MoscaCard a={a} onX={(x) => save({ x })} />
+        <CmcsCard c={b.cmcs} />
       </aside>
     </div>
   );

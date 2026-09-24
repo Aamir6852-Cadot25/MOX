@@ -4,7 +4,7 @@
 .head .sub { font-size: 11.5px; color: var(--ink-3); }
 .head-act { margin-left: auto; display: flex; gap: var(--s2); }
 .dash-b { padding: var(--s4); display: flex; flex-direction: column; gap: var(--gap); }
-.dash-row { display: flex; gap: var(--gap); align-items: stretch; }
+.dash-row { display: flex; gap: var(--gap); align-items: flex-start; } /* each card sizes to its content (B5) */
 
 .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--gap); }
 .tile { height: 88px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: var(--s3) var(--s4);
@@ -25,8 +25,16 @@
 .vseg.m { background: var(--crit-bg); color: var(--crit-ink); }
 .vseg.c { background: var(--med-bg); color: var(--med-ink); }
 .vseg.a { background: var(--low-bg); color: var(--low-ink); }
-.vkey { display: flex; gap: var(--s4); flex-wrap: wrap; margin-top: var(--s2); font-size: 10.5px; color: var(--ink-3); }
-.vkey b { font-weight: 500; color: var(--ink-2); }
+/* B5: the verdict card gives its space to "is anything on fire?" instead of leaving it empty */
+.urgent { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); margin-top: var(--s3); padding: var(--s2) var(--s3);
+  border: 1px solid var(--crit-line); background: var(--crit-bg); border-radius: var(--r); font-size: 11px; color: var(--ink-2); }
+.urgent a { color: var(--crit-ink); font-weight: 500; text-decoration: none; } .urgent a:hover { text-decoration: underline; }
+.vcols { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s3); margin-top: var(--s3); }
+.vcol { display: flex; flex-direction: column; gap: var(--s1); padding: var(--s2) var(--s3); border: 1px solid var(--line); border-radius: var(--r);
+  background: var(--surface-2); font-size: 10.5px; color: var(--ink-2); text-decoration: none; line-height: 1.45; }
+.vcol:hover { background: var(--pri-soft); }
+.vcol:focus-visible { outline: 2px solid var(--pri); outline-offset: 2px; }
+.vcol .vh { display: flex; align-items: center; gap: var(--s2); font-size: 12px; font-weight: 500; color: var(--ink); }
 
 .cov { display: flex; gap: var(--s3); align-items: center; }
 .cov-seg { stroke: var(--line); }

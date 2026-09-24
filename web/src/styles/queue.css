@@ -17,7 +17,8 @@
 .qt th { position: sticky; top: 0; z-index: 1; height: 30px; padding: 0; text-align: left; background: var(--surface-2); border-bottom: 1px solid var(--line); }
 .qt th button { width: 100%; height: 30px; padding: 0 var(--s3); text-align: inherit; display: inline-flex; align-items: center; gap: var(--s1); background: none; border: 0; font-size: 10.5px; font-weight: 500; color: var(--ink-3); cursor: pointer; }
 .qt th[aria-sort="ascending"] button, .qt th[aria-sort="descending"] button { color: var(--ink); }
-.qt th.c-risk, .qt th.c-mosca, .qt th.c-cmcs { text-align: right; }
+.qt th.c-wave, .qt th.c-risk, .qt th.c-mosca, .qt th.c-cmcs { text-align: right; }
+.qt th.c-wave { width: 56px; }
 .qt th.c-risk, .qt th.c-mosca { width: 70px; }
 .qt th.c-cmcs { width: 64px; }
 .qt th.c-tier { width: 88px; }

@@ -3,21 +3,24 @@ import { Link } from "react-router-dom";
 import { api } from "../api.js";
 import { Tier, Verdict } from "../components/Marks.jsx";
 import { Pager, Search, usePaged } from "../lib.jsx";
+import { LoadError, NoMatch, NoScan } from "../components/States.jsx";
 
 export default function Roadmap({ summary }) {
   const [w, setW] = useState(null);
   const [wave, setWave] = useState(0);
   const [err, setErr] = useState("");
-  const load = () => { setErr(""); api.roadmap().then(setW).catch((e) => setErr(e.message)); };
+  const load = () => { setErr(""); api.roadmap().then(setW).catch((e) => setErr(e)); };
   useEffect(load, [summary]);
   const rows = (w || []).flatMap((x) => x.assets.map((a) => ({ ...a, wave: x.wave, wname: x.name })));
   const p = usePaged(wave ? rows.filter((r) => r.wave === wave) : rows, (r) => `${r.label} ${r.tier} ${r.verdict} ${r.wname} ${r.replacement || ""}`);
-  if (err) return <div className="p-6"><div className="errbox">Could not load the roadmap: {err}. <button className="linkbtn" onClick={load}>Retry</button></div></div>;
+  if (err) return <LoadError what="the roadmap" err={err} onRetry={load} />;
   if (!w) return <div className="p-6 dim">Loading…</div>;
+  if (!w.length) return <NoScan what="The roadmap" />;
   return (
     <div className="p-4 max-w-[1100px] mx-auto">
       <div className="text-xl font-semibold mb-1">Migration roadmap</div>
-      <div className="dim mb-4">Five waves built from each asset's assigned wave (tier + Mosca exposure). Click a wave to filter.</div>
+      <div className="dim mb-4">Five waves built from each asset's assigned wave (tier + Mosca exposure). Click a wave to filter.
+        MOX orders the work; it does not set dates. Give each wave a target quarter in your programme plan.</div>
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-5 mb-4">
         {w.map((x) => (
           <button key={x.wave} className="panel p-3 text-left cursor-pointer" style={wave === x.wave ? { borderColor: "var(--pri)", background: "var(--pri-soft)" } : {}}
@@ -41,7 +44,7 @@ export default function Roadmap({ summary }) {
             <span><Verdict verdict={a.verdict} /></span>
           </Link>
         ))}
-        {!p.shown.length && <div className="p-6 dim">No matching assets.</div>}
+        {!p.shown.length && (p.q ? <NoMatch p={p} noun="asset" /> : <div className="p-4 hint">No asset is in wave {wave}. <button className="linkbtn" onClick={() => setWave(0)}>Show all waves</button></div>)}
         <Pager p={p} />
       </div>
     </div>

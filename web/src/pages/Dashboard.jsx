@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api.js";
-import Pipeline from "../components/Pipeline.jsx";
 import RiskField, { Swatch } from "../components/RiskField.jsx";
 import CoverageRing from "../components/CoverageRing.jsx";
 import Icon from "../components/Icon.jsx";
 import { Num } from "../components/Motion.jsx";
+import { Tier, Verdict } from "../components/Marks.jsx";
 
 const VERDICTS = [["MIGRATE", "m", "replace per the PQC map"], ["CONTAIN", "c", "isolate; cannot patch in place"], ["ACCEPT", "a", "monitor; validate at next scan"]];
 
@@ -61,6 +61,7 @@ export default function Dashboard({ summary, onScanned }) {
     );
 
   const { kpi, verdicts, field } = summary;
+  const vd = summary.verdict_detail;
   const total = kpi.assets || 1;
   return (
     <div className="dash">
@@ -99,8 +100,28 @@ export default function Dashboard({ summary, onScanned }) {
                     aria-label={`${v}: ${verdicts[v]} assets`}>{v} <span className="mono"><Num k={`verdict.${v}`} value={verdicts[v]} /></span></Link>
                 ))}
               </div>
-              <div className="vkey">
-                {VERDICTS.map(([v, , d]) => <span key={v}><b>{v}</b> <span className="mono"><Num k={`verdict.${v}.pct`} value={Math.round((100 * verdicts[v]) / total)} />%</span> {d}</span>)}
+              {vd?.most_urgent && (
+                <div className="urgent">
+                  <span className="lbl" style={{ margin: 0 }}>On fire now</span>
+                  <span><span className="mono">{vd.wave1}</span> asset{vd.wave1 === 1 ? "" : "s"} in wave 1. Most urgent:</span>
+                  <Link to={`/asset/${vd.most_urgent.id}`} className="mono">{vd.most_urgent.label}</Link>
+                  <Tier tier={vd.most_urgent.tier} />
+                  <span className="dim">{vd.most_urgent.why}.</span>
+                </div>
+              )}
+              <div className="vcols">
+                {VERDICTS.map(([v, , d]) => (
+                  <Link key={v} to={`/queue?verdict=${v}`} className="vcol">
+                    <span className="vh"><Verdict verdict={v} /><span className="mono"><Num k={`verdict.${v}`} value={verdicts[v]} /></span>
+                      <span className="dim mono"><Num k={`verdict.${v}.pct`} value={Math.round((100 * verdicts[v]) / total)} />%</span></span>
+                    <span className="dim">{d}</span>
+                    {v === "MIGRATE" && vd && <span><span className="mono">{vd.migrate.wave1}</span> in wave 1, <span className="mono">{vd.migrate.auto_fix}</span> with an automatic fix</span>}
+                    {v === "CONTAIN" && vd && (vd.contain.length
+                      ? vd.contain.map(([why, n]) => <span key={why}><span className="mono">{n}</span> {why}</span>)
+                      : <span>none: every asset can be patched in place</span>)}
+                    {v === "ACCEPT" && vd && <span><span className="mono">{vd.accept.unverified}</span> on unverified evidence (verify first)</span>}
+                  </Link>
+                ))}
               </div>
             </div>
           </div>
@@ -110,7 +131,6 @@ export default function Dashboard({ summary, onScanned }) {
           </div>
         </div>
 
-        <Pipeline stages={summary.stages} net={summary.scan.net} />
 
         <div className="bp-card">
           <div className="card-h"><h2>Risk field</h2><span className="note">each dot is one asset; open it with a click or Enter</span></div>
@@ -118,6 +138,7 @@ export default function Dashboard({ summary, onScanned }) {
             <div className="rf-key">
               {["Critical", "High", "Medium", "Low"].map((t) => <span key={t}><Swatch tier={t} />{t}</span>)}
               <span>dot size = risk score</span>
+              <span>labels: highest risk that fit; hover or focus a dot for any other</span>
               <span>dashed line = Mosca break-even, X + Y = Z</span>
               {summary.unplotted > 0 && <span>not plotted: <span className="mono">{summary.unplotted}</span> with no identified algorithm (Mosca n/a)</span>}
               <Link to="/queue" className="rf-table">Same data as a table: work queue</Link>

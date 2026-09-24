@@ -20,7 +20,7 @@ export default function Login({ onLogin }) {
         <div className="dim mb-2">Offline scanner for quantum-vulnerable cryptography</div>
         <input placeholder="Username" value={u} onChange={(e) => setU(e.target.value)} autoFocus />
         <input placeholder="Password" type="password" value={p} onChange={(e) => setP(e.target.value)} />
-        {err && <div className="red">{err}</div>}
+        {err && <div className="errbox">Sign-in failed: {err}. Check the username and password; accounts are created by an operator with <span className="mono">python -m mox create-admin</span>.</div>}
         <button className="btn" type="submit">Sign in</button>
         <div className="dim text-[11px]">Accounts are created by an operator with <span className="mono">python -m mox create-admin</span>.</div>
       </form>

@@ -9,7 +9,7 @@ const RESULT = { cleared: "Finding cleared", "still-present": "Finding still pre
 const STEPS = [["Patch previewed", "Diff generated from the rule for this finding"], ["Analyst approved", "Approval and review note audited"],
   ["Applied with backup", "Original saved next to the file as .bak"], ["Re-scanned", "Same planes re-run on the changed file"]];
 
-function List() {
+function List({ summary }) {
   const [rows, setRows] = useState(null);
   const [err, setErr] = useState("");
   const load = () => { setErr(""); api.fixes().then(setRows).catch((e) => setErr(e.message)); };
@@ -19,7 +19,9 @@ function List() {
   return (
     <div className="p-4 max-w-[1100px] mx-auto"><div className="panel p-4">
       <div className="h mb-2">Auto-fixable findings <span className="dim font-normal">— from the latest scan</span></div>
-      {rows.length === 0 && (
+      {rows.length === 0 && summary && !summary.scan && !summary.error && (
+        <div className="dim">No scan yet, so there is nothing to fix. <Link className="link" to="/scan">Open New Scan</Link> to scan a folder.</div>)}
+      {rows.length === 0 && summary?.scan && (
         <div className="dim">No finding in the latest scan has an automatic fix. The remaining MIGRATE assets need a manual
           change; each asset page names the replacement. <Link className="link" to="/queue?verdict=MIGRATE">Open the MIGRATE queue</Link>,
           change the code or config, then <Link className="link" to="/scan">re-scan</Link> to verify.</div>)}
@@ -32,7 +34,7 @@ function List() {
   );
 }
 
-export default function Fix({ onChanged }) {
+export default function Fix({ onChanged, summary }) {
   const { findingId } = useParams();
   const nav = useNavigate();
   const [fix, setFix] = useState(null);
@@ -44,7 +46,7 @@ export default function Fix({ onChanged }) {
     setFix(null); setErr("");
     if (findingId) api.fixPreview(+findingId).then(setFix).catch((e) => { setErr(e.message); setErrStatus(e.status); });
   }, [findingId]);
-  if (!findingId) return <List />;
+  if (!findingId) return <List summary={summary} />;
   if (err) return (
     <div className="p-6 flex flex-col gap-3" style={{ maxWidth: 760 }}>
       <div className="errbox">{errStatus === 422
@@ -115,6 +117,7 @@ export default function Fix({ onChanged }) {
                 : `Re-scan of ${fix.file} no longer reports ${fix.algorithm}${fix.key_size ? `-${fix.key_size}` : ""} at this location. Assets, scores and the CBOM were refreshed.`}
                 {fix.status === "not-in-effect" && " Part of the change cannot take effect as written; see the list on the left. It is not counted as a cleared fix."}
                 {(fix.claims || []).some((c) => c.state === "not-verified") && " Some effects depend on the server build and are marked not verified."}</div>
+              {fix.approved_by && <div className="text-[12px]" style={{ marginTop: 8 }}>Approved by <b>{fix.approved_by}</b> at <span className="mono">{fix.approved_at}</span>{fix.review_note ? <>, note: {fix.review_note}</> : null}. Original kept as <span className="mono">{fix.backup}</span>.</div>}
             </div>
           )}
         </div>

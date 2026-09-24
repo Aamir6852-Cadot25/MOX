@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
+import { Failed, NoMatch } from "../components/States.jsx";
 import { Check, Tier, Verdict } from "../components/Marks.jsx";
 import Icon from "../components/Icon.jsx";
 
@@ -10,8 +11,9 @@ const TIERS = ["Critical", "High", "Medium", "Low"];
 export default function Report({ summary }) {
   const [d, setD] = useState(null);
   const p = usePaged(d?.findings || [], (f) => `${f.label} ${f.tier} ${f.verdict}`);
-  useEffect(() => { api.report().then(setD).catch(() => setD(false)); }, [summary]);
-  if (d === false) return <div className="p-6 dim">Run a scan first.</div>;
+  const load = () => { setD(null); api.report().then(setD).catch((e) => setD({ error: e })); };
+  useEffect(load, [summary]);
+  if (d?.error) return <Failed what="the compliance report" err={d.error} onRetry={load} />;
   if (!d) return <div className="p-6 dim">Building report…</div>;
   const c = d.counts, v = d.verdicts;
   const Sec = ({ n, t, children }) => <div className="panel p-4"><div className="h mb-2">{n}. {t}</div>{children}</div>;
@@ -39,6 +41,7 @@ export default function Report({ summary }) {
             <span>{f.label}</span><span className="sc">{f.score}</span><span><Tier tier={f.tier} /></span><span><Verdict verdict={f.verdict} /></span><span className="dim">wave {f.wave}</span>
           </div>
         ))}
+        {!p.shown.length && <NoMatch p={p} noun="finding" />}
         <Pager p={p} />
       </div>
       <Sec n={6} t="Risk Rating">

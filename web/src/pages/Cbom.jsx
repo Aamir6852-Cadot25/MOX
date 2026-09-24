@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
+import { Failed } from "../components/States.jsx";
 import { Check, Tier, Verdict } from "../components/Marks.jsx";
 import Icon from "../components/Icon.jsx";
 
 
 export default function Cbom({ summary }) {
   const [c, setC] = useState(null);
-  useEffect(() => { api.cbom().then(setC).catch(() => setC(false)); }, [summary]);
-  if (c === false) return <div className="p-6 dim">Run a scan first.</div>;
+  const load = () => { setC(null); api.cbom().then(setC).catch((e) => setC({ error: e })); };
+  useEffect(load, [summary]);
+  if (c?.error) return <Failed what="the CBOM" err={c.error} onRetry={load} />;
   if (!c) return <div className="p-6 dim">Building CBOM…</div>;
   const prop = (x, k) => x.properties.find((p) => p.name === "mox:" + k)?.value;
   return (
@@ -20,7 +22,7 @@ export default function Cbom({ summary }) {
         <a className="btn" style={{ width: 220, textDecoration: "none" }} href="/api/cbom/download"><Icon name="download" />Download CBOM (JSON)</a>
       </div>
       {!c.valid && <div className="panel p-4 red mono text-[12px]">{c.errors.join("\n")}</div>}
-      <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+      <div className="grid gap-4 items-start lg:grid-cols-[1.4fr_1fr]">
         <div className="panel p-4">
           <div className="h mb-2">Components</div>
           {c.bom.components.map((x) => (

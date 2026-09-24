@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../api.js";
+import { LoadError, NoMatch } from "../components/States.jsx";
 import { Check } from "../components/Marks.jsx";
 import { Pager, Search, usePaged } from "../lib.jsx";
 
@@ -8,12 +10,13 @@ const COLS = { cursor: "default", gridTemplateColumns: "1fr 90px 60px 110px 60px
 export default function Sector() {
   const [v, setV] = useState(null);
   const p = usePaged(v?.sectors || [], (s) => s.name);
-  useEffect(() => { api.sectors().then(setV).catch(() => setV(false)); }, []);
-  if (v === false) return <div className="p-6 dim">Could not load sector view.</div>;
+  const load = () => { setV(null); api.sectors().then(setV).catch((e) => setV({ error: e })); };
+  useEffect(load, []);
+  if (v?.error) return <LoadError what="the sector view" err={v.error} onRetry={load} />;
   if (!v) return <div className="p-6 dim">Loading…</div>;
   const k = v.kpi;
   if (!k.attestations)
-    return <div className="p-6 dim">No attestations yet. Run <span className="mono">python -m mox demo-attestations</span> to generate simulated ones (demo data).</div>;
+    return <div className="p-4"><div className="bp-card" style={{ maxWidth: 640 }}><div className="card-h"><h2>No attestations received</h2></div><div className="card-b hint">The sector view is built only from signed attestations. Export one from <Link className="link" to="/attest">Attest</Link>, or generate simulated ones (labelled demo data) with <span className="mono">python -m mox demo-attestations</span>.</div></div></div>;
   const kpis = [[k.attestations, "signed attestations verified"], [k.sectors, "critical sectors reporting"],
     [k.hndl_exposed.toLocaleString(), "HNDL-exposed assets across sectors (simulated)", "red"], [k.leaks, "file paths or hostnames disclosed"]];
   return (
@@ -35,7 +38,7 @@ export default function Sector() {
                 <span className="mono font-bold">{s.readiness}<span className="dim"> /100</span></span><span>{s.wave}</span><span>{s.contain_share}%</span><span>{s.hybrid}</span>
               </div>
             ))}
-            {!p.shown.length && <div className="p-6 dim">No matching sectors.</div>}
+            {!p.shown.length && <NoMatch p={p} noun="sector" />}
             <Pager p={p} />
           </div>
           <div className="panel p-3 text-[12px] dim" style={{ borderStyle: "dashed" }}>

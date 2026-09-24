@@ -80,7 +80,7 @@ export default function App() {
         <Route path="/scan" element={<NewScan summary={summary} onScanned={refresh} />} />
         <Route path="/queue" element={<Queue summary={summary} />} />
         <Route path="/asset/:id" element={<Asset onChanged={refresh} />} />
-        <Route path="/fix" element={<Fix onChanged={refresh} />} />
+        <Route path="/fix" element={<Fix onChanged={refresh} summary={summary} />} />
         <Route path="/fix/:findingId" element={<Fix onChanged={refresh} />} />
         <Route path="/cbom" element={<Cbom summary={summary} />} />
         <Route path="/roadmap" element={<Roadmap summary={summary} />} />

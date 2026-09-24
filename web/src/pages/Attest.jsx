@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
+import { Failed } from "../components/States.jsx";
 import { Check } from "../components/Marks.jsx";
 import Icon from "../components/Icon.jsx";
 import { useConfirm } from "../motion.js";
@@ -26,13 +27,14 @@ export default function Attest({ summary }) {
   const [d, setD] = useState(null);
   const [copyLabel, confirmCopy] = useConfirm("Copy root", "Copied");
   const copyRoot = (root) => navigator.clipboard.writeText(root).then(() => confirmCopy(), () => confirmCopy("Copy blocked"));
-  useEffect(() => { setD(null); api.attest(sector).then(setD).catch(() => setD(false)); }, [summary, sector]);
-  if (d === false) return <div className="p-6 dim">Run a scan first.</div>;
+  const load = () => { setD(null); api.attest(sector).then(setD).catch((e) => setD({ error: e })); };
+  useEffect(load, [summary, sector]);
+  if (d?.error) return <Failed what="the attestation" err={d.error} onRetry={load} />;
   if (!d) return <div className="p-6 dim">Building attestation…</div>;
   const a = d.attestation, r = a.readiness_index;
   const fields = [a, a.assets, a.verdicts, a.coverage, a.signature].reduce((n, o) => n + Object.keys(o).length, 0);
   return (
-    <div className="p-4 max-w-[1400px] mx-auto grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)_280px]">
+    <div className="p-4 max-w-[1400px] mx-auto grid gap-4 items-start lg:grid-cols-[280px_minmax(0,1fr)_280px]">
       <div className="flex flex-col gap-4">
         <div className="panel p-4">
           <div className="h">Leaves the premises</div><div className="dim mb-2">Counts and proofs — never locations</div>

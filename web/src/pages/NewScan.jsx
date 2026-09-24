@@ -22,7 +22,8 @@ export default function NewScan({ summary, onScanned }) {
   useEffect(() => () => es.current?.close(), []);
   // The latest scan may load after first render (direct link to /scan): prefill its folder once it arrives.
   useEffect(() => { if (!path && summary?.scan?.target) setPath(summary.scan.target); }, [summary?.scan?.target]);
-  useEffect(() => { api.netstat().then(setNet).catch(() => setNet(null)); }, [run?.state]);
+  const loadNet = () => api.netstat().then(setNet).catch(() => setNet(null));
+  useEffect(() => { loadNet(); }, [run?.state]);
   useEffect(() => { if (loc.hash === "#network") netRef.current?.scrollIntoView(); }, [loc.hash, net]);
 
   const follow = (id) => {
@@ -71,7 +72,7 @@ export default function NewScan({ summary, onScanned }) {
 
   return (
     <div className="p-4 flex flex-col gap-3">
-      <div className="grid gap-3" style={{ gridTemplateColumns: "1fr var(--aside)" }}>
+      <div className="grid gap-3 items-start" style={{ gridTemplateColumns: "1fr var(--aside)" }}>
         <form className="bp-card" onSubmit={start}>
           <div className="card-h"><h2>New scan</h2><span className="note">a local folder on this machine; read-only</span></div>
           <div className="card-b flex flex-col gap-3">
@@ -137,7 +138,7 @@ export default function NewScan({ summary, onScanned }) {
                 (<span className="mono">{net.since}</span>) it has made <b className="mono">{net.outbound}</b> outbound
                 and <b className="mono">{net.loopback}</b> loopback connects.
               </div>
-            </> : <div className="hint">Could not read the socket counter. Check the server is running, then reload this page.</div>}
+            </> : <div className="hint">Could not read the socket counter, so outbound connects are not being shown. Check the MOX server is running, then <button type="button" className="linkbtn" onClick={loadNet}>retry</button>.</div>}
           </div>
         </div>
       </div>
@@ -146,6 +147,8 @@ export default function NewScan({ summary, onScanned }) {
         <Pipeline stages={run.stages} progress={run.progress} state={run.state} error={run.error} net={run.net}
           disabled={PLANES.filter((p) => (p === "tls" ? !tlsOn : !on.has(p)))}
           note={running ? "live; each stage fills as the scanner reports it" : "timings measured by the scanner (perf_counter)"} />
+      ) : summary?.stages?.length ? (
+        <Pipeline stages={summary.stages} net={summary.scan?.net} note={`recorded stage timings, scan #${summary.scan?.id}`} />
       ) : (
         <div className="bp-card"><div className="card-b hint">
           Pick a folder and start a scan. Each stage of the pipeline, and each of the 7 planes inside Detect, fills in here as the scanner reports it.

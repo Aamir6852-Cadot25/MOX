@@ -118,6 +118,24 @@ def _assets(conn, scan_id):
     return sorted((_asset(conn, r) for r in rows), key=lambda a: -a["score"])
 
 
+def _verdict_detail(assets) -> dict:
+    """What each verdict holds, for the dashboard's "is anything on fire?" (docs/SCREENS.md). All from the scan."""
+    by = {v: [a for a in assets if a["verdict"] == v] for v in ("MIGRATE", "CONTAIN", "ACCEPT")}
+    wave1 = sorted((a for a in by["MIGRATE"] + by["CONTAIN"] if a["wave"] == 1), key=lambda a: -a["score"])
+    contain = {}
+    for a in by["CONTAIN"]:
+        k = a["breakdown"]["cmcs"]["basis"]
+        contain[k] = contain.get(k, 0) + 1
+    top = wave1[0] if wave1 else None
+    return {"wave1": len(wave1),
+            "most_urgent": top and {"id": top["id"], "label": top["label"], "tier": top["tier"], "score": top["score"],
+                                    "why": top["wave_reason"].split(". ")[0]},
+            "migrate": {"wave1": sum(1 for a in by["MIGRATE"] if a["wave"] == 1),
+                        "auto_fix": sum(1 for a in by["MIGRATE"] if a.get("fix_finding"))},
+            "contain": sorted(contain.items(), key=lambda kv: -kv[1]),
+            "accept": {"unverified": sum(1 for a in by["ACCEPT"] if a.get("verify_first"))}}
+
+
 def _summary(conn, scan, assets) -> dict:
     qv = [a for a in assets if a["breakdown"]["quantum_vulnerable"]]
     hndl = [a for a in qv if exposed(a, "hndl")]
@@ -140,6 +158,7 @@ def _summary(conn, scan, assets) -> dict:
                                                   {"migrate": verdicts["MIGRATE"]}, len(ran)),
                     "safe": len(assets) - len(qv), "hybrid": sum(1 for a in assets if a["hybrid"])},
             "verdicts": verdicts,
+            "verdict_detail": _verdict_detail(assets),
             "stages": json.loads(scan["stages"] or "[]"),
             "field": [{"id": a["id"], "label": a["label"], "exposure": a["breakdown"]["mosca"]["exposure"],
                        "criticality": a["breakdown"]["criticality"], "tier": a["tier"], "score": a["score"]}

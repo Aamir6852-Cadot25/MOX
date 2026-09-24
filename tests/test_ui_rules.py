@@ -129,3 +129,25 @@ def test_no_custom_class_shadows_a_tailwind_utility():
                  "blur", "grow", "shrink", "transform", "transition", "filter", "invert", "sepia", "grayscale", "visible"}
     defined = set(re.findall(r"(?:^|[\s,}>+~])\.([a-zA-Z][\w-]*)", "\n".join(p.read_text(encoding="utf-8") for p in CSS)))
     assert defined & utilities == set()
+
+
+# ── C6 / C7 ──
+def test_c7_no_apologies_or_dead_end_empty_states():
+    assert _offenders(JSX, lambda l: re.search(r"\b(sorry|apolog|unfortunately|oops|something went wrong)\b", l, re.I)) == []
+    assert _offenders(JSX, lambda l: "Run a scan first" in l or "Nothing left to fix automatically" in l) == []
+
+
+def test_c7_a_failed_load_is_never_shown_as_empty():
+    """.catch(() => setRows([])) turned a server error into "No events yet"."""
+    assert _offenders(JSX, lambda l: re.search(r"\.catch\(\(\)\s*=>\s*set\w+\((\[\]|false)\)\)", l)) == []
+
+
+def test_c6_every_route_names_its_one_question():
+    app = (WEB / "App.jsx").read_text(encoding="utf-8")
+    screens = (WEB.parent.parent / "docs" / "SCREENS.md").read_text(encoding="utf-8")
+    # "*" redirects; "/fix" is the list in front of Fix & verify, which is documented as /fix/:id
+    routes = [r for r in re.findall(r'<Route path="([^"]+)"', app) if r not in ("*", "/fix")]
+    for r in routes:
+        doc = {"/fix/:findingId": "/fix/:id", "/asset/:id": "/asset/:id"}.get(r, r)
+        row = next((l for l in screens.splitlines() if f"`{doc}`" in l), None)
+        assert row and "?" in row, f"{r} has no question in docs/SCREENS.md"

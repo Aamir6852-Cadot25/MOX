@@ -86,6 +86,7 @@ def apply(conn, fix_id: int, actor: str, note: str = "") -> dict:
     note = note.strip()[:200]
     auth.audit(conn, actor, "fix-approve", f"fix {fix_id} {f['file']}" + (f" note: {note}" if note else ""))
     _trail(d, f"approved by {actor}" + (f" · {note}" if note else ""))
+    d.update(approved_by=actor, approved_at=_now(), review_note=note or None)  # "who signed it" (docs/SCREENS.md)
     bak = path.with_name(path.name + ".bak")
     if not bak.exists():  # keep the earliest copy: it is the true original
         shutil.copy2(path, bak)

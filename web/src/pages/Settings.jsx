@@ -10,10 +10,11 @@ export default function Settings({ summary, onChanged }) {
   const [z, setZ] = useState("");
   const [saved, setSaved] = useState(null);
   const [err, setErr] = useState("");
+  const [loadErr, setLoadErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [change, setChange] = useState(null);
   const [saveLabel, confirmSave] = useConfirm("Save and re-score", "Saved"); // {from, to, before, after}
-  const load = () => { setErr(""); api.settings().then((s) => { setSaved(s.threat_horizon); setZ(String(s.threat_horizon)); }).catch((e) => setErr(e.message)); };
+  const load = () => { setLoadErr(""); api.settings().then((s) => { setSaved(s.threat_horizon); setZ(String(s.threat_horizon)); }).catch((e) => setLoadErr(e.message)); };
   useEffect(load, []);
   useEffect(() => { if (change && !change.after && summary?.verdicts) setChange((c) => ({ ...c, after: summary.verdicts })); }, [summary]);
 
@@ -51,6 +52,7 @@ export default function Settings({ summary, onChanged }) {
             <button className="bp-btn pri" disabled={busy || !valid || n === saved}>{busy ? "Re-scoring" : saveLabel}</button>
           </div>
           {!valid && z !== "" && <div className="errbox">Z must be a whole number of years from 1 to 40.</div>}
+          {loadErr && <div className="errbox">Could not load the current settings: {loadErr}. Nothing can be changed until they load; scores keep using the stored value. <button type="button" className="linkbtn" onClick={load}>Retry</button></div>}
           {err && <div className="errbox">Could not save: {err}. The previous value <span className="mono">{saved}</span> is still in force.</div>}
           {change && (
             <div className="hint">

@@ -13,6 +13,8 @@ const STYLE = {
 };
 const CRIT = { 3: "3 mission-critical", 2: "2 normal", 1: "1 low" };
 const MAX_SCORE = 75.6; // (40 + 15 + 8) x 1.2 x 1.0, docs/SCORING.md
+const LABEL_TOP = 5;    // label candidates, highest risk first
+const CH = 6.3;         // advance of IBM Plex Mono at 10.5px (0.6 em): label width = characters x CH
 const radius = (s) => 4 + 7 * Math.sqrt(Math.max(0, s) / MAX_SCORE);
 
 export function Swatch({ tier }) {
@@ -43,7 +45,27 @@ export default function RiskField({ field }) {
     });
     return { dots, ticks, x0: x(0), x, exposedN: field.filter((f) => f.exposure > 0).length };
   }, [field]);
-  const labelled = new Set(dots.filter((d) => d.tier === "Critical").concat(dots.slice(0, 3)).slice(0, 4).map((d) => d.id));
+  // B3: labels never collide. The top-scoring assets are tried right, left, above, then below their dot; a spot is
+  // taken only if it stays inside the plot and overlaps no placed label and no other dot. The rest are left to
+  // hover / focus, which names every dot.
+  const labels = useMemo(() => {
+    const placed = [];
+    const rectHitsDot = (b, d) => {
+      const nx = Math.max(b.x, Math.min(d.cx, b.x + b.w)), ny = Math.max(b.y, Math.min(d.cy, b.y + b.h));
+      return (nx - d.cx) ** 2 + (ny - d.cy) ** 2 < (d.r + 2) ** 2;
+    };
+    const free = (b, own) => b.x >= M.l && b.x + b.w <= W - M.r && b.y >= M.t && b.y + b.h <= H - M.b
+      && !placed.some((p) => b.x < p.x + p.w + 4 && b.x + b.w + 4 > p.x && b.y < p.y + p.h && b.y + b.h > p.y)
+      && !dots.some((d) => d.id !== own.id && rectHitsDot(b, d));
+    for (const d of dots.slice(0, LABEL_TOP)) {
+      const w = d.label.length * CH, h = 12;
+      const spot = [[d.cx + d.r + 6, d.cy - h / 2], [d.cx - d.r - 6 - w, d.cy - h / 2],
+        [d.cx - w / 2, d.cy - d.r - 4 - h], [d.cx - w / 2, d.cy + d.r + 4]]
+        .map(([x, y]) => ({ x, y, w, h })).find((b) => free(b, d));
+      if (spot) placed.push({ ...spot, id: d.id, text: d.label });
+    }
+    return placed;
+  }, [dots]);
 
   return (
     <div className="rf">
@@ -73,9 +95,9 @@ export default function RiskField({ field }) {
             <circle cx={d.cx} cy={d.cy} r={d.r + 5} fill="transparent" />
             <circle cx={d.cx} cy={d.cy} r={d.r} fill={STYLE[d.tier].fill} stroke="var(--surface)" strokeWidth="3" />
             <circle cx={d.cx} cy={d.cy} r={d.r} fill={STYLE[d.tier].fill} stroke={STYLE[d.tier].stroke} strokeWidth="1.5" />
-            {labelled.has(d.id) && <text x={d.cx + d.r + 5} y={d.cy + 3.5} className="rf-dl mono">{d.label}</text>}
           </g>
         ))}
+        {labels.map((l) => <text key={l.id} x={l.x} y={l.y + l.h - 3} className="rf-dl mono" aria-hidden="true">{l.text}</text>)}
       </svg>
       {hover && (
         <div className="rf-tip" style={{ left: `${(100 * hover.cx) / W}%`, top: `${(100 * (hover.cy - hover.r)) / H}%` }}>

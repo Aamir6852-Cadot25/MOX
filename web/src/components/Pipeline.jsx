@@ -59,7 +59,7 @@ export default function Pipeline({ stages, progress, state, error, disabled, net
   const shownAssets = useCountDown(corr?.findings ?? 0, corr?.assets ?? 0, live && !!corr);
   if (!stages?.length && !state)
     return <div className="bp-card"><div className="card-h"><h2>Scan pipeline</h2></div>
-      <div className="card-b dim">No stage data for this scan. Run a new scan to record it.</div></div>;
+      <div className="card-b dim">No stage timings were recorded for this scan. Start a scan to record them: every stage and plane fills in as it runs.</div></div>;
 
   const cell = (n, i) => {
     const s = got[n];

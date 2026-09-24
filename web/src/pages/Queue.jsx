@@ -15,6 +15,7 @@ const PLANE_NAME = { code: "source", dependencies: "deps", configs: "config", ce
 // [key, header, sort value, default direction (-1 = high first), title]
 const COLS = [
   ["asset", "Asset", (a) => a.label.toLowerCase(), 1],
+  ["wave", "Wave", (a) => a.wave, 1, "Migration wave: 1 goes first. The default order is wave, then risk (the plan)"],
   ["risk", "Risk", (a) => a.score, -1, "Risk score 0–75.6; open an asset for its arithmetic"],
   ["mosca", "Mosca", (a) => a.breakdown.mosca.exposure ?? -Infinity, -1,
     "Mosca exposure in years, X + Y − Z; above 0 means quantum-exposed. n/a: no algorithm identified"],
@@ -34,7 +35,7 @@ export default function Queue({ summary }) {
   const [q, setQ] = useState("");
   const [ev, setEv] = useState("");
   const [plane, setPlane] = useState("");
-  const [sort, setSort] = useState(["risk", -1]);
+  const [sort, setSort] = useState(["wave", 1]); // "What do I do next?" (docs/SCREENS.md): the plan order
   const [sel, setSel] = useState(0);
   const search = useRef(null);
   const body = useRef(null);
@@ -169,11 +170,12 @@ export default function Queue({ summary }) {
                   <td className="c-asset">
                     <Link to={`/asset/${a.id}`} className="a1 mono" tabIndex={-1}>{a.label}</Link>
                     <div className="a2">
-                      <span className="mono">{a.summary}</span>, wave <span className="mono">{a.wave}</span>
+                      <span className="mono">{a.summary}</span>
                       {(a.planes || []).map((p) => <Badge key={p}>{PLANE_NAME[p] || p}</Badge>)}
                       {a.verify_first && <Badge family="high">Verify first</Badge>}
                     </div>
                   </td>
+                  <td className="num mono">{a.wave}</td>
                   <td className="num mono" style={{ color: `var(--${TIER_B[a.tier]}-ink)` }}>{a.score}</td>
                   <td className={`num mono${e > 0 ? " exp" : ""}`} title={e == null ? b.mosca.reason : undefined}>
                     {e == null ? <span className="of">n/a</span> : signed(e)}</td>

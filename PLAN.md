@@ -189,3 +189,14 @@ run.ps1  README.md  requirements.txt  .gitignore
 - [x] Fixed: leaving-row fade on the tr (first cell skipped it); .collapse renamed .expander (Tailwind utility clash: visibility collapse)
 - [x] tests/test_ui_rules.py: token values, token-only durations, no transition:all / infinite, no hover lift, reduced-motion block, no motion literals in JSX, no Tailwind class shadowing
 - [x] Verified live in headless Chrome by sampling mid-transition values, both motion modes (headless defaults to reduce)
+
+## Phase 19 — Part D step 6: B3, B5, C6, C7
+- [x] C6: docs/SCREENS.md names each screen's one question and most important number (12 routes; test enforces every route is listed); Roadmap states it cannot answer "over 30 months" (no schedule model) instead of inventing dates
+- [x] Dashboard answers "is anything on fire?": wave-1 count + most urgent asset and why above the fold; what each verdict holds (wave 1 / auto-fix, CONTAIN reasons, unverified ACCEPTs); pipeline card moved to New Scan; risk field moved up
+- [x] Work queue default order is wave then risk (the plan), with a sortable Wave column
+- [x] Asset detail: tier + risk score in the header; recommended replacement heads the right rail
+- [x] Fix & verify: approver, time, note and backup recorded and shown with the result
+- [x] B3: risk-field labels placed only where they collide with no label or dot and stay in the plot (measured 0 overlaps); key explains hover for the rest
+- [x] B5: verdict card holds real content; cards size to content on Dashboard, New Scan, CBOM, Attest (0 cards > 24px taller than content across 13 screens)
+- [x] C7: shared LoadError / NoScan / Failed / NoMatch states; 404 = no scan, other failures = load error with Retry; CBOM, Attest, Report, Roadmap, Sector, Audit, Fix list, Settings, New Scan network panel, Login; no failure shown as empty
+- [x] Verified live: empty database and forced HTTP 500 on every screen; tests/test_ui_rules.py adds no-apology, no masked-failure and route-question checks
