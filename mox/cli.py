@@ -2,7 +2,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from . import db, scanner
+from . import db, netguard, scanner
 from .db import ROOT
 
 
@@ -74,6 +74,7 @@ def _bench(a):
 
 
 def main(argv=None):
+    netguard.install()
     p = argparse.ArgumentParser(prog="mox", description="MOX - offline quantum-vulnerable crypto scanner")
     sub = p.add_subparsers(dest="cmd", required=True)
     c = sub.add_parser("make-demo", help="generate the gov-portal-legacy demo target")

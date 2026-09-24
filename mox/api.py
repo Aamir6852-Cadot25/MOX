@@ -3,11 +3,11 @@ import json
 import sqlite3
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import attest, auth, cbom, db, jobs, report, scanner
+from . import attest, auth, cbom, db, jobs, netguard, report, scanner
 from .fixers import flow
 from .analyze import analyze
 from .db import ROOT
@@ -43,6 +43,8 @@ class ScanReq(BaseModel):
 
 class StartReq(BaseModel):
     path: str = ""
+    planes: list[str] | None = None
+    probe: str | None = None
 
 
 class SettingsReq(BaseModel):
@@ -114,7 +116,8 @@ def _summary(scan, assets) -> dict:
         verdicts[a["verdict"]] += 1
     planes = json.loads(scan["planes_hit"])
     return {"scan": {k: scan[k] for k in ("id", "target", "started_at", "seconds", "files_scanned",
-                                          "findings_count")} | {"planes": planes},
+                                          "findings_count")} | {"planes": planes,
+                                                                "net": json.loads(scan["net"] or "null")},
             "kpi": {"files": scan["files_scanned"], "planes": len(planes), "seconds": scan["seconds"],
                     "assets": len(assets), "hndl": len(hndl), "quantum_vulnerable": len(qv),
                     "safe": len(assets) - len(qv), "hybrid": sum(1 for a in assets if a["hybrid"])},
@@ -126,6 +129,7 @@ def _summary(scan, assets) -> dict:
 
 
 def create_app() -> FastAPI:
+    netguard.install()  # count every socket connect this server makes; shown in the top bar
     app = FastAPI(title="MOX", docs_url=None, redoc_url=None, openapi_url=None)
 
     @app.post("/api/auth/login")
@@ -160,9 +164,24 @@ def create_app() -> FastAPI:
     @app.post("/api/scans/start")
     def scan_start(body: StartReq, u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
         try:
-            return jobs.start(body.path, u["sub"], _settings(conn), _overrides(conn))
+            return jobs.start(body.path, u["sub"], _settings(conn), _overrides(conn), body.planes, body.probe)
         except jobs.JobError as e:
             raise HTTPException(e.status, str(e))
+
+    @app.get("/api/scans/{job_id}/events")
+    def scan_events(job_id: int, request: Request, u=Depends(_user)):
+        after = request.headers.get("last-event-id", "0")
+        try:
+            jobs.status(job_id)  # 404 now, not inside the stream
+        except jobs.JobError as e:
+            raise HTTPException(e.status, str(e))
+        body = jobs.stream(job_id, int(after) if after.isdigit() else 0)
+        return StreamingResponse(body, media_type="text/event-stream",
+                                 headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
+
+    @app.get("/api/netstat")
+    def netstat(u=Depends(_user)):
+        return netguard.counts() | {"planes": netguard.plane_sockets()}
 
     @app.get("/api/scans/{job_id}/status")
     def scan_status(job_id: int, u=Depends(_user)):

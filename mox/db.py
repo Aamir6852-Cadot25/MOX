@@ -45,6 +45,9 @@ def connect(path=None) -> sqlite3.Connection:
     conn = sqlite3.connect(p)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
-    if "stages" not in {r["name"] for r in conn.execute("PRAGMA table_info(scans)")}:
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(scans)")}
+    if "stages" not in cols:
         conn.execute("ALTER TABLE scans ADD COLUMN stages TEXT")  # phase 8: pipeline stage events (JSON)
+    if "net" not in cols:
+        conn.execute("ALTER TABLE scans ADD COLUMN net TEXT")  # phase 11: socket connects during the scan (JSON)
     return conn

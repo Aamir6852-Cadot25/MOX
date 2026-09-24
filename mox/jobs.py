@@ -1,11 +1,14 @@
-"""Background scan jobs for the UI launcher: one scan at a time, live stage events kept in memory."""
+"""Background scan jobs for the UI launcher: one scan at a time, live events kept in memory and streamed (SSE)."""
 import itertools
+import json
 import threading
 from pathlib import Path
 
 from . import auth, db, scanner
 
 _lock = threading.Lock()
+_changed = threading.Condition(_lock)  # notified on every new job event; SSE streams wait on it
+KEEPALIVE_S = 15
 _jobs: dict[int, dict] = {}
 _ids = itertools.count(1)
 
@@ -33,34 +36,89 @@ def validate_path(raw: str) -> Path:
     return p.resolve()
 
 
+def _emit(job: dict, kind: str, data) -> None:
+    """Append one event to the job log (caller holds _lock) and wake SSE streams."""
+    job["events"].append({"seq": len(job["events"]) + 1, "type": kind, "data": data})
+    _changed.notify_all()
+
+
 def _run(job: dict, user: str, settings: dict, overrides: dict) -> None:
     def on_stage(ev):
         with _lock:
             job["stages"].append(ev)
+            _emit(job, "stage", ev)
+
+    def on_progress(planes):
+        with _lock:
+            _emit(job, "progress", planes)
     try:
         conn = db.connect()
         try:
-            s = scanner.scan(job["path"], conn=conn, settings=settings, overrides=overrides, on_stage=on_stage)
+            s = scanner.scan(job["path"], conn=conn, settings=settings, overrides=overrides, on_stage=on_stage,
+                             planes=job["planes"], probe=job["probe"], on_progress=on_progress)
             auth.audit(conn, user, "scan", f"{job['path']} -> {s['findings']} findings, {s['assets']} assets")
         finally:
             conn.close()
         with _lock:
             job.update(state="done", scan_id=s["scan_id"], result=s)
+            _emit(job, "done", {"scan_id": s["scan_id"], "net": s["net"], "errors": s["errors"][:20]})
     except Exception as e:  # surface to the UI; never kill the server
         with _lock:
             job.update(state="error", error=str(e))
+            _emit(job, "error", {"error": str(e)})
 
 
-def start(raw_path: str, user: str, settings: dict, overrides: dict) -> dict:
+def _probe(raw: str | None) -> str | None:
+    s = (raw or "").strip()
+    if not s:
+        return None
+    host, _, port = s.rpartition(":")
+    if not host or not port.isdigit() or not 0 < int(port) < 65536 or "/" in host:
+        raise JobError(400, "TLS endpoint must be host:port, e.g. 127.0.0.1:8443")
+    return s
+
+
+def start(raw_path: str, user: str, settings: dict, overrides: dict, planes: list[str] | None = None,
+          probe: str | None = None) -> dict:
     path = validate_path(raw_path)
+    known = {p.NAME for p in scanner.ALL_PLANES}
+    if planes is not None and not set(planes) <= known:
+        raise JobError(400, f"unknown plane(s): {', '.join(sorted(set(planes) - known))}")
+    probe = _probe(probe)
     with _lock:
         if any(j["state"] == "running" for j in _jobs.values()):
             raise JobError(409, "a scan is already running")
         job = {"id": next(_ids), "path": str(path), "state": "running", "stages": [], "scan_id": None,
-               "error": None, "result": None}
+               "error": None, "result": None, "events": [], "probe": probe,
+               "planes": set(planes) if planes is not None else None}
         _jobs[job["id"]] = job
     threading.Thread(target=_run, args=(job, user, settings, overrides), daemon=True).start()
     return status(job["id"])
+
+
+def stream(job_id: int, after: int = 0):
+    """SSE body: replay events after `after` (Last-Event-ID), then follow live until done/error."""
+    with _lock:
+        if job_id not in _jobs:
+            raise JobError(404, "scan job not found")
+    sent = after
+    while True:
+        with _lock:
+            job = _jobs[job_id]
+            if len(job["events"]) <= sent and job["state"] == "running":
+                _changed.wait(KEEPALIVE_S)
+            new = job["events"][sent:]
+            finished = job["state"] != "running"
+        if not new:
+            if finished:
+                return
+            yield ": keepalive\n\n"
+            continue
+        for ev in new:
+            yield f"id: {ev['seq']}\nevent: {ev['type']}\ndata: {json.dumps(ev['data'])}\n\n"
+            sent = ev["seq"]
+            if ev["type"] in ("done", "error"):
+                return
 
 
 def status(job_id: int) -> dict:
@@ -68,4 +126,6 @@ def status(job_id: int) -> dict:
         job = _jobs.get(job_id)
         if not job:
             raise JobError(404, "scan job not found")
-        return {**job, "stages": list(job["stages"]), "running": job["state"] == "running"}
+        out = {k: v for k, v in job.items() if k != "events"}
+        return {**out, "stages": list(job["stages"]), "running": job["state"] == "running",
+                "planes": sorted(job["planes"]) if job["planes"] is not None else None}

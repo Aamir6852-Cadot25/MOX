@@ -1,0 +1,1380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MOX — Interface Blueprint</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;450;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* surfaces */
+  --paper:#EEF1F4;
+  --canvas:#F6F8F9;
+  --surface:#FFFFFF;
+  --surface-2:#FAFBFC;
+
+  /* ink */
+  --ink:#1E2A35;
+  --ink-2:#4B5A68;
+  --ink-3:#7E8B97;
+  --ink-4:#A4AFB9;
+
+  /* lines */
+  --line:#E3E8ED;
+  --line-2:#D2DAE1;
+
+  /* primary */
+  --pri:#3D5A7A;
+  --pri-soft:#E9EEF4;
+  --pri-line:#C6D2E0;
+
+  /* risk — pastel fill, saturated ink */
+  --crit-bg:#F9E9E6; --crit-ink:#9A382B; --crit-line:#E9C9C2;
+  --high-bg:#FAF0E2; --high-ink:#8C5C1C; --high-line:#EAD7BC;
+  --med-bg:#F7F3E2;  --med-ink:#74641E;  --med-line:#E5DDBE;
+  --low-bg:#E9F0EB;  --low-ink:#3C6A4E;  --low-line:#CEDFD4;
+  --safe-bg:#E5EEF0; --safe-ink:#2E5D66; --safe-line:#C7DCE0;
+
+  /* geometry — 8pt grid */
+  --r:6px;
+  --pad:16px;
+  --gap:12px;
+  --row:36px;
+  --rail:180px;
+  --aside:296px;
+  --bar:44px;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:'IBM Plex Sans',system-ui,sans-serif;
+  background:var(--paper);
+  color:var(--ink);
+  font-size:12px;
+  line-height:1.45;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  padding-top:env(safe-area-inset-top,0px);
+  overflow:hidden;
+}
+.mono{font-family:'IBM Plex Mono',monospace}
+
+/* ── screen picker (outside the canvas) ── */
+.picker{
+  display:flex;gap:4px;flex-wrap:wrap;justify-content:center;
+  padding:10px 12px 8px;
+}
+.pick{
+  font:450 11px/1 'IBM Plex Sans';
+  color:var(--ink-2);
+  background:var(--surface);
+  border:1px solid var(--line-2);
+  border-radius:99px;
+  padding:6px 12px;
+  cursor:pointer;
+}
+.pick:hover{border-color:var(--pri-line);color:var(--ink)}
+.pick[aria-selected="true"]{background:var(--pri);border-color:var(--pri);color:#fff}
+
+/* ── fixed 16:9 canvas ── */
+.stage{flex:1;display:flex;align-items:center;justify-content:center;width:100%;padding:0 12px 14px;min-height:0}
+.frame{
+  width:1280px;height:720px;
+  background:var(--canvas);
+  border:1px solid var(--line-2);
+  border-radius:8px;
+  overflow:hidden;
+  display:flex;flex-direction:column;
+  transform-origin:center center;
+  box-shadow:0 1px 2px rgba(30,42,53,.04),0 8px 24px rgba(30,42,53,.06);
+}
+
+/* ── top bar ── */
+.top{
+  height:var(--bar);flex:0 0 var(--bar);
+  background:var(--surface);
+  border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:14px;padding:0 16px;
+}
+.logo{font:600 15px/1 'IBM Plex Sans';letter-spacing:.14em;color:var(--pri)}
+.target{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-3)}
+.target b{font:500 11px/1.4 'IBM Plex Mono';color:var(--ink-2)}
+.top-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.pill{
+  display:inline-flex;align-items:center;gap:6px;
+  height:26px;padding:0 10px;
+  border:1px solid var(--line-2);border-radius:99px;
+  font-size:11px;color:var(--ink-2);background:var(--surface-2);
+}
+.pill.ok{background:var(--low-bg);border-color:var(--low-line);color:var(--low-ink)}
+.led{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.8}
+.who{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--ink-2)}
+.who .av{width:24px;height:24px;border-radius:50%;background:var(--pri-soft);border:1px solid var(--pri-line);
+  color:var(--pri);font:500 10px/1 'IBM Plex Sans';display:flex;align-items:center;justify-content:center}
+
+/* ── body split ── */
+.body{flex:1;display:flex;min-height:0}
+
+/* ── rail ── */
+.rail{
+  width:var(--rail);flex:0 0 var(--rail);
+  background:var(--surface);border-right:1px solid var(--line);
+  padding:12px 0;display:flex;flex-direction:column;
+}
+.rail-h{font:500 9.5px/1 'IBM Plex Sans';letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-4);padding:12px 16px 6px}
+.rail-h:first-child{padding-top:0}
+.nav{display:flex;align-items:center;gap:9px;height:30px;padding:0 16px;
+  color:var(--ink-2);cursor:pointer;border-left:2px solid transparent;font-size:12px}
+.nav:hover{background:var(--surface-2);color:var(--ink)}
+.nav[aria-current="page"]{background:var(--pri-soft);border-left-color:var(--pri);color:var(--pri);font-weight:500}
+.nav .ic{width:14px;flex:0 0 14px;opacity:.75}
+.nav .ct{margin-left:auto;font:500 10px/1 'IBM Plex Mono';color:var(--ink-4)}
+.nav[aria-current="page"] .ct{color:var(--pri)}
+.rail-foot{margin-top:auto;padding:10px 16px 0;border-top:1px solid var(--line);
+  font-size:10px;color:var(--ink-4);line-height:1.5}
+
+/* ── main ── */
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.head{
+  flex:0 0 auto;padding:14px 20px 12px;border-bottom:1px solid var(--line);
+  background:var(--surface);display:flex;align-items:flex-end;gap:12px;
+}
+.head h1{font:500 17px/1.2 'IBM Plex Sans';color:var(--ink)}
+.head .sub{font-size:11.5px;color:var(--ink-3);padding-bottom:1px}
+.head-act{margin-left:auto;display:flex;gap:8px}
+
+.btn{height:28px;padding:0 13px;border-radius:var(--r);border:1px solid var(--line-2);
+  background:var(--surface);color:var(--ink-2);font:450 11.5px/1 'IBM Plex Sans';
+  display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.btn:hover{border-color:var(--pri-line);color:var(--ink)}
+.btn.pri{background:var(--pri);border-color:var(--pri);color:#fff}
+.btn.pri:hover{background:#34506E}
+
+.scroll{flex:1;overflow-y:auto;padding:16px 20px 20px}
+.scroll::-webkit-scrollbar{width:8px}
+.scroll::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:99px;border:2px solid var(--canvas)}
+.scroll::-webkit-scrollbar-track{background:transparent}
+
+/* ── cards ── */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.card-h{height:34px;display:flex;align-items:center;gap:8px;padding:0 var(--pad);
+  border-bottom:1px solid var(--line);background:var(--surface-2)}
+.card-h h2{font:500 11.5px/1 'IBM Plex Sans';color:var(--ink)}
+.card-h .note{font-size:10.5px;color:var(--ink-4);margin-left:auto}
+.card-b{padding:var(--pad)}
+
+.grid{display:grid;gap:var(--gap)}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g5{grid-template-columns:repeat(5,1fr)}
+.g2{grid-template-columns:1fr 1fr}
+.stack{display:flex;flex-direction:column;gap:var(--gap)}
+
+/* ── metric tiles — uniform height ── */
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+  padding:13px 14px;height:88px;display:flex;flex-direction:column;justify-content:space-between}
+.tile .n{font:500 26px/1 'IBM Plex Sans';letter-spacing:-.02em}
+.tile .l{font-size:10.5px;color:var(--ink-3);line-height:1.35}
+.tile.crit{background:var(--crit-bg);border-color:var(--crit-line)} .tile.crit .n{color:var(--crit-ink)}
+.tile.high{background:var(--high-bg);border-color:var(--high-line)} .tile.high .n{color:var(--high-ink)}
+.tile.low{background:var(--low-bg);border-color:var(--low-line)}    .tile.low .n{color:var(--low-ink)}
+.tile.safe{background:var(--safe-bg);border-color:var(--safe-line)} .tile.safe .n{color:var(--safe-ink)}
+
+/* ── verdict bar ── */
+.vbar{display:flex;height:28px;border-radius:var(--r);overflow:hidden;border:1px solid var(--line)}
+.vseg{display:flex;align-items:center;justify-content:center;gap:6px;
+  font:500 10.5px/1 'IBM Plex Sans';letter-spacing:.03em}
+.vseg.m{background:var(--crit-bg);color:var(--crit-ink)}
+.vseg.c{background:var(--med-bg);color:var(--med-ink)}
+.vseg.a{background:var(--low-bg);color:var(--low-ink)}
+
+/* ── pipeline ── */
+.pipe{display:grid;grid-template-columns:repeat(5,1fr);gap:0;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.stage-c{padding:11px 13px;border-right:1px solid var(--line);background:var(--surface);min-width:0}
+.stage-c:last-child{border-right:0}
+.stage-c .st{font:500 9.5px/1 'IBM Plex Sans';letter-spacing:.08em;text-transform:uppercase;color:var(--ink-4)}
+.stage-c .sv{font:500 16px/1.2 'IBM Plex Sans';margin:6px 0 3px;color:var(--ink)}
+.stage-c .sd{font-size:10.5px;color:var(--ink-3);line-height:1.4}
+.stage-c .sm{font:400 9.5px/1 'IBM Plex Mono';color:var(--ink-4);margin-top:7px}
+
+/* ── table ── */
+table{width:100%;border-collapse:collapse;font-size:11.5px}
+thead th{
+  height:30px;text-align:left;padding:0 12px;
+  font:500 10px/1 'IBM Plex Sans';letter-spacing:.07em;text-transform:uppercase;
+  color:var(--ink-4);background:var(--surface-2);border-bottom:1px solid var(--line);
+  position:sticky;top:0;z-index:1;
+}
+tbody td{height:var(--row);padding:0 12px;border-bottom:1px solid var(--line);vertical-align:middle;color:var(--ink-2)}
+tbody tr:last-child td{border-bottom:0}
+tbody tr{cursor:pointer}
+tbody tr:hover td{background:var(--surface-2)}
+tbody tr[aria-selected="true"] td{background:var(--pri-soft)}
+.num{text-align:right;font-family:'IBM Plex Mono';font-weight:500;color:var(--ink)}
+.ctr{text-align:center}
+.asset-cell{display:flex;flex-direction:column;gap:1px;padding:5px 0}
+.asset-cell .a1{font:500 11.5px/1.3 'IBM Plex Mono';color:var(--ink)}
+.asset-cell .a2{font-size:10px;color:var(--ink-4)}
+
+/* ── badges ── */
+.b{display:inline-flex;align-items:center;height:19px;padding:0 8px;border-radius:99px;
+  font:500 10px/1 'IBM Plex Sans';letter-spacing:.03em;border:1px solid}
+.b.crit{background:var(--crit-bg);color:var(--crit-ink);border-color:var(--crit-line)}
+.b.high{background:var(--high-bg);color:var(--high-ink);border-color:var(--high-line)}
+.b.med{background:var(--med-bg);color:var(--med-ink);border-color:var(--med-line)}
+.b.low{background:var(--low-bg);color:var(--low-ink);border-color:var(--low-line)}
+.b.safe{background:var(--safe-bg);color:var(--safe-ink);border-color:var(--safe-line)}
+.b.plain{background:var(--surface-2);color:var(--ink-3);border-color:var(--line-2)}
+.b.pri{background:var(--pri-soft);color:var(--pri);border-color:var(--pri-line)}
+
+.ev{font-size:10.5px;color:var(--ink-3)}
+.ev b{font-weight:500;color:var(--ink-2)}
+
+/* ── filter row ── */
+.filters{display:flex;align-items:center;gap:6px;padding:10px var(--pad);border-bottom:1px solid var(--line);background:var(--surface)}
+.search{flex:1;max-width:240px;height:27px;border:1px solid var(--line-2);border-radius:var(--r);
+  padding:0 10px;font:400 11.5px/1 'IBM Plex Sans';color:var(--ink);background:var(--surface-2)}
+.search::placeholder{color:var(--ink-4)}
+.chip{height:25px;padding:0 11px;border-radius:99px;border:1px solid var(--line-2);
+  background:var(--surface);color:var(--ink-2);font:450 11px/1 'IBM Plex Sans';cursor:pointer;
+  display:inline-flex;align-items:center;gap:5px}
+.chip:hover{border-color:var(--pri-line)}
+.chip[aria-pressed="true"]{background:var(--pri);border-color:var(--pri);color:#fff}
+.chip .n{font-family:'IBM Plex Mono';font-size:10px;opacity:.75}
+
+.legend{padding:8px var(--pad);background:var(--surface-2);border-bottom:1px solid var(--line);
+  font-size:10.5px;color:var(--ink-3);line-height:1.5}
+.legend b{font-weight:500;color:var(--ink-2)}
+
+/* ── asset detail ── */
+.split{flex:1;display:flex;min-height:0}
+.split .lft{flex:1;min-width:0;overflow-y:auto;padding:16px 18px 20px}
+.split .rgt{width:var(--aside);flex:0 0 var(--aside);border-left:1px solid var(--line);
+  background:var(--surface);overflow-y:auto}
+.split .lft::-webkit-scrollbar,.split .rgt::-webkit-scrollbar{width:8px}
+.split .lft::-webkit-scrollbar-thumb,.split .rgt::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:99px;border:2px solid var(--surface)}
+
+.crumb{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-4);margin-bottom:10px}
+.crumb a{color:var(--ink-3);cursor:pointer}
+.crumb a:hover{color:var(--pri)}
+
+.asset-hd{display:flex;align-items:flex-start;gap:12px;margin-bottom:12px}
+.asset-hd h1{font:500 19px/1.2 'IBM Plex Mono';color:var(--ink)}
+.asset-hd .spki{font:400 10px/1.4 'IBM Plex Mono';color:var(--ink-4);margin-top:3px}
+.asset-hd .tags{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap}
+
+.alert{display:flex;align-items:flex-start;gap:10px;padding:11px 13px;border-radius:var(--r);
+  background:var(--crit-bg);border:1px solid var(--crit-line);margin-bottom:var(--gap)}
+.alert .ti{font:500 11.5px/1.3 'IBM Plex Sans';color:var(--crit-ink)}
+.alert .de{font-size:10.5px;color:var(--crit-ink);opacity:.82;margin-top:2px;line-height:1.45}
+.alert .ac{margin-left:auto;flex:0 0 auto}
+.alert .btn{background:transparent;border-color:var(--crit-line);color:var(--crit-ink)}
+
+/* evidence chain */
+.chain{display:flex;flex-direction:column}
+.link{padding:9px 12px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface-2)}
+.link .k{font:500 9.5px/1 'IBM Plex Sans';letter-spacing:.08em;text-transform:uppercase;color:var(--ink-4)}
+.link .v{font-size:11px;color:var(--ink-2);margin-top:4px;line-height:1.45}
+.link.out{background:var(--pri-soft);border-color:var(--pri-line)}
+.link.out .k{color:var(--pri)}
+.link.out .v{color:var(--pri);font-weight:500}
+.tick{height:12px;width:1px;background:var(--line-2);margin-left:18px}
+
+/* mosca */
+.mosca{display:flex;align-items:stretch;gap:5px}
+.mbox{flex:1;border:1px solid var(--line);border-radius:var(--r);background:var(--surface-2);
+  padding:8px 4px;text-align:center;min-width:0}
+.mbox .mv{font:500 17px/1 'IBM Plex Mono';color:var(--ink)}
+.mbox .mk{font-size:9px;color:var(--ink-4);margin-top:4px;line-height:1.3}
+.mop{display:flex;align-items:center;color:var(--ink-4);font-size:12px;flex:0 0 auto}
+.mbox.res{background:var(--crit-bg);border-color:var(--crit-line)}
+.mbox.res .mv{color:var(--crit-ink)}
+.mbox.res .mk{color:var(--crit-ink);opacity:.75}
+.mbox.res.safe{background:var(--low-bg);border-color:var(--low-line)}
+.mbox.res.safe .mv{color:var(--low-ink)}
+.mbox.res.safe .mk{color:var(--low-ink)}
+
+.tl{margin-top:11px}
+.tl-ax{display:flex;justify-content:space-between;font:400 9px/1 'IBM Plex Mono';color:var(--ink-4);margin-bottom:5px}
+.tl-tr{height:9px;border-radius:99px;background:var(--line);position:relative;overflow:visible}
+.tl-x{position:absolute;left:0;top:0;height:100%;background:var(--pri-line);border-radius:99px 0 0 99px}
+.tl-y{position:absolute;top:0;height:100%;background:var(--high-line)}
+.tl-e{position:absolute;top:0;height:100%;background:var(--crit-line);border-radius:0 99px 99px 0}
+.tl-z{position:absolute;top:-4px;height:17px;width:2px;background:var(--safe-ink);border-radius:2px}
+.tl-key{display:flex;gap:10px;flex-wrap:wrap;margin-top:7px;font-size:9.5px;color:var(--ink-3)}
+.tl-key i{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:4px;vertical-align:-1px}
+
+.verdict-line{display:flex;align-items:center;gap:7px;margin-top:10px;padding:8px 10px;
+  border-radius:var(--r);background:var(--crit-bg);border:1px solid var(--crit-line);
+  font-size:10.5px;color:var(--crit-ink);line-height:1.4}
+
+.fields{display:flex;flex-direction:column;gap:7px;margin-top:11px}
+.fr{display:flex;align-items:center;gap:8px}
+.fr label{flex:1;font-size:11px;color:var(--ink-2)}
+.fr input,.fr select{height:26px;border:1px solid var(--line-2);border-radius:var(--r);
+  background:var(--surface);color:var(--ink);font:500 11px/1 'IBM Plex Mono';padding:0 7px}
+.fr input{width:58px;text-align:right}
+.fr select{width:132px;font-family:'IBM Plex Sans';font-weight:400}
+
+/* score breakdown */
+.brk{display:flex;flex-direction:column;gap:0}
+.brk-r{display:flex;align-items:center;height:26px;font-size:11px;color:var(--ink-2);
+  border-bottom:1px solid var(--line)}
+.brk-r:last-child{border-bottom:0}
+.brk-r .bv{margin-left:auto;font:500 11px/1 'IBM Plex Mono';color:var(--ink)}
+.brk-r.tot{font-weight:500;color:var(--ink)}
+.brk-r.tot .bv{color:var(--crit-ink);font-size:13px}
+
+/* cmcs meter */
+.meter{margin-top:4px}
+.meter-tr{height:7px;border-radius:99px;background:var(--line);overflow:hidden}
+.meter-fl{height:100%;border-radius:99px;background:var(--high-line)}
+.meter-ax{display:flex;justify-content:space-between;font-size:9.5px;color:var(--ink-4);margin-top:5px}
+
+/* ── roadmap waves ── */
+.waves{display:grid;grid-template-columns:repeat(5,1fr);gap:var(--gap)}
+.wave{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);
+  padding:12px 13px;height:112px;display:flex;flex-direction:column;cursor:pointer}
+.wave:hover{border-color:var(--pri-line)}
+.wave[aria-pressed="true"]{border-color:var(--pri);background:var(--pri-soft)}
+.wave .wn{font:500 9.5px/1 'IBM Plex Sans';letter-spacing:.09em;text-transform:uppercase;color:var(--ink-4)}
+.wave .wt{font:500 13px/1.25 'IBM Plex Sans';color:var(--ink);margin:6px 0 4px}
+.wave .wd{font-size:10.5px;color:var(--ink-3);line-height:1.4}
+.wave .wc{margin-top:auto;font:500 10px/1 'IBM Plex Mono';color:var(--ink-3)}
+.wave .bar{height:3px;border-radius:2px;margin-top:8px}
+
+/* ── attest ── */
+.leave{display:flex;flex-direction:column}
+.leave-r{display:flex;align-items:center;gap:9px;height:30px;font-size:11.5px;
+  color:var(--ink-2);border-bottom:1px solid var(--line)}
+.leave-r:last-child{border-bottom:0}
+.leave-r .mk{width:14px;flex:0 0 14px;text-align:center;font-size:11px}
+.leave-r.yes .mk{color:var(--low-ink)}
+.leave-r.no .mk{color:var(--crit-ink)}
+pre.json{margin:0;font:400 10.5px/1.6 'IBM Plex Mono';color:var(--ink-2);white-space:pre;overflow:auto}
+pre.json::-webkit-scrollbar{width:8px;height:8px}
+pre.json::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:99px}
+.jk{color:var(--pri)} .jn{color:var(--crit-ink)} .js{color:var(--low-ink)}
+
+/* ── fix & verify ── */
+.steps{display:flex;align-items:center;gap:0;margin-bottom:var(--gap)}
+.step{flex:1;display:flex;flex-direction:column;gap:5px;padding:0 4px}
+.step .sbar{height:3px;border-radius:2px;background:var(--line)}
+.step.done .sbar{background:var(--low-ink)}
+.step.now .sbar{background:var(--pri)}
+.step .sl{font-size:10.5px;color:var(--ink-4)}
+.step.done .sl{color:var(--low-ink)}
+.step.now .sl{color:var(--pri);font-weight:500}
+
+.diff{border:1px solid var(--line);border-radius:var(--r);overflow:hidden;font:400 10.5px/1.7 'IBM Plex Mono'}
+.diff-h{height:26px;display:flex;align-items:center;padding:0 11px;background:var(--surface-2);
+  border-bottom:1px solid var(--line);font:500 10px/1 'IBM Plex Mono';color:var(--ink-3)}
+.dl{display:flex;padding:0 11px}
+.dl .g{width:26px;flex:0 0 26px;color:var(--ink-4);text-align:right;padding-right:10px;user-select:none}
+.dl.del{background:var(--crit-bg);color:var(--crit-ink)}
+.dl.add{background:var(--low-bg);color:var(--low-ink)}
+
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:8px;padding:44px 20px;text-align:center}
+.empty .et{font:500 13px/1.3 'IBM Plex Sans';color:var(--ink-2)}
+.empty .ed{font-size:11.5px;color:var(--ink-4);max-width:300px;line-height:1.5}
+
+/* risk field plot */
+.plot{position:relative;height:196px;border-left:1px solid var(--line-2);border-bottom:1px solid var(--line-2);margin:6px 10px 0 34px}
+.plot .gl{position:absolute;top:0;bottom:0;width:1px;background:var(--line)}
+.plot .gl.zero{background:var(--line-2);border-left:1px dashed var(--ink-4);width:0}
+.plot .hl{position:absolute;left:0;right:0;height:1px;background:var(--line)}
+.dot{position:absolute;border-radius:50%;transform:translate(-50%,50%);cursor:pointer;border:1.5px solid}
+.dot.crit{background:var(--crit-line);border-color:var(--crit-ink)}
+.dot.high{background:var(--high-line);border-color:var(--high-ink)}
+.dot.med{background:var(--med-line);border-color:var(--med-ink)}
+.dot.low{background:var(--low-line);border-color:var(--low-ink)}
+.ax-l{position:absolute;font:400 9.5px/1 'IBM Plex Mono';color:var(--ink-4)}
+
+[hidden]{display:none !important}
+
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#141A20;--canvas:#171E25;--surface:#1B232B;--surface-2:#1F2830;
+    --ink:#E4EAEF;--ink-2:#B3BFCA;--ink-3:#8896A3;--ink-4:#657482;
+    --line:#2A343E;--line-2:#374450;
+    --pri:#8FB3D9;--pri-soft:#22303F;--pri-line:#3A5068;
+    --crit-bg:#2E1F1C;--crit-ink:#E8A79A;--crit-line:#4A322C;
+    --high-bg:#2C2418;--high-ink:#DFBB86;--high-line:#463A26;
+    --med-bg:#282516;--med-ink:#D4C888;--med-line:#403B24;
+    --low-bg:#1B2620;--low-ink:#94C6A8;--low-line:#2C3F34;
+    --safe-bg:#1A2527;--safe-ink:#8FC2CB;--safe-line:#2A3D40;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="picker" role="tablist">
+  <button class="pick" role="tab" aria-selected="true"  data-s="dash">Dashboard</button>
+  <button class="pick" role="tab" aria-selected="false" data-s="queue">Work queue</button>
+  <button class="pick" role="tab" aria-selected="false" data-s="asset">Asset detail</button>
+  <button class="pick" role="tab" aria-selected="false" data-s="fix">Fix &amp; verify</button>
+  <button class="pick" role="tab" aria-selected="false" data-s="cbom">CBOM</button>
+  <button class="pick" role="tab" aria-selected="false" data-s="road">Roadmap</button>
+  <button class="pick" role="tab" aria-selected="false" data-s="attest">Attest</button>
+</div>
+
+<div class="stage">
+<div class="frame" id="frame">
+
+  <!-- TOP BAR -->
+  <header class="top">
+    <span class="logo">MOX</span>
+    <span class="target">Target <b>D:\MOX\demo_target</b></span>
+    <div class="top-right">
+      <span class="pill">23 files · 6 of 7 planes · 0.107 s</span>
+      <span class="pill ok"><i class="led"></i>Air-gapped · 0 outbound calls</span>
+      <span class="who"><span class="av">AK</span>CISO</span>
+    </div>
+  </header>
+
+  <div class="body">
+
+    <!-- RAIL -->
+    <nav class="rail">
+      <div class="rail-h">Discover</div>
+      <div class="nav" data-go="dash" aria-current="page"><span class="ic">▤</span>Dashboard</div>
+      <div class="nav" data-go="scan"><span class="ic">＋</span>New scan</div>
+
+      <div class="rail-h">Assess</div>
+      <div class="nav" data-go="queue"><span class="ic">≣</span>Work queue<span class="ct">22</span></div>
+      <div class="nav" data-go="asset"><span class="ic">◈</span>Asset detail</div>
+
+      <div class="rail-h">Remediate</div>
+      <div class="nav" data-go="fix"><span class="ic">⟳</span>Fix &amp; verify<span class="ct">8</span></div>
+      <div class="nav" data-go="road"><span class="ic">↗</span>Roadmap</div>
+
+      <div class="rail-h">Evidence</div>
+      <div class="nav" data-go="cbom"><span class="ic">◎</span>CBOM</div>
+      <div class="nav" data-go="attest"><span class="ic">✓</span>Attest</div>
+
+      <div class="rail-foot">
+        Scan 6 · 24 Sep 2026<br>
+        <span class="mono">mox 0.4.0</span>
+      </div>
+    </nav>
+
+    <!-- ══════════ DASHBOARD ══════════ -->
+    <main class="main" id="s-dash">
+      <div class="head">
+        <h1>Dashboard</h1>
+        <span class="sub">22 cryptographic assets correlated from 30 findings</span>
+        <div class="head-act">
+          <button class="btn">Export summary</button>
+          <button class="btn pri">Re-scan</button>
+        </div>
+      </div>
+
+      <div class="scroll">
+        <div class="stack">
+
+          <div class="grid g4">
+            <div class="tile">
+              <span class="n">22</span>
+              <span class="l">Cryptographic assets</span>
+            </div>
+            <div class="tile crit">
+              <span class="n">4</span>
+              <span class="l">Harvest-now-decrypt-later exposed</span>
+            </div>
+            <div class="tile high">
+              <span class="n">9</span>
+              <span class="l">Quantum-vulnerable assets</span>
+            </div>
+            <div class="tile safe">
+              <span class="n">69</span>
+              <span class="l">Readiness index (0–100)</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h">
+              <h2>Verdict split</h2>
+              <span class="note">every asset resolves to one verdict</span>
+            </div>
+            <div class="card-b">
+              <div class="vbar">
+                <div class="vseg m" style="flex:8">MIGRATE 8</div>
+                <div class="vseg c" style="flex:4">CONTAIN 4</div>
+                <div class="vseg a" style="flex:10">ACCEPT 10</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h">
+              <h2>Scan pipeline</h2>
+              <span class="note">recorded stage timings, latest scan</span>
+            </div>
+            <div class="card-b">
+              <div class="pipe">
+                <div class="stage-c">
+                  <div class="st">1 · Ingest</div>
+                  <div class="sv">23 files</div>
+                  <div class="sd">Found in target tree</div>
+                  <div class="sm">1.57 ms</div>
+                </div>
+                <div class="stage-c">
+                  <div class="st">2 · Detect</div>
+                  <div class="sv">33 findings</div>
+                  <div class="sd">code 8 · configs 9 · deps 5 · certs 6 · binaries 3 · containers 2</div>
+                  <div class="sm">109 ms</div>
+                </div>
+                <div class="stage-c">
+                  <div class="st">3 · Correlate</div>
+                  <div class="sv">33 → 24</div>
+                  <div class="sd">Raw findings deduplicated into assets</div>
+                  <div class="sm">4.08 ms</div>
+                </div>
+                <div class="stage-c">
+                  <div class="st">4 · Score</div>
+                  <div class="sv">24 scored</div>
+                  <div class="sd">Critical 5 · High 1 · Medium 4 · Low 14</div>
+                  <div class="sm">0.67 ms</div>
+                </div>
+                <div class="stage-c">
+                  <div class="st">5 · Verdict</div>
+                  <div class="sv">8 / 4 / 11</div>
+                  <div class="sd">Migrate · contain · accept</div>
+                  <div class="sm">0.11 ms</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h">
+              <h2>Risk field</h2>
+              <span class="note">Mosca overexposure (X+Y−Z) against business criticality · dot size = score</span>
+            </div>
+            <div class="card-b">
+              <div class="plot" id="plot">
+                <div class="hl" style="top:25%"></div>
+                <div class="hl" style="top:58%"></div>
+                <div class="gl" style="left:25%"></div>
+                <div class="gl zero" style="left:25%"></div>
+                <div class="gl" style="left:58%"></div>
+                <div class="gl" style="left:83%"></div>
+
+                <span class="ax-l" style="left:-26px;top:20%">3</span>
+                <span class="ax-l" style="left:-26px;top:53%">2</span>
+                <span class="ax-l" style="left:-26px;top:86%">1</span>
+                <span class="ax-l" style="left:-4px;bottom:-16px">−3</span>
+                <span class="ax-l" style="left:24%;bottom:-16px">0</span>
+                <span class="ax-l" style="left:57%;bottom:-16px">3</span>
+                <span class="ax-l" style="left:82%;bottom:-16px">6</span>
+                <span class="ax-l" style="right:-4px;bottom:-16px">9</span>
+                <span class="ax-l" style="left:50%;bottom:-32px;transform:translateX(-50%)">years overexposed (X + Y − Z)</span>
+
+                <div class="dot crit" style="left:12%;bottom:47%;width:15px;height:15px" title="RSA-1024 legacy-portal.crt · score 70"></div>
+                <div class="dot low"  style="left:20%;bottom:47%;width:10px;height:10px"></div>
+                <div class="dot low"  style="left:25%;bottom:47%;width:10px;height:10px"></div>
+                <div class="dot low"  style="left:38%;bottom:47%;width:10px;height:10px"></div>
+                <div class="dot med"  style="left:57%;bottom:80%;width:13px;height:13px"></div>
+                <div class="dot high" style="left:82%;bottom:80%;width:16px;height:16px" title="RSA-2048 api-gw.key · score 58.2"></div>
+              </div>
+              <div class="tl-key" style="margin-top:34px;padding-left:34px">
+                <span><i style="background:var(--crit-line);border:1px solid var(--crit-ink)"></i>Critical</span>
+                <span><i style="background:var(--high-line);border:1px solid var(--high-ink)"></i>High</span>
+                <span><i style="background:var(--med-line);border:1px solid var(--med-ink)"></i>Medium</span>
+                <span><i style="background:var(--low-line);border:1px solid var(--low-ink)"></i>Low</span>
+                <span style="color:var(--ink-4)">Dashed line = Mosca break-even. Anything right of it is exposed.</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </main>
+
+    <!-- ══════════ WORK QUEUE ══════════ -->
+    <main class="main" id="s-queue" hidden>
+      <div class="head">
+        <h1>Work queue</h1>
+        <span class="sub">sorted by risk score, highest first</span>
+        <div class="head-act">
+          <button class="btn">Assign owners</button>
+          <button class="btn pri">Open first fix</button>
+        </div>
+      </div>
+
+      <div class="filters">
+        <input class="search" placeholder="Search assets, files, algorithms…">
+        <button class="chip" aria-pressed="true">All <span class="n">22</span></button>
+        <button class="chip">Migrate <span class="n">8</span></button>
+        <button class="chip">Contain <span class="n">4</span></button>
+        <button class="chip">Accept <span class="n">10</span></button>
+        <button class="chip">Verify first <span class="n">9</span></button>
+      </div>
+
+      <div class="legend">
+        Evidence · <b>Observed</b> live TLS handshake or parsed certificate — <b>Declared</b> explicit code or config match — <b>Declared, unverified</b> dependency or string match, stays in Verify first until confirmed
+      </div>
+
+      <div class="scroll" style="padding:0">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:auto">Asset</th>
+              <th style="width:74px" class="ctr">Score</th>
+              <th style="width:68px" class="ctr">CMCS</th>
+              <th style="width:78px">Tier</th>
+              <th style="width:132px">Evidence</th>
+              <th style="width:104px">Verdict</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr aria-selected="true">
+              <td><div class="asset-cell"><span class="a1">RSA-1024 legacy-portal.crt</span><span class="a2">1 finding → 1 asset · wave 1</span></div></td>
+              <td class="num" style="color:var(--crit-ink)">70</td>
+              <td class="ctr mono">2/10</td>
+              <td><span class="b crit">Critical</span></td>
+              <td class="ev"><b>Observed</b> · certificate</td>
+              <td><span class="b crit">MIGRATE</span></td>
+            </tr>
+            <tr>
+              <td><div class="asset-cell"><span class="a1">DES conf/java.security:3</span><span class="a2">1 finding → 1 asset · wave 1</span></div></td>
+              <td class="num" style="color:var(--crit-ink)">70</td>
+              <td class="ctr mono">2/10</td>
+              <td><span class="b crit">Critical</span></td>
+              <td class="ev"><b>Declared</b> · config</td>
+              <td><span class="b crit">MIGRATE</span></td>
+            </tr>
+            <tr>
+              <td><div class="asset-cell"><span class="a1">3DES conf/java.security:3</span><span class="a2">1 finding → 1 asset · wave 1</span></div></td>
+              <td class="num" style="color:var(--crit-ink)">70</td>
+              <td class="ctr mono">2/10</td>
+              <td><span class="b crit">Critical</span></td>
+              <td class="ev"><b>Declared</b> · config</td>
+              <td><span class="b crit">MIGRATE</span></td>
+            </tr>
+            <tr>
+              <td><div class="asset-cell"><span class="a1">DES payments/Crypto.java:16</span><span class="a2">1 finding → 1 asset · wave 1</span></div></td>
+              <td class="num" style="color:var(--crit-ink)">70</td>
+              <td class="ctr mono">5/10</td>
+              <td><span class="b crit">Critical</span></td>
+              <td class="ev"><b>Declared</b> · source</td>
+              <td><span class="b crit">MIGRATE</span></td>
+            </tr>
+            <tr>
+              <td><div class="asset-cell"><span class="a1">RSA-2048 api-gw.key</span><span class="a2">7 findings → 1 asset · wave 2</span></div></td>
+              <td class="num" style="color:var(--high-ink)">58.2</td>
+              <td class="ctr mono">5/10</td>
+              <td><span class="b high">High</span></td>
+              <td class="ev"><b>Observed</b> · live TLS</td>
+              <td><span class="b crit">MIGRATE</span></td>
+            </tr>
+            <tr>
+              <td><div class="asset-cell"><span class="a1">RSA-3072 payments/Crypto.java:11</span><span class="a2">1 finding → 1 asset · wave 2</span></div></td>
+              <td class="num" style="color:var(--high-ink)">52</td>
+              <td class="ctr mono">5/10</td>
+              <td><span class="b high">High</span></td>
+              <td class="ev"><b>Declared</b> · source</td>
+              <td><span class="b crit">MIGRATE</span></td>
+            </tr>
+            <tr>
+              <td><div class="asset-cell"><span class="a1">RSA-2048 infra/kms.tf:4</span><span class="a2">1 finding → 1 asset · wave 3</span></div></td>
+              <td class="num" style="color:var(--med-ink)">39.8</td>
+              <td class="ctr mono">10/10</td>
+              <td><span class="b med">Medium</span></td>
+              <td class="ev"><b>Declared</b> · IaC</td>
+              <td><span class="b med">CONTAIN</span></td>
+            </tr>
+            <tr>
+              <td><div class="asset-cell"><span class="a1">RSA web/sign.js:8</span><span class="a2">1 finding → 1 asset · wave 4</span></div></td>
+              <td class="num" style="color:var(--med-ink)">33.5</td>
+              <td class="ctr mono">4/10</td>
+              <td><span class="b med">Medium</span></td>
+              <td class="ev"><b>Declared</b> · source</td>
+              <td><span class="b crit">MIGRATE</span></td>
+            </tr>
+            <tr>
+              <td><div class="asset-cell"><span class="a1">RSA-4096 internal-ca.crt</span><span class="a2">1 finding → 1 asset · wave 4</span></div></td>
+              <td class="num" style="color:var(--med-ink)">31.0</td>
+              <td class="ctr mono">7/10</td>
+              <td><span class="b med">Medium</span></td>
+              <td class="ev"><b>Observed</b> · certificate</td>
+              <td><span class="b crit">MIGRATE</span></td>
+            </tr>
+            <tr>
+              <td><div class="asset-cell"><span class="a1">RSA vendor/sync-agent.bin:0</span><span class="a2">1 finding → 1 asset · wave 4</span></div></td>
+              <td class="num" style="color:var(--low-ink)">24.2</td>
+              <td class="ctr mono">9/10</td>
+              <td><span class="b low">Low</span></td>
+              <td class="ev"><b>Declared, unverified</b></td>
+              <td><span class="b med">CONTAIN</span></td>
+            </tr>
+            <tr>
+              <td><div class="asset-cell"><span class="a1">ECDSA-256 services/ecdsa.go:10</span><span class="a2">1 finding → 1 asset · wave 5</span></div></td>
+              <td class="num" style="color:var(--low-ink)">18.0</td>
+              <td class="ctr mono">3/10</td>
+              <td><span class="b low">Low</span></td>
+              <td class="ev"><b>Declared</b> · source</td>
+              <td><span class="b low">ACCEPT</span></td>
+            </tr>
+            <tr>
+              <td><div class="asset-cell"><span class="a1">AES-256-GCM conf/java.security:9</span><span class="a2">1 finding → 1 asset · wave 5</span></div></td>
+              <td class="num" style="color:var(--low-ink)">6.0</td>
+              <td class="ctr mono">1/10</td>
+              <td><span class="b safe">Quantum-safe</span></td>
+              <td class="ev"><b>Declared</b> · config</td>
+              <td><span class="b low">ACCEPT</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+
+    <!-- ══════════ ASSET DETAIL ══════════ -->
+    <main class="main" id="s-asset" hidden>
+      <div class="split">
+
+        <div class="lft">
+          <div class="crumb"><a>Work queue</a><span>›</span><span>Asset 777</span></div>
+
+          <div class="asset-hd">
+            <div style="flex:1;min-width:0">
+              <h1>RSA-1024 legacy-portal.crt</h1>
+              <div class="spki">SPKI SHA-256 &nbsp;3f828ea7ca90b26a4f8333a00323f7b6…</div>
+              <div class="tags">
+                <span class="b plain">Asymmetric · signature</span>
+                <span class="b plain">Plane: certificates</span>
+                <span class="b crit">Mission-critical</span>
+                <span class="b pri">Observed</span>
+              </div>
+            </div>
+            <span class="b crit" style="height:24px;padding:0 11px;font-size:11px">MIGRATE</span>
+          </div>
+
+          <div class="alert">
+            <div style="flex:1">
+              <div class="ti">Harvest-now, decrypt-later exposure</div>
+              <div class="de">Traffic protected by this key can be captured today and decrypted once a cryptographically relevant quantum computer exists. Signature forgery risk is separate and begins only at that point.</div>
+            </div>
+            <div class="ac"><button class="btn">Open fix</button></div>
+          </div>
+
+          <div class="stack">
+
+            <div class="card">
+              <div class="card-h"><h2>Locations — what breaks if this asset changes</h2>
+                <span class="note">1 finding → 1 asset</span></div>
+              <div class="card-b" style="padding:0">
+                <table>
+                  <thead><tr><th>Plane</th><th>Location</th><th style="width:96px">Change type</th><th style="width:70px"></th></tr></thead>
+                  <tbody>
+                    <tr><td>certificates</td><td class="mono" style="color:var(--ink)">certs/legacy-portal.crt:1</td><td><span class="b plain">Re-issue</span></td><td><span style="color:var(--pri)">Fix →</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="grid g2">
+              <div class="card">
+                <div class="card-h"><h2>NIST status</h2><span class="note">SP 800-131A Rev 3</span></div>
+                <div class="card-b">
+                  <div class="grid g3" style="gap:8px">
+                    <div style="text-align:center;padding:9px 4px;background:var(--crit-bg);border:1px solid var(--crit-line);border-radius:var(--r)">
+                      <div style="font-size:10px;color:var(--crit-ink);opacity:.8">Now</div>
+                      <div style="font:500 12px/1.3 'IBM Plex Sans';color:var(--crit-ink);margin-top:3px">Disallowed</div>
+                    </div>
+                    <div style="text-align:center;padding:9px 4px;background:var(--crit-bg);border:1px solid var(--crit-line);border-radius:var(--r)">
+                      <div style="font-size:10px;color:var(--crit-ink);opacity:.8">After 2030</div>
+                      <div style="font:500 12px/1.3 'IBM Plex Sans';color:var(--crit-ink);margin-top:3px">Disallowed</div>
+                    </div>
+                    <div style="text-align:center;padding:9px 4px;background:var(--crit-bg);border:1px solid var(--crit-line);border-radius:var(--r)">
+                      <div style="font-size:10px;color:var(--crit-ink);opacity:.8">After 2035</div>
+                      <div style="font:500 12px/1.3 'IBM Plex Sans';color:var(--crit-ink);margin-top:3px">Disallowed</div>
+                    </div>
+                  </div>
+                  <div style="margin-top:10px;font-size:10.5px;color:var(--ink-3);line-height:1.5">
+                    1024-bit RSA fell below the 112-bit security floor in 2013. It is disallowed today, independent of any quantum consideration.
+                  </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-h"><h2>Why this score</h2><span class="note">every term is traceable</span></div>
+                <div class="card-b" style="padding:8px var(--pad) var(--pad)">
+                  <div class="brk">
+                    <div class="brk-r">Base — NIST status disallowed<span class="bv">40</span></div>
+                    <div class="brk-r">Quantum-vulnerable primitive<span class="bv">+15</span></div>
+                    <div class="brk-r">Evidence: observed, not inferred<span class="bv">+8</span></div>
+                    <div class="brk-r">Criticality 3 — mission-critical<span class="bv">×1.2</span></div>
+                    <div class="brk-r">Confidence: high<span class="bv">×1.0</span></div>
+                    <div class="brk-r tot">Risk score<span class="bv">70</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-h"><h2>Evidence chain</h2><span class="note">fact → analysis → recommendation, nothing inferred</span></div>
+              <div class="card-b">
+                <div class="chain">
+                  <div class="link">
+                    <div class="k">Fact</div>
+                    <div class="v">RSA key, 1024 bit, parsed from 1 certificate file. Observed, not inferred from a dependency string.</div>
+                  </div>
+                  <div class="tick"></div>
+                  <div class="link">
+                    <div class="k">Normalised</div>
+                    <div class="v">RSA-1024 · asymmetric · signature · SPKI SHA-256 3f828ea7…</div>
+                  </div>
+                  <div class="tick"></div>
+                  <div class="link">
+                    <div class="k">Analysis</div>
+                    <div class="v">NIST: disallowed now. Quantum-vulnerable under Shor. Mosca exposure −2 years — classically weak before it is quantum-weak.</div>
+                  </div>
+                  <div class="tick"></div>
+                  <div class="link out">
+                    <div class="k">Recommendation</div>
+                    <div class="v">MIGRATE → ML-DSA-65, hybrid first · wave 1</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- right rail -->
+        <aside class="rgt">
+          <div class="card-h"><h2>Mosca check</h2><span class="note">X + Y &gt; Z</span></div>
+          <div class="card-b">
+            <div class="mosca">
+              <div class="mbox"><div class="mv">7</div><div class="mk">X<br>data life</div></div>
+              <div class="mop">+</div>
+              <div class="mbox"><div class="mv">1</div><div class="mk">Y<br>migration</div></div>
+              <div class="mop">&gt;</div>
+              <div class="mbox"><div class="mv">10</div><div class="mk">Z<br>quantum</div></div>
+              <div class="mop">=</div>
+              <div class="mbox res safe"><div class="mv">−2</div><div class="mk">yrs<br>exposed</div></div>
+            </div>
+
+            <div class="tl">
+              <div class="tl-ax"><span>now</span><span>+10 yrs</span><span>+14 yrs</span></div>
+              <div class="tl-tr">
+                <div class="tl-x" style="width:50%"></div>
+                <div class="tl-y" style="left:50%;width:7%"></div>
+                <div class="tl-z" style="left:71%"></div>
+              </div>
+              <div class="tl-key">
+                <span><i style="background:var(--pri-line)"></i>Data life (X)</span>
+                <span><i style="background:var(--high-line)"></i>Migration (Y)</span>
+                <span><i style="background:var(--safe-ink);width:2px;height:9px;border-radius:1px"></i>CRQC (Z)</span>
+              </div>
+            </div>
+
+            <div class="verdict-line" style="background:var(--low-bg);border-color:var(--low-line);color:var(--low-ink)">
+              X + Y = 8 &lt; Z = 10 — not quantum-exposed. It is <b style="font-weight:500">already classically broken</b>, which is why it is still wave 1.
+            </div>
+
+            <div class="fields">
+              <div class="fr"><label for="fx">X shelf-life</label><input id="fx" type="number" value="7"><span style="font-size:10px;color:var(--ink-4);width:20px">yrs</span></div>
+              <div class="fr"><label for="fc">Criticality</label><select id="fc"><option>3 — mission-critical</option><option selected>2 — normal</option><option>1 — low</option></select></div>
+              <div class="fr"><label for="fz">Z threat horizon</label><input id="fz" type="number" value="10"><span style="font-size:10px;color:var(--ink-4);width:20px">yrs</span></div>
+            </div>
+          </div>
+
+          <div class="card-h"><h2>Migration complexity</h2><span class="note">CMCS</span></div>
+          <div class="card-b">
+            <div style="display:flex;align-items:baseline;gap:6px">
+              <span style="font:500 24px/1 'IBM Plex Mono';color:var(--high-ink)">2</span>
+              <span style="font:400 13px/1 'IBM Plex Mono';color:var(--ink-4)">/10</span>
+              <span style="font:500 11.5px/1 'IBM Plex Sans';color:var(--ink-2);margin-left:4px">Low effort</span>
+            </div>
+            <div class="meter">
+              <div class="meter-tr"><div class="meter-fl" style="width:20%;background:var(--low-line)"></div></div>
+              <div class="meter-ax"><span>Re-issue only</span><span>Vendor-blocked</span></div>
+            </div>
+            <div style="margin-top:9px;font-size:10.5px;color:var(--ink-3);line-height:1.5">
+              Certificate re-issue, no source change. Independent of how risky the asset is.
+            </div>
+          </div>
+
+          <div class="card-h"><h2>Recommended replacement</h2></div>
+          <div class="card-b">
+            <div style="padding:11px 12px;background:var(--pri-soft);border:1px solid var(--pri-line);border-radius:var(--r)">
+              <div style="font:500 14px/1.2 'IBM Plex Mono';color:var(--pri)">ML-DSA-65</div>
+              <div style="font-size:10px;color:var(--pri);opacity:.8;margin-top:3px">NIST FIPS 204 · hybrid first</div>
+              <div class="brk" style="margin-top:9px">
+                <div class="brk-r" style="border-color:var(--pri-line)">Signature size<span class="bv">3 309 B</span></div>
+                <div class="brk-r" style="border-color:var(--pri-line)">vs RSA-2048<span class="bv">256 B</span></div>
+                <div class="brk-r" style="border-color:var(--pri-line)">vs ECDSA P-256<span class="bv">64 B</span></div>
+                <div class="brk-r" style="border-color:var(--pri-line)">Migration wave<span class="bv">1 of 5</span></div>
+              </div>
+              <div style="margin-top:9px;font-size:10.5px;color:var(--pri);opacity:.85;line-height:1.5">
+                Larger tokens and certificates. Deploy hybrid first, retire the classical algorithm once peers verify.
+              </div>
+            </div>
+            <button class="btn pri" style="width:100%;margin-top:10px;justify-content:center">Open fix &amp; verify</button>
+            <button class="btn" style="width:100%;margin-top:6px;justify-content:center">Export CBOM node</button>
+          </div>
+        </aside>
+      </div>
+    </main>
+
+    <!-- ══════════ FIX & VERIFY ══════════ -->
+    <main class="main" id="s-fix" hidden>
+      <div class="head">
+        <h1>Fix &amp; verify</h1>
+        <span class="sub">RSA-1024 legacy-portal.crt · wave 1</span>
+        <div class="head-act">
+          <button class="btn">Skip to next</button>
+          <button class="btn pri">Apply &amp; re-scan</button>
+        </div>
+      </div>
+
+      <div class="scroll">
+        <div class="stack">
+
+          <div class="steps">
+            <div class="step done"><div class="sbar"></div><div class="sl">1 · Detected</div></div>
+            <div class="step done"><div class="sbar"></div><div class="sl">2 · Scored</div></div>
+            <div class="step now"><div class="sbar"></div><div class="sl">3 · Patch proposed</div></div>
+            <div class="step"><div class="sbar"></div><div class="sl">4 · Approved</div></div>
+            <div class="step"><div class="sbar"></div><div class="sl">5 · Re-scanned</div></div>
+            <div class="step"><div class="sbar"></div><div class="sl">6 · Attested</div></div>
+          </div>
+
+          <div class="grid g2">
+            <div class="card">
+              <div class="card-h"><h2>Proposed change</h2><span class="note">certs/legacy-portal.crt</span></div>
+              <div class="card-b">
+                <div class="diff">
+                  <div class="diff-h">certs/legacy-portal.crt · CSR profile</div>
+                  <div class="dl del"><span class="g">3</span>keyAlgorithm = RSA</div>
+                  <div class="dl del"><span class="g">4</span>keySize      = 1024</div>
+                  <div class="dl del"><span class="g">5</span>sigAlgorithm = sha1WithRSA</div>
+                  <div class="dl add"><span class="g">3</span>keyAlgorithm = ML-DSA-65 + RSA-3072</div>
+                  <div class="dl add"><span class="g">4</span>profile      = hybrid-composite</div>
+                  <div class="dl add"><span class="g">5</span>sigAlgorithm = id-MLDSA65-RSA3072-PSS</div>
+                </div>
+                <div style="margin-top:10px;font-size:10.5px;color:var(--ink-3);line-height:1.55">
+                  Hybrid composite keeps the classical signature alongside the post-quantum one, so peers that do not yet understand ML-DSA still verify. The classical half is retired in wave 4 once peer coverage is confirmed.
+                </div>
+              </div>
+            </div>
+
+            <div class="stack">
+              <div class="card">
+                <div class="card-h"><h2>Impact before approval</h2></div>
+                <div class="card-b" style="padding:8px var(--pad) var(--pad)">
+                  <div class="brk">
+                    <div class="brk-r">Risk score<span class="bv">70 → <b style="color:var(--low-ink)">6</b></span></div>
+                    <div class="brk-r">Verdict<span class="bv">MIGRATE → ACCEPT</span></div>
+                    <div class="brk-r">Readiness index<span class="bv">69 → 74</span></div>
+                    <div class="brk-r">Handshake size<span class="bv">+3.2 kB</span></div>
+                    <div class="brk-r">TLS latency (p95)<span class="bv">+1.4 ms</span></div>
+                    <div class="brk-r">Downstream assets affected<span class="bv">1</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-h"><h2>Approval</h2><span class="note">two-person rule</span></div>
+                <div class="card-b">
+                  <div class="leave">
+                    <div class="leave-r yes"><span class="mk">✓</span>Proposed by MOX · 24 Sep 2026 09:41</div>
+                    <div class="leave-r yes"><span class="mk">✓</span>Reviewed by A. Khan (CISO)</div>
+                    <div class="leave-r no"><span class="mk">○</span>Awaiting crypto owner sign-off</div>
+                  </div>
+                  <div style="margin-top:10px;font-size:10.5px;color:var(--ink-3);line-height:1.5">
+                    MOX never writes to your repository. It emits the patch and records who approved it; your own pipeline applies it.
+                  </div>
+                  <button class="btn pri" style="width:100%;margin-top:10px;justify-content:center">Request owner sign-off</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h"><h2>Verification contract</h2><span class="note">what MOX re-checks after the patch lands</span></div>
+            <div class="card-b" style="padding:0">
+              <table>
+                <thead><tr><th>Check</th><th style="width:150px">Expected after fix</th><th style="width:110px">Status</th></tr></thead>
+                <tbody>
+                  <tr><td>Certificate SPKI changed</td><td class="mono">new SHA-256</td><td><span class="b plain">Pending re-scan</span></td></tr>
+                  <tr><td>Algorithm resolves to ML-DSA-65</td><td class="mono">FIPS 204</td><td><span class="b plain">Pending re-scan</span></td></tr>
+                  <tr><td>No RSA-1024 anywhere in certificates plane</td><td class="mono">0 findings</td><td><span class="b plain">Pending re-scan</span></td></tr>
+                  <tr><td>Live TLS handshake still completes</td><td class="mono">200 OK</td><td><span class="b plain">Pending re-scan</span></td></tr>
+                  <tr><td>CBOM Merkle root advances</td><td class="mono">version 7</td><td><span class="b plain">Pending re-scan</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </main>
+
+    <!-- ══════════ CBOM ══════════ -->
+    <main class="main" id="s-cbom" hidden>
+      <div class="head">
+        <h1>Cryptographic bill of materials</h1>
+        <span class="sub">CycloneDX 1.6 · version 6 · 22 components</span>
+        <div class="head-act">
+          <span class="b low" style="height:26px;padding:0 11px;font-size:11px">Schema valid</span>
+          <button class="btn">Copy Merkle root</button>
+          <button class="btn pri">Download JSON</button>
+        </div>
+      </div>
+
+      <div class="scroll">
+        <div class="grid" style="grid-template-columns:1fr 340px;align-items:start">
+
+          <div class="card">
+            <div class="card-h"><h2>Components</h2><span class="note">22 of 22 shown</span></div>
+            <div style="max-height:466px;overflow-y:auto">
+              <table>
+                <thead><tr><th>Component</th><th style="width:130px">Type</th><th style="width:82px">Tier</th><th style="width:88px">Verdict</th><th style="width:60px" class="ctr">Wave</th></tr></thead>
+                <tbody>
+                  <tr><td class="mono" style="color:var(--ink)">RSA-1024 legacy-portal.crt</td><td>certificate</td><td><span class="b crit">Critical</span></td><td><span class="b crit">MIGRATE</span></td><td class="ctr mono">1</td></tr>
+                  <tr><td class="mono" style="color:var(--ink)">DES conf/java.security:3</td><td>algorithm</td><td><span class="b crit">Critical</span></td><td><span class="b crit">MIGRATE</span></td><td class="ctr mono">1</td></tr>
+                  <tr><td class="mono" style="color:var(--ink)">3DES conf/java.security:3</td><td>algorithm</td><td><span class="b crit">Critical</span></td><td><span class="b crit">MIGRATE</span></td><td class="ctr mono">1</td></tr>
+                  <tr><td class="mono" style="color:var(--ink)">DES payments/Crypto.java:16</td><td>algorithm</td><td><span class="b crit">Critical</span></td><td><span class="b crit">MIGRATE</span></td><td class="ctr mono">1</td></tr>
+                  <tr><td class="mono" style="color:var(--ink)">RSA-2048 api-gw.key</td><td>related-crypto-material</td><td><span class="b high">High</span></td><td><span class="b crit">MIGRATE</span></td><td class="ctr mono">2</td></tr>
+                  <tr><td class="mono" style="color:var(--ink)">RSA-3072 payments/Crypto.java:11</td><td>algorithm</td><td><span class="b high">High</span></td><td><span class="b crit">MIGRATE</span></td><td class="ctr mono">2</td></tr>
+                  <tr><td class="mono" style="color:var(--ink)">RSA-2048 infra/kms.tf:4</td><td>algorithm</td><td><span class="b med">Medium</span></td><td><span class="b med">CONTAIN</span></td><td class="ctr mono">3</td></tr>
+                  <tr><td class="mono" style="color:var(--ink)">RSA web/sign.js:8</td><td>algorithm</td><td><span class="b med">Medium</span></td><td><span class="b crit">MIGRATE</span></td><td class="ctr mono">4</td></tr>
+                  <tr><td class="mono" style="color:var(--ink)">RSA-4096 internal-ca.crt</td><td>certificate</td><td><span class="b med">Medium</span></td><td><span class="b crit">MIGRATE</span></td><td class="ctr mono">4</td></tr>
+                  <tr><td class="mono" style="color:var(--ink)">RSA vendor/sync-agent.bin:0</td><td>algorithm</td><td><span class="b low">Low</span></td><td><span class="b med">CONTAIN</span></td><td class="ctr mono">4</td></tr>
+                  <tr><td class="mono" style="color:var(--ink)">ECDSA-256 services/ecdsa.go:10</td><td>algorithm</td><td><span class="b low">Low</span></td><td><span class="b low">ACCEPT</span></td><td class="ctr mono">5</td></tr>
+                  <tr><td class="mono" style="color:var(--ink)">AES-256-GCM conf/java.security:9</td><td>algorithm</td><td><span class="b safe">Safe</span></td><td><span class="b low">ACCEPT</span></td><td class="ctr mono">5</td></tr>
+                  <tr><td class="mono" style="color:var(--ink)">SHA-256 web/hash.js:22</td><td>algorithm</td><td><span class="b safe">Safe</span></td><td><span class="b low">ACCEPT</span></td><td class="ctr mono">5</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="stack">
+            <div class="card">
+              <div class="card-h"><h2>Document</h2></div>
+              <div class="card-b" style="padding:8px var(--pad) var(--pad)">
+                <div class="brk">
+                  <div class="brk-r">Format<span class="bv">CycloneDX 1.6</span></div>
+                  <div class="brk-r">Version<span class="bv">6</span></div>
+                  <div class="brk-r">Components<span class="bv">22</span></div>
+                  <div class="brk-r">Dependencies mapped<span class="bv">31</span></div>
+                  <div class="brk-r">Generated<span class="bv">24 Sep 2026</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-h"><h2>JSON preview</h2><span class="note">head of document</span></div>
+              <div class="card-b">
+<pre class="json">{
+  <span class="jk">"bomFormat"</span>: <span class="js">"CycloneDX"</span>,
+  <span class="jk">"specVersion"</span>: <span class="js">"1.6"</span>,
+  <span class="jk">"serialNumber"</span>: <span class="js">"urn:uuid:1b3f…"</span>,
+  <span class="jk">"version"</span>: <span class="jn">6</span>,
+  <span class="jk">"metadata"</span>: {
+    <span class="jk">"timestamp"</span>: <span class="js">"2026-09-24T…"</span>,
+    <span class="jk">"tools"</span>: [{ <span class="jk">"name"</span>: <span class="js">"MOX"</span>,
+      <span class="jk">"version"</span>: <span class="js">"0.4.0"</span> }]
+  },
+  <span class="jk">"components"</span>: [{
+    <span class="jk">"type"</span>: <span class="js">"cryptographic-asset"</span>,
+    <span class="jk">"name"</span>: <span class="js">"RSA-1024"</span>,
+    <span class="jk">"cryptoProperties"</span>: {
+      <span class="jk">"assetType"</span>: <span class="js">"algorithm"</span>,
+      <span class="jk">"algorithmProperties"</span>: {
+        <span class="jk">"primitive"</span>: <span class="js">"signature"</span>,
+        <span class="jk">"parameterSetIdentifier"</span>: <span class="js">"1024"</span>,
+        <span class="jk">"nistQuantumSecurityLevel"</span>: <span class="jn">0</span>
+      }
+    }
+  }]
+}</pre>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </main>
+
+    <!-- ══════════ ROADMAP ══════════ -->
+    <main class="main" id="s-road" hidden>
+      <div class="head">
+        <h1>Migration roadmap</h1>
+        <span class="sub">five waves derived from tier and Mosca exposure</span>
+        <div class="head-act">
+          <button class="btn">Assign owners</button>
+          <button class="btn pri">Export plan</button>
+        </div>
+      </div>
+
+      <div class="scroll">
+        <div class="stack">
+
+          <div class="waves">
+            <div class="wave" aria-pressed="true">
+              <div class="wn">Wave 1</div>
+              <div class="wt">Discover</div>
+              <div class="wd">Critical assets — act first</div>
+              <div class="wc">4 assets · 0–3 mo</div>
+              <div class="bar" style="background:var(--crit-line)"></div>
+            </div>
+            <div class="wave">
+              <div class="wn">Wave 2</div>
+              <div class="wt">Prioritise</div>
+              <div class="wd">High exposure — plan and prepare</div>
+              <div class="wc">2 assets · 3–9 mo</div>
+              <div class="bar" style="background:var(--high-line)"></div>
+            </div>
+            <div class="wave">
+              <div class="wn">Wave 3</div>
+              <div class="wt">Engineer agility</div>
+              <div class="wd">Medium — abstract the crypto layer</div>
+              <div class="wc">1 asset · 9–18 mo</div>
+              <div class="bar" style="background:var(--med-line)"></div>
+            </div>
+            <div class="wave">
+              <div class="wn">Wave 4</div>
+              <div class="wt">Deploy hybrid</div>
+              <div class="wd">Low — roll out hybrid PQC</div>
+              <div class="wc">5 assets · 18–30 mo</div>
+              <div class="bar" style="background:var(--low-line)"></div>
+            </div>
+            <div class="wave">
+              <div class="wn">Wave 5</div>
+              <div class="wt">Validate &amp; attest</div>
+              <div class="wd">Accepted — monitor and prove</div>
+              <div class="wc">10 assets · ongoing</div>
+              <div class="bar" style="background:var(--safe-line)"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h"><h2>Wave 1 — Discover</h2><span class="note">4 assets · target 0–3 months</span></div>
+            <div style="max-height:250px;overflow-y:auto">
+              <table>
+                <thead><tr><th>Asset</th><th style="width:210px">Replacement</th><th style="width:88px" class="ctr">Score</th><th style="width:96px">Verdict</th><th style="width:118px">Owner</th></tr></thead>
+                <tbody>
+                  <tr><td class="mono" style="color:var(--ink)">RSA-1024 legacy-portal.crt</td><td class="mono">ML-DSA-65 (hybrid first)</td><td class="num" style="color:var(--crit-ink)">70</td><td><span class="b crit">MIGRATE</span></td><td>PKI team</td></tr>
+                  <tr><td class="mono" style="color:var(--ink)">DES conf/java.security:3</td><td class="mono">AES-256-GCM</td><td class="num" style="color:var(--crit-ink)">70</td><td><span class="b crit">MIGRATE</span></td><td>Platform</td></tr>
+                  <tr><td class="mono" style="color:var(--ink)">3DES conf/java.security:3</td><td class="mono">AES-256-GCM</td><td class="num" style="color:var(--crit-ink)">70</td><td><span class="b crit">MIGRATE</span></td><td>Platform</td></tr>
+                  <tr><td class="mono" style="color:var(--ink)">DES payments/Crypto.java:16</td><td class="mono">AES-256-GCM</td><td class="num" style="color:var(--crit-ink)">70</td><td><span class="b crit">MIGRATE</span></td><td><span style="color:var(--crit-ink)">Unassigned</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </main>
+
+    <!-- ══════════ ATTEST ══════════ -->
+    <main class="main" id="s-attest" hidden>
+      <div class="head">
+        <h1>Attestation</h1>
+        <span class="sub">prove readiness to a regulator without disclosing where the weakness lives</span>
+        <div class="head-act">
+          <button class="btn">Verify signature</button>
+          <button class="btn pri">Export attestation</button>
+        </div>
+      </div>
+
+      <div class="scroll">
+        <div class="grid" style="grid-template-columns:1fr 1fr;align-items:start">
+
+          <div class="stack">
+            <div class="card">
+              <div class="card-h"><h2>Leaves the premises</h2><span class="note">counts and proofs, never locations</span></div>
+              <div class="card-b" style="padding:4px var(--pad) 10px">
+                <div class="leave">
+                  <div class="leave-r yes"><span class="mk">✓</span>Sector and scan date</div>
+                  <div class="leave-r yes"><span class="mk">✓</span>Asset counts by risk tier</div>
+                  <div class="leave-r yes"><span class="mk">✓</span>Verdict split — migrate, contain, accept</div>
+                  <div class="leave-r yes"><span class="mk">✓</span>Readiness index (0–100)</div>
+                  <div class="leave-r yes"><span class="mk">✓</span>Merkle root of the local CBOM</div>
+                  <div class="leave-r yes"><span class="mk">✓</span>Scanner version and Ed25519 signature</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-h"><h2>Never leaves</h2><span class="note">stays in local SQLite, on premises</span></div>
+              <div class="card-b" style="padding:4px var(--pad) 10px">
+                <div class="leave">
+                  <div class="leave-r no"><span class="mk">✕</span>File paths, hostnames, IP addresses</div>
+                  <div class="leave-r no"><span class="mk">✕</span>Which key is weak, and where it lives</div>
+                  <div class="leave-r no"><span class="mk">✕</span>Source code and configuration</div>
+                  <div class="leave-r no"><span class="mk">✕</span>The CBOM itself</div>
+                </div>
+                <div style="margin-top:9px;font-size:10.5px;color:var(--ink-3);line-height:1.55">
+                  A regulator can confirm the inventory is complete and the fix landed, without receiving a map of what to attack.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h"><h2>attestation.json</h2><span class="note">exactly what will be exported</span></div>
+            <div class="card-b">
+<pre class="json">{
+  <span class="jk">"schema"</span>: <span class="js">"mox.attestation/v1"</span>,
+  <span class="jk">"sector"</span>: <span class="js">"government"</span>,
+  <span class="jk">"scan_date"</span>: <span class="js">"2026-09-24"</span>,
+  <span class="jk">"coverage"</span>: { <span class="jk">"planes"</span>: <span class="jn">6</span>, <span class="jk">"files"</span>: <span class="jn">23</span> },
+  <span class="jk">"assets"</span>: {
+    <span class="jk">"total"</span>: <span class="jn">22</span>,
+    <span class="jk">"hndl_exposed"</span>: <span class="jn">4</span>,
+    <span class="jk">"quantum_vulnerable"</span>: <span class="jn">9</span>,
+    <span class="jk">"safe_or_out_of_scope"</span>: <span class="jn">13</span>
+  },
+  <span class="jk">"verdicts"</span>: {
+    <span class="jk">"migrate"</span>: <span class="jn">8</span>, <span class="jk">"contain"</span>: <span class="jn">4</span>, <span class="jk">"accept"</span>: <span class="jn">10</span>
+  },
+  <span class="jk">"readiness_index"</span>: <span class="jn">69</span>,
+  <span class="jk">"hybrid_pq_count"</span>: <span class="jn">2</span>,
+  <span class="jk">"cbom_merkle_root"</span>: <span class="js">"5321ed93…21a167db20"</span>,
+  <span class="jk">"scanner"</span>: <span class="js">"mox 0.4.0"</span>,
+  <span class="jk">"signature"</span>: {
+    <span class="jk">"alg"</span>: <span class="js">"Ed25519"</span>,
+    <span class="jk">"value"</span>: <span class="js">"MEUCIQD…"</span>
+  }
+}</pre>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </main>
+
+    <!-- ══════════ NEW SCAN ══════════ -->
+    <main class="main" id="s-scan" hidden>
+      <div class="head">
+        <h1>New scan</h1>
+        <span class="sub">a local folder on this machine · read-only, nothing leaves it</span>
+      </div>
+      <div class="scroll">
+        <div class="card" style="max-width:640px">
+          <div class="card-h"><h2>Target</h2></div>
+          <div class="card-b">
+            <div style="display:flex;gap:8px">
+              <input class="search" style="max-width:none;flex:1;height:30px;font-family:'IBM Plex Mono'" value="D:\MOX\demo_target">
+              <button class="btn">Browse</button>
+              <button class="btn pri">Start scan</button>
+            </div>
+            <div style="margin-top:14px">
+              <div style="font:500 10px/1 'IBM Plex Sans';letter-spacing:.08em;text-transform:uppercase;color:var(--ink-4);margin-bottom:8px">Planes to scan</div>
+              <div class="grid" style="grid-template-columns:repeat(4,1fr);gap:6px">
+                <span class="b pri" style="height:24px;justify-content:center">Source code</span>
+                <span class="b pri" style="height:24px;justify-content:center">Configuration</span>
+                <span class="b pri" style="height:24px;justify-content:center">Dependencies</span>
+                <span class="b pri" style="height:24px;justify-content:center">Certificates</span>
+                <span class="b pri" style="height:24px;justify-content:center">Binaries</span>
+                <span class="b pri" style="height:24px;justify-content:center">Containers</span>
+                <span class="b plain" style="height:24px;justify-content:center">Live TLS</span>
+                <span class="b plain" style="height:24px;justify-content:center">HSM / KMS</span>
+              </div>
+              <div style="margin-top:10px;font-size:10.5px;color:var(--ink-3);line-height:1.55">
+                Live TLS and HSM planes are off by default — they are the only planes that open a socket. Everything else reads from disk.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+  </div>
+</div>
+</div>
+
+<script>
+(function(){
+  var screens=['dash','queue','asset','fix','cbom','road','attest','scan'];
+  function show(id){
+    screens.forEach(function(s){
+      var el=document.getElementById('s-'+s);
+      if(el) el.hidden = (s!==id);
+    });
+    document.querySelectorAll('.pick').forEach(function(p){
+      p.setAttribute('aria-selected', String(p.dataset.s===id));
+    });
+    document.querySelectorAll('.nav').forEach(function(n){
+      if(n.dataset.go===id) n.setAttribute('aria-current','page');
+      else n.removeAttribute('aria-current');
+    });
+  }
+  document.querySelectorAll('.pick').forEach(function(p){
+    p.addEventListener('click',function(){show(p.dataset.s);});
+  });
+  document.querySelectorAll('.nav').forEach(function(n){
+    n.addEventListener('click',function(){ if(n.dataset.go) show(n.dataset.go); });
+  });
+
+  // chips & waves
+  document.querySelectorAll('.filters').forEach(function(bar){
+    bar.querySelectorAll('.chip').forEach(function(c){
+      c.addEventListener('click',function(){
+        bar.querySelectorAll('.chip').forEach(function(x){x.setAttribute('aria-pressed','false');});
+        c.setAttribute('aria-pressed','true');
+      });
+    });
+  });
+  document.querySelectorAll('.waves').forEach(function(w){
+    w.querySelectorAll('.wave').forEach(function(c){
+      c.addEventListener('click',function(){
+        w.querySelectorAll('.wave').forEach(function(x){x.setAttribute('aria-pressed','false');});
+        c.setAttribute('aria-pressed','true');
+      });
+    });
+  });
+  // row selection
+  document.querySelectorAll('tbody').forEach(function(tb){
+    tb.addEventListener('click',function(e){
+      var tr=e.target.closest('tr'); if(!tr) return;
+      tb.querySelectorAll('tr').forEach(function(x){x.removeAttribute('aria-selected');});
+      tr.setAttribute('aria-selected','true');
+    });
+  });
+
+  // scale the fixed 16:9 canvas to fit
+  var frame=document.getElementById('frame');
+  function fit(){
+    var stage=frame.parentElement;
+    var pad=24;
+    var sw=stage.clientWidth-pad, sh=stage.clientHeight-pad;
+    var s=Math.min(sw/1280, sh/720, 1);
+    frame.style.transform='scale('+s+')';
+    stage.style.height=stage.style.height; // no-op guard
+    frame.style.marginTop = ((720*s)-720)/2 + 'px';
+    frame.style.marginBottom = ((720*s)-720)/2 + 'px';
+    frame.style.marginLeft = ((1280*s)-1280)/2 + 'px';
+    frame.style.marginRight = ((1280*s)-1280)/2 + 'px';
+  }
+  window.addEventListener('resize',fit); fit();
+
+  // live Mosca
+  var fx=document.getElementById('fx'), fz=document.getElementById('fz');
+  function mosca(){
+    if(!fx||!fz) return;
+    var x=parseInt(fx.value)||0, y=1, z=parseInt(fz.value)||0;
+    var d=(x+y)-z;
+    var box=document.querySelector('.mbox.res');
+    box.querySelector('.mv').textContent = d>0 ? '+'+d : (d<0? '−'+Math.abs(d) : '0');
+    box.classList.toggle('safe', d<=0);
+    document.querySelectorAll('.mosca .mbox')[0].querySelector('.mv').textContent=x;
+    document.querySelectorAll('.mosca .mbox')[2].querySelector('.mv').textContent=z;
+  }
+  if(fx) fx.addEventListener('input',mosca);
+  if(fz) fz.addEventListener('input',mosca);
+})();
+</script>
+</body>
+</html>

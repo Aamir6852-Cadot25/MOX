@@ -5,38 +5,76 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import db, nist
+from . import db, netguard, nist
 from .models import Finding
 from .planes import binaries, certs, code, configs, containers, deps, tls
 
 FILE_PLANES = (code, deps, configs, certs, containers)
+ALL_PLANES = FILE_PLANES + (binaries, tls)  # display order; tls is the only plane that opens a socket
+PROGRESS_EVERY_S = 0.03  # live Detect progress: at most one snapshot per 30 ms (plus a final one)
 SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "__pycache__", ".pytest_cache", "dist"}
 SKIP_SUFFIXES = {".db", ".bak", ".pyc", ".log"}
 
 
 class Ctx:
-    def __init__(self):
+    def __init__(self, enabled: set[str] | None = None, on_progress=None):
         self.depth = 0
         self.errors: list[str] = []
         self.files_scanned = 0
         self.seen: set = set()
+        self.enabled = enabled if enabled is not None else {p.NAME for p in ALL_PLANES if p is not tls}
         self.plane_ms: dict[str, float] = {}  # top-level wall time per plane (container time includes its contents)
+        self.plane_total: dict[str, int] = {}  # files claimed per plane at Ingest (top level)
+        self.plane_done: dict[str, int] = {}
+        self.plane_raw: dict[str, int] = {}  # findings before dedupe, for live progress
+        self.plane_err: dict[str, list[str]] = {}
+        self.on_progress = on_progress
+        self._last_emit = 0.0
 
-    def scan_file(self, path: Path, rel: str) -> list[Finding]:
-        claimed = [p for p in FILE_PLANES if p.wants(path)]
-        if not claimed and binaries.looks_binary(path):
+    def claim(self, path: Path) -> list:
+        claimed = [p for p in FILE_PLANES if p.NAME in self.enabled and p.wants(path)]
+        if not claimed and binaries.NAME in self.enabled and binaries.looks_binary(path):
             claimed = [binaries]
+        return claimed
+
+    def plan(self, files: list[Path]) -> list[tuple[Path, list]]:
+        """Ingest: decide which planes own each file, so Detect can report done/total per plane."""
+        out = [(p, self.claim(p)) for p in files]
+        for _, claimed in out:
+            for plane in claimed:
+                self.plane_total[plane.NAME] = self.plane_total.get(plane.NAME, 0) + 1
+        return out
+
+    def progress(self, final: bool = False) -> None:
+        now = time.perf_counter()
+        if self.on_progress and (final or now - self._last_emit >= PROGRESS_EVERY_S):
+            self._last_emit = now
+            self.on_progress({n: {"done": self.plane_done.get(n, 0), "total": self.plane_total.get(n, 0),
+                                  "findings": self.plane_raw.get(n, 0), "ms": round(self.plane_ms.get(n, 0), 3),
+                                  "errors": len(self.plane_err.get(n, []))} for n in self.plane_total})
+
+    def scan_file(self, path: Path, rel: str, claimed: list | None = None) -> list[Finding]:
+        claimed = self.claim(path) if claimed is None else claimed
         out: list[Finding] = []
         for plane in claimed:
             t = time.perf_counter()
+            got: list[Finding] = []
             try:
-                out += plane.scan(path, rel, self)
+                got = plane.scan(path, rel, self)
             except Exception as e:  # one bad file must not abort a scan
                 self.errors.append(f"{plane.NAME}: {rel}: {e}")
+                if self.depth == 0:
+                    self.plane_err.setdefault(plane.NAME, []).append(f"{rel}: {e}")
+            out += got
             if self.depth == 0:
-                self.plane_ms[plane.NAME] = self.plane_ms.get(plane.NAME, 0) + (time.perf_counter() - t) * 1000
+                n = plane.NAME
+                self.plane_ms[n] = self.plane_ms.get(n, 0) + (time.perf_counter() - t) * 1000
+                self.plane_done[n] = self.plane_done.get(n, 0) + 1
+                self.plane_raw[n] = self.plane_raw.get(n, 0) + sum(f.plane == n for f in got)
         if claimed:
             self.files_scanned += 1
+            if self.depth == 0:
+                self.progress()
         return out
 
     @staticmethod
@@ -52,17 +90,43 @@ class Ctx:
                     continue  # never read outside the folder the user chose
                 yield p
 
-    def scan_tree(self, root: Path, prefix: str = "", depth: int | None = None, files=None) -> list[Finding]:
+    def scan_tree(self, root: Path, prefix: str = "", depth: int | None = None, plan=None) -> list[Finding]:
         saved = self.depth
         if depth is not None:
             self.depth = depth
         out: list[Finding] = []
         try:
-            for p in (files if files is not None else self.walk(root)):
-                out += self.scan_file(p, prefix + p.relative_to(root).as_posix())
+            for p, claimed in (plan if plan is not None else ((f, None) for f in self.walk(root))):
+                out += self.scan_file(p, prefix + p.relative_to(root).as_posix(), claimed)
         finally:
             self.depth = saved
         return out
+
+
+def plane_report(ctx: Ctx, findings: list[Finding], probe: str | None, probe_error: str | None) -> dict:
+    """Detect-stage detail for all 7 planes: files, findings (after dedupe), ms, status and failure reason."""
+    counts: dict[str, int] = {}
+    for f in findings:
+        counts[f.plane] = counts.get(f.plane, 0) + 1
+    out = {}
+    for mod in ALL_PLANES:
+        n = mod.NAME
+        errs = ctx.plane_err.get(n, [])
+        total = ctx.plane_total.get(n, 0)
+        if n not in ctx.enabled:
+            status = "off"
+        elif mod is tls and probe_error:
+            status, errs = "failed", [probe_error]
+        elif errs and len(errs) >= total:
+            status = "failed"
+        elif errs:
+            status = "partial"
+        else:
+            status = "ok" if total else "idle"
+        out[n] = {"files": total, "findings": counts.get(n, 0), "ms": round(ctx.plane_ms.get(n, 0), 3),
+                  "status": status, "errors": len(errs), "error": errs[0] if errs else None,
+                  **({"endpoint": probe} if mod is tls and probe else {})}
+    return out
 
 
 def _dedupe(findings: list[Finding]) -> list[Finding]:
@@ -108,21 +172,28 @@ class _Stages:
 
 
 def scan(target: str | Path, probe: str | None = None, conn=None, settings: dict | None = None,
-         overrides: dict | None = None, on_stage=None) -> dict:
-    """Scan `target`, persist scan + findings + stage events, return a summary dict.
-    on_stage(event): optional callback fired as each pipeline stage completes. Read-only on `target`."""
+         overrides: dict | None = None, on_stage=None, planes: set[str] | None = None, on_progress=None) -> dict:
+    """Scan `target`, persist scan + findings + stage events, return a summary dict. Read-only on `target`.
+    on_stage(event): fired as each pipeline stage completes. on_progress(snapshot): per-plane Detect progress.
+    planes: file planes to run (default all six); tls runs only when `probe` is given."""
     target = Path(target).resolve()
     if not target.is_dir():
         raise FileNotFoundError(f"scan target is not a directory: {target}")
     own = conn is None
     conn = conn or db.connect()
     started = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    net0 = netguard.counts()
     mark = _Stages(on_stage)
     t0 = mark.t0
-    ctx = Ctx()
-    files = list(ctx.walk(target))
-    mark("Ingest", len(files), {"files": len(files)})
-    findings = ctx.scan_tree(target, files=files)
+    enabled = set(planes) if planes is not None else {p.NAME for p in FILE_PLANES + (binaries,)}
+    enabled = (enabled - {tls.NAME}) | ({tls.NAME} if probe else set())
+    ctx = Ctx(enabled, on_progress)
+    if probe:
+        ctx.plane_total[tls.NAME] = 1
+    plan = ctx.plan(list(ctx.walk(target)))
+    mark("Ingest", len(plan), {"files": len(plan), "planes": dict(ctx.plane_total)})
+    ctx.progress(final=True)
+    findings = ctx.scan_tree(target, plan=plan)
     probe_error = None
     if probe:
         t = time.perf_counter()
@@ -133,13 +204,15 @@ def scan(target: str | Path, probe: str | None = None, conn=None, settings: dict
         except (OSError, ValueError) as e:
             probe_error = f"probe {probe} failed: {e}"
         ctx.plane_ms[tls.NAME] = ctx.plane_ms.get(tls.NAME, 0) + (time.perf_counter() - t) * 1000
+        ctx.plane_done[tls.NAME] = 1
+        ctx.plane_raw[tls.NAME] = sum(f.plane == tls.NAME for f in findings)
+    ctx.progress(final=True)
     findings = _dedupe(findings)
     seconds = round(time.perf_counter() - t0, 3)
     planes: dict[str, int] = {}
     for f in findings:
         planes[f.plane] = planes.get(f.plane, 0) + 1
-    mark("Detect", len(findings), {p: {"findings": planes.get(p, 0), "ms": round(ctx.plane_ms.get(p, 0), 3)}
-                                   for p in sorted(set(planes) | set(ctx.plane_ms))})
+    mark("Detect", len(findings), plane_report(ctx, findings, probe, probe_error))
     verify = sum(f.confidence == "low" for f in findings)
     cur = conn.execute(
         "INSERT INTO scans(target,probe,started_at,seconds,files_scanned,planes_hit,findings_count,probe_error)"
@@ -151,10 +224,13 @@ def scan(target: str | Path, probe: str | None = None, conn=None, settings: dict
     mark.last = time.perf_counter()  # DB write time is not part of the Correlate stage duration
     from .analyze import analyze
     assets = analyze(scan_id, conn, settings, overrides, mark=mark)
-    conn.execute("UPDATE scans SET stages=? WHERE id=?", (json.dumps(mark.events), scan_id))
+    net1 = netguard.counts()  # connects made by this process while the scan ran (see mox/netguard.py)
+    net = {"guard": net1["installed"], "outbound": net1["outbound"] - net0["outbound"],
+           "loopback": net1["loopback"] - net0["loopback"]}
+    conn.execute("UPDATE scans SET stages=?, net=? WHERE id=?", (json.dumps(mark.events), json.dumps(net), scan_id))
     conn.commit()
     if own:
         conn.close()
     return {"assets": len(assets), "scan_id": scan_id, "target": str(target), "files_scanned": ctx.files_scanned, "seconds": seconds,
             "planes": planes, "findings": len(findings), "verify_first": verify,
-            "probe_error": probe_error, "errors": ctx.errors}
+            "probe_error": probe_error, "errors": ctx.errors, "net": net}

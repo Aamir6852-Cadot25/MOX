@@ -13,6 +13,7 @@ import Sector from "./pages/Sector.jsx";
 import Audit from "./pages/Audit.jsx";
 import Report from "./pages/Report.jsx";
 import NewScan from "./pages/NewScan.jsx";
+import AirGapPill from "./components/AirGapPill.jsx";
 
 export default function App() {
   const [user, setUser] = useState(undefined);
@@ -62,7 +63,7 @@ export default function App() {
           <div className="dim">{scan ? <>Target <b className="mono" style={{ color: "var(--text)" }} title={scan.target}>{scan.target}</b></> : "No scan yet"}</div>
           <div className="sp" />
           {scan && <div className="chip">{scan.files_scanned} files · {Object.keys(scan.planes).length} planes · {scan.seconds} s</div>}
-          <div className="chip">Offline — 0 outbound calls</div>
+          <AirGapPill />
           <button className="chip" onClick={() => api.logout().then(() => setUser(null))}>{user.username} · sign out</button>
         </div>
       <Routes>

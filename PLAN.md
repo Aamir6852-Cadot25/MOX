@@ -89,3 +89,14 @@ run.ps1  README.md  requirements.txt  .gitignore
 - [x] Header shows full path of last scanned target
 - [x] CMCS 0-10 from the Y coupling signal (config 2 / source 5 / library 7 / binary 10) in breakdown.cmcs; Queue column + Asset "Why this score"
 - [x] Tests: API scan == CLI scan counts/scores; gated pipeline proves live progress; bad paths rejected; CMCS in range
+
+## Phase 11 — master prompt §3 #1/#9/#10, §6 (spec: docs/MOX_MASTER_BUILD_PROMPT.md, stays on the Python stack)
+- [x] mox/netguard.py: socket.connect/connect_ex hook counts outbound vs loopback; per-plane socket capability derived by AST from plane source
+- [x] Top-bar pill "Air-gapped: N outbound calls" (live, 5 s), links to New Scan network panel; per-scan connect delta stored in scans.net
+- [x] SSE GET /api/scans/{id}/events (stage / progress / done / error, Last-Event-ID replay); polling status endpoint kept
+- [x] Ingest classifies files per plane; Detect streams per-plane done/total/ms; Detect detail covers all 7 planes with status ok/idle/off/partial/failed + reason
+- [x] Plane toggles + optional Live TLS host:port on New Scan; failed probe shows as a failed plane segment
+- [x] Pipeline board (Detect wide with 7 plane rows, animated Correlate count-down, real perf_counter timings) reused on Dashboard
+- [x] web/src/styles/tokens.css = blueprint :root verbatim; new components use tokens only
+- [ ] Visual review screenshot of New Scan + Dashboard board (needs a signed-in browser session)
+- [ ] Next: Mosca timeline + CMCS panel on Asset detail, traceable score rows, then SCORING.md / research-notes.md

@@ -65,7 +65,7 @@ export default function Dashboard({ summary, onScanned }) {
           <div className="kpi-l">Verdict split</div>
         </div>
       </div>
-      <Pipeline stages={summary.stages} />
+      <Pipeline stages={summary.stages} net={summary.scan.net} />
       <div className="card">
         <div className="h mb-1">Risk field <span className="dim font-normal">— each dot is one asset: Mosca overexposure (X+Y−Z, years) vs business criticality</span></div>
         <div style={{ height: 340 }}>
