@@ -55,7 +55,9 @@ export default function Attest({ summary }) {
         <div className="panel p-4"><div className="h">Readiness index</div>
           <div className="mono text-[30px] font-bold" style={{ color: "var(--ink)" }}>{r}<span className="dim text-[16px]"> / 100</span></div>
           <div className="meter-bar"><i style={{ width: `${r}%` }} /></div>
-          <div className="dim">Weighted by HNDL exposure, quantum-vulnerable share, MIGRATE share and plane coverage</div></div>
+          <div className="dim">Weighted by HNDL exposure, quantum-vulnerable share, MIGRATE share and plane coverage</div>
+          <button className="btn w-full" style={{ marginTop: 12 }} disabled={!d.checks.every((c) => c.ok)}
+            onClick={() => download(sector)}><Icon name="download" />Export attestation</button></div>
         <div className="panel p-4"><div className="h mb-1">Signing</div>
           <div className="kv"><span className="dim">Algorithm</span><span>{a.signature.alg}</span></div>
           <div className="kv"><span className="dim">Operator key</span><span>{a.signature.key_id}</span></div>
@@ -67,9 +69,7 @@ export default function Attest({ summary }) {
             {Object.entries(d.sectors).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select></div>
         <div className="panel p-4"><div className="h mb-1">Operator self-check</div>
-          {d.checks.map((c) => <div key={c.name} className="kv"><Check ok={c.ok}>{c.name}</Check></div>)}
-          <button className="btn w-full" style={{ marginTop: 12 }} disabled={!d.checks.every((c) => c.ok)}
-            onClick={() => download(sector)}><Icon name="download" />Export signed attestation</button></div>
+          {d.checks.map((c) => <div key={c.name} className="kv"><Check ok={c.ok}>{c.name}</Check></div>)}</div>
       </div>
     </div>
   );
