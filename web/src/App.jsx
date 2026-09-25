@@ -21,10 +21,10 @@ function OldRoute({ to }) {
   return <Navigate to={`${to(params)}${loc.search}${loc.hash}`} replace />;
 }
 
-/** D2: post-login landing. No scan in the database -> /scan. Otherwise -> /dashboard. */
+/** Post-login landing always opens 1 Discover; never jump straight to Quantum Risk. */
 function Landing({ summary }) {
   if (!summary) return null;
-  return <Navigate to={summary.scan ? "/dashboard" : "/scan"} replace />;
+  return <Navigate to="/scan" replace />;
 }
 
 export default function App() {

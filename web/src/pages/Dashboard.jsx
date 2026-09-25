@@ -96,7 +96,9 @@ export default function Dashboard({ summary, onScanned }) {
 
       {urgent && (
         <div className="urgent-line" style={{ marginBottom: "var(--gutter)" }}>
-          <span className="mono">Most urgent: {urgent.algorithm} {urgent.primary_location}</span>
+          {/* primary_location/files can be missing on assets serialized before that field existed; fall back to label, then algorithm alone. */}
+          <span className="mono">Most urgent: {urgent.algorithm}{urgent.primary_location ? ` ${urgent.primary_location}`
+            : urgent.files?.length ? ` ${urgent.files[0]}` : urgent.label ? ` ${urgent.label}` : ""}</span>
           <span className="dim">, {urgentExp > 0 ? `${urgentExp} yrs overdue` : `score ${urgent.score}`}</span>
           <Link className="bp-btn pri" style={{ marginLeft: "auto" }} to={`/findings/${urgent.id}`}>Fix this &#8594;</Link>
         </div>

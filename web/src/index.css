@@ -185,6 +185,8 @@ input[type="range"] { accent-color: var(--brand); }
 /* 8. Filter applied: leaving rows fade over --t-fast; the list settles over --t-base (transform set in JS) */
 .qt tr.leaving { opacity: 0; transition: opacity var(--t-fast) var(--ease); }
 .qt tr.settle { transition: transform var(--t-base) var(--ease); }
+/* 9. Panel re-fetching (e.g. attestation sector switch): dim in place over --t-base, never unmount */
+.panel.busy { opacity: .6; transition: opacity var(--t-base) var(--ease); }
 
 /* Reduced motion: opacity only, same durations */
 @media (prefers-reduced-motion: reduce) {

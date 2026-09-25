@@ -22,15 +22,42 @@ function download(sector) {
   });
 }
 
+const SECTOR_NAMES = { power: "Power & Energy", telecom: "Telecom", government: "Government",
+  banking: "Banking, Financial Services & Insurance", transport: "Transport", strategic: "Strategic & Public Enterprises" };
+
 export default function Attest({ summary }) {
   const [sector, setSector] = useState("government");
   const [d, setD] = useState(null);
+  const [err, setErr] = useState(null);
+  const [busy, setBusy] = useState(true);
   const [copyLabel, confirmCopy] = useConfirm("Copy root", "Copied");
   const copyRoot = (root) => navigator.clipboard.writeText(root).then(() => confirmCopy(), () => confirmCopy("Copy blocked"));
-  const load = () => { setD(null); api.attest(sector).then(setD).catch((e) => setD({ error: e })); };
+  const load = () => {
+    setBusy(true); setErr(null);
+    api.attest(sector).then((r) => { setD(r); setBusy(false); })
+      .catch((e) => { setErr(e); setBusy(false); });
+  };
+  // Sector switcher stays interactive across loads: it never unmounts, so a slow or failed
+  // fetch for one sector can't strand the user on a spinner with no way back.
   useEffect(load, [summary, sector]);
-  if (d?.error) return <Failed what="the attestation" err={d.error} onRetry={load} />;
-  if (!d) return <div className="p-6 dim">Building attestation…</div>;
+  const sectorPicker = (
+    <select className="chip w-full mt-1" value={sector} onChange={(e) => setSector(e.target.value)}>
+      {Object.entries(d?.sectors || SECTOR_NAMES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+    </select>
+  );
+  if (err)
+    return (
+      <div className="flex flex-col gap-4" style={{ maxWidth: 420 }}>
+        <Failed what="the attestation" err={err} onRetry={load} />
+        <div className="panel p-4"><label className="dim block mb-1 text-[12px]">Sector</label>{sectorPicker}</div>
+      </div>
+    );
+  if (!d) return (
+    <div className="flex flex-col gap-4" style={{ maxWidth: 420 }}>
+      <div className="p-6 dim">Building attestation for {SECTOR_NAMES[sector] || sector}…</div>
+      <div className="panel p-4"><label className="dim block mb-1 text-[12px]">Sector</label>{sectorPicker}</div>
+    </div>
+  );
   const a = d.attestation, r = a.readiness_index;
   const fields = [a, a.assets, a.verdicts, a.coverage, a.signature].reduce((n, o) => n + Object.keys(o).length, 0);
   return (
@@ -45,9 +72,9 @@ export default function Attest({ summary }) {
           {STAYS.map((t) => <div key={t} className="kv"><span className="flex items-center gap-2"><Icon name="x" label="does not leave" />{t}</span></div>)}
         </div>
       </div>
-      <div className="panel p-4">
+      <div className={`panel p-4${busy ? " busy" : ""}`}>
         <div className="flex items-center mb-2"><div><div className="h">attestation.json</div><div className="dim">preview — exactly what will be exported</div></div>
-          <div className="flex-1" /><span className="chip">{(d.bytes / 1024).toFixed(1)} KB</span></div>
+          <div className="flex-1" /><span className="chip">{busy ? "updating…" : `${(d.bytes / 1024).toFixed(1)} KB`}</span></div>
         <pre className="mono text-[12px] overflow-auto" style={{ maxHeight: 560 }}>{JSON.stringify(a, null, 2)}</pre>
         <div className="dim text-[11px] mt-2">No paths, hosts, key material or code: checked by the self-check on the right.</div>
       </div>
@@ -65,9 +92,7 @@ export default function Attest({ summary }) {
           <button type="button" className="bp-btn" style={{ marginTop: 8 }} aria-live="polite" onClick={() => copyRoot(a.cbom_merkle_root)}>{copyLabel}</button>
           <div className="kv"><span className="dim">Leaves</span><span>{fields} fields, 0 paths</span></div>
           <label className="dim block mt-2 text-[12px]">Sector</label>
-          <select className="chip w-full mt-1" value={sector} onChange={(e) => setSector(e.target.value)}>
-            {Object.entries(d.sectors).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </select></div>
+          {sectorPicker}</div>
         <div className="panel p-4"><div className="h mb-1">Operator self-check</div>
           {d.checks.map((c) => <div key={c.name} className="kv"><Check ok={c.ok}>{c.name}</Check></div>)}</div>
       </div>

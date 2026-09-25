@@ -63,3 +63,20 @@ def test_scan_assets_and_settings(client):
     o = client.put(f"/api/assets/{after['id']}/override", json={"criticality": 1}).json()
     assert o["breakdown"]["criticality"] == 1
     assert client.post("/api/scans", json={"path": "Z:/nope"}).status_code == 400
+
+
+def test_urgent_asset_has_algorithm_and_location(client):
+    """Dashboard's "Most urgent: <algorithm> <file:line>" line reads these two fields off the
+    highest-exposure overdue asset (or, if none is overdue, the highest score) - regression for a
+    blank gap when an asset's location data was missing."""
+    login(client)
+    client.post("/api/scans", json={"path": client.demo})
+    assets = client.get("/api/assets").json()
+    overdue = [a for a in assets if (a["breakdown"]["mosca"]["exposure"] or 0) > 0]
+    urgent = max(overdue, key=lambda a: a["breakdown"]["mosca"]["exposure"]) if overdue \
+        else max(assets, key=lambda a: a["score"])
+    assert urgent["algorithm"]
+    location = urgent["primary_location"] or (urgent["files"][0] if urgent["files"] else None) or urgent["label"]
+    assert location
+    line = f"Most urgent: {urgent['algorithm']} {location}"
+    assert line.strip() and not line.endswith(" ") and ",  " not in f"{line}, "
