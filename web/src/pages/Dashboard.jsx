@@ -67,6 +67,14 @@ export default function Dashboard({ summary, onScanned }) {
     b.breakdown.mosca.exposure - a.breakdown.mosca.exposure || b.breakdown.criticality - a.breakdown.criticality);
   const shown = filter ? sorted.filter((a) => a.breakdown.criticality === filter.row && colOf(a.breakdown.mosca.exposure) === filter.col) : sorted;
 
+  // Most urgent (Task 2): the highest years-overdue asset, or the highest score if none is overdue.
+  const overdue = plotted.filter((a) => a.breakdown.mosca.exposure > 0);
+  const urgent = assets.length
+    ? (overdue.length ? overdue.reduce((best, a) => (a.breakdown.mosca.exposure > best.breakdown.mosca.exposure ? a : best))
+      : assets.reduce((best, a) => (a.score > best.score ? a : best)))
+    : null;
+  const urgentExp = urgent?.breakdown.mosca.exposure;
+
   return (
     <div className="page">
       <PageHeader title="What breaks first, and when?"
@@ -85,6 +93,14 @@ export default function Dashboard({ summary, onScanned }) {
         <div className="tile high"><div className="n tn">{nearHorizon}</div><div className="l">Within 3 yrs of the horizon</div></div>
         <div className="tile safe"><div className="n tn">{safeNow}</div><div className="l">Safe for now</div></div>
       </div>
+
+      {urgent && (
+        <div className="urgent-line" style={{ marginBottom: "var(--gutter)" }}>
+          <span className="mono">Most urgent: {urgent.algorithm} {urgent.primary_location}</span>
+          <span className="dim">, {urgentExp > 0 ? `${urgentExp} yrs overdue` : `score ${urgent.score}`}</span>
+          <Link className="bp-btn pri" style={{ marginLeft: "auto" }} to={`/findings/${urgent.id}`}>Fix this &#8594;</Link>
+        </div>
+      )}
 
       <div className="grid-12">
         <div className="col-5">
