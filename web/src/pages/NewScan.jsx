@@ -125,7 +125,7 @@ export default function NewScan({ summary, onScanned }) {
         <div className="bp-card term-surface" style={{ marginTop: "var(--s3)", padding: "var(--s4)" }}>
           <div className="flex items-center justify-between pb-2 mb-3" style={{ borderBottom: "1px solid var(--term-line)" }}>
             <div className="mono font-bold" style={{ color: "var(--term-ink)" }}>{run.state === "error" ? "Scan failed" : "Scanning execution terminal"}</div>
-            <span className="chip" style={{ color: "var(--brand)", background: "transparent", borderColor: "var(--term-line)", fontSize: 10 }}>100% offline (0 outbound connects)</span>
+            <span className="chip" style={{ color: "var(--safe-ink)", background: "transparent", borderColor: "var(--term-line)", fontSize: 10 }}>100% offline (0 outbound connects)</span>
           </div>
           <div className="flex flex-col gap-3">
             {run.state === "error" && <div className="errbox">{run.error}</div>}
