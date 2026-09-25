@@ -44,17 +44,30 @@ function WrapPath({ path }) {
   return <>{parts.map((seg, i) => (i === 0 ? seg : <Fragment key={i}>/<wbr />{seg}</Fragment>))}</>;
 }
 
+/** Which alternatives-table option the generated patch actually applies, detected from its own diff text
+ * (Task 3): the Decision card must never highlight an option the patch does not produce. */
+function optionFromDiff(diff, options) {
+  if (!diff || !options) return null;
+  if (diff.includes("X25519MLKEM768")) return options.find((o) => o.name.startsWith("Hybrid")) || null;
+  if (diff.includes("AES-256-GCM")) return options.find((o) => o.name === "AES-256-GCM") || null;
+  if (/SHA-?256/i.test(diff)) return options.find((o) => o.name === "SHA-256") || null;
+  return null;
+}
+
 /** Decision card (Task B1): one-sentence why, the usage-aware recommended replacement, then the alternatives. */
-function Decision({ a, top }) {
+function Decision({ a, top, fix }) {
   const b = a.breakdown;
   const hndl = b.threats?.includes("hndl");
   const r = recommend(a.algorithm, { verdict: a.verdict, hndl, criticality: b.criticality });
   const why = top ? THREAT[top][0] : a.reason;
+  const patched = r ? optionFromDiff(fix?.diff, r.options) : null;
+  const recommended = patched || r?.recommended;
+  const reason = patched ? "this is exactly what the generated patch applies" : r?.reason;
   return (
     <div className="bp-card">
       <div className="card-h"><h2>Decision</h2></div>
       <div className="card-b flex flex-col gap-3">
-        <div className="hint">{why}. {r ? <>Replace with <span className="mono">{r.recommended.name}</span>: {r.reason}.</> : null}</div>
+        <div className="hint">{why}. {r ? <>Replace with <span className="mono">{recommended.name}</span>: {reason}.</> : null}</div>
         {!r && <div className="hint">No PQC/hybrid alternative is tabled for <span className="mono">{a.algorithm}</span>.</div>}
         {r && (
           <table className="bp-table alt-table">
@@ -63,9 +76,9 @@ function Decision({ a, top }) {
             <thead><tr><th>Option</th><th>Kind</th><th>Standard</th><th>Size</th><th>Speed</th><th>Effort</th></tr></thead>
             <tbody>
               {r.options.map((o) => (
-                <tr key={o.name} style={o === r.recommended ? { background: "var(--brand-soft)" } : undefined}>
+                <tr key={o.name} style={o === recommended ? { background: "var(--brand-soft)" } : undefined}>
                   <td className="mono" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {o.name}{o === r.recommended && <Badge family="plain" title="Recommended for this asset"> recommended</Badge>}</td>
+                    {o.name}{o === recommended && <Badge family="plain" title="Recommended for this asset"> recommended</Badge>}</td>
                   <td>{o.kind}</td>
                   <td className="mono">{o.standard}</td>
                   <td className="mono">
@@ -222,7 +235,7 @@ export default function Asset({ onChanged, summary }) {
 
       <div className="grid-12">
         <div className="col-8 flex flex-col gap-3">
-          <Decision a={a} top={top} />
+          <Decision a={a} top={top} fix={fix} />
 
           <div className="bp-card">
             <div className="card-h"><h2>{fixable ? "Patch" : "What to change"}</h2></div>
