@@ -17,7 +17,7 @@ export default function Roadmap({ summary }) {
   if (!w) return <div className="p-6 dim">Loading…</div>;
   if (!w.length) return <NoScan what="The roadmap" />;
   return (
-    <div className="p-4 max-w-[1100px] mx-auto">
+    <div>
       <div className="text-xl font-semibold mb-1">Migration roadmap</div>
       <div className="dim mb-4">Five waves built from each asset's assigned wave (tier + Mosca exposure). Click a wave to filter.
         MOX orders the work; it does not set dates. Give each wave a target quarter in your programme plan.</div>

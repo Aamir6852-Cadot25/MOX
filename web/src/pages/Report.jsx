@@ -18,7 +18,7 @@ export default function Report({ summary }) {
   const c = d.counts, v = d.verdicts;
   const Sec = ({ n, t, children }) => <div className="panel p-4"><div className="h mb-2">{n}. {t}</div>{children}</div>;
   return (
-    <div className="p-4 max-w-[1000px] mx-auto flex flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <div className="panel p-4 flex items-center gap-4 flex-wrap">
         <div><div className="text-xl font-semibold">Compliance Report</div>
           <div className="dim">Target <span className="mono">{d.target}</span>, scan <span className="mono">#{d.scan.id}</span>, generated <span className="mono">{d.generated}</span></div></div>

@@ -12,7 +12,7 @@ _PRIMITIVE = {"RSA": "pke", "ECDSA": "signature", "EdDSA": "signature", "DSA": "
               "MD5": "hash", "SHA-1": "hash", "SHA-256": "hash", "DES": "block-cipher", "3DES": "block-cipher",
               "AES": "block-cipher", "RC4": "stream-cipher"}
 _MODES = {"ECB", "CBC", "GCM", "CCM", "CTR", "OFB", "CFB"}
-WAVE_NAMES = ["Discover", "Prioritise", "Agility-engineer", "Hybrid deploy", "Validate & attest"]
+WAVE_NAMES = ["Act now", "Plan", "Engineer agility", "Hybrid deploy", "Validate & attest"]
 WAVE_GOALS = ["Critical assets: act first", "High exposure: plan and prepare", "Medium: engineer crypto-agility",
               "Low: deploy hybrid PQC", "Accepted / monitored: validate and attest"]
 

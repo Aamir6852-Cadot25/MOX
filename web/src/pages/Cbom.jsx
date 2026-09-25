@@ -13,7 +13,7 @@ export default function Cbom({ summary }) {
   if (!c) return <div className="p-6 dim">Building CBOM…</div>;
   const prop = (x, k) => x.properties.find((p) => p.name === "mox:" + k)?.value;
   return (
-    <div className="p-4 max-w-[1300px] mx-auto flex flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <div className="panel p-4 flex items-center gap-4 flex-wrap">
         <div><div className="text-xl font-bold">Cryptographic Bill of Materials</div>
           <div className="dim">CycloneDX <span className="mono">{c.spec}</span>, version <span className="mono">{c.version}</span>, <span className="mono">{c.components}</span> cryptographic assets</div></div>

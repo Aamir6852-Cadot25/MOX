@@ -5,19 +5,22 @@ import Attest from "./Attest.jsx";
 import Report from "./Report.jsx";
 import Audit from "./Audit.jsx";
 import Sector from "./Sector.jsx";
+import PageHeader from "../components/PageHeader.jsx";
 
-const PRIMARY = [["cbom", "CBOM"], ["attestation", "Attestation"], ["national", "National view"], ["more", "More"]];
+const PRIMARY = [["cbom", "CBOM"], ["attestation", "Attestation"], ["national", "Sector view (NCIIPC)"], ["more", "More"]];
 const MORE = [["roadmap", "Roadmap"], ["compliance", "Compliance"], ["audit", "Audit log"], ["history", "History"], ["reference", "Reference"]];
 const MORE_KEYS = new Set(MORE.map(([k]) => k));
 const KNOWN = new Set(["cbom", "attestation", "national", ...MORE_KEYS]);
 
-/** D1: what do I hand over, and what changed since last time? "More" groups the less-used reports (Task 5). */
+/** D1: what do I hand over, and what changed since last time? "More" groups the less-used reports (Task 5).
+ * Default tab is Attestation (Task B3): that is what a CISO opens this page for. */
 export default function Reports({ summary }) {
   const { tab } = useParams();
-  if (!tab || !KNOWN.has(tab)) return <Navigate to="/reports/cbom" replace />;
+  if (!tab || !KNOWN.has(tab)) return <Navigate to="/reports/attestation" replace />;
   const inMore = MORE_KEYS.has(tab);
   return (
-    <div className="p-4 flex flex-col gap-3">
+    <div className="page">
+      <PageHeader title="Can we prove it?" />
       <div className="tabs" role="tablist">
         {PRIMARY.map(([key, label]) => (
           <NavLink key={key} to={key === "more" ? "/reports/roadmap" : `/reports/${key}`} role="tab"

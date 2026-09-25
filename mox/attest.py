@@ -213,6 +213,7 @@ def sector_view(conn) -> dict:
                         "contain_share": round(100 * contain / tot) if tot else 0,
                         "hybrid": sum(a["hybrid_pq_count"] for a in mine),
                         "wave": 1 if idx < 35 else 2 if idx < 55 else 3})
+    sectors.sort(key=lambda s: -s["hndl_exposed"])  # sector table sorted by exposed assets (Task B3)
     return {"demo": any(a for _, a in rows),
             "kpi": {"attestations": len(good), "rejected": len(rows) - len(good), "sectors": len(sectors),
                     "hndl_exposed": sum(s["hndl_exposed"] for s in sectors),

@@ -80,7 +80,7 @@ export default function App() {
         <Route path="/findings/:id" element={<Asset onChanged={refresh} summary={summary} />} />
         <Route path="/code" element={<Fix onChanged={refresh} summary={summary} />} />
         <Route path="/code/:findingId" element={<Fix onChanged={refresh} />} />
-        <Route path="/reports" element={<Navigate to="/reports/cbom" replace />} />
+        <Route path="/reports" element={<Navigate to="/reports/attestation" replace />} />
         <Route path="/reports/:tab" element={<Reports summary={summary} />} />
         {/* old routes (D1): redirect to the new home, entity preserved */}
         <Route path="/queue" element={<OldRoute to={() => "/findings"} />} />

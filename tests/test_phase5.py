@@ -38,6 +38,8 @@ def test_sector_view_verifies_ranks_and_rejects_tampering():
     assert v["kpi"]["sectors"] == 6 and v["kpi"]["attestations"] == 37 and v["kpi"]["leaks"] == 0
     hs = [r["hndl_exposed"] for r in v["ranking"]]
     assert hs == sorted(hs, reverse=True)
+    # Sector table sorted by exposed assets, most exposed first (Task B3)
+    assert [s["hndl_exposed"] for s in v["sectors"]] == sorted((s["hndl_exposed"] for s in v["sectors"]), reverse=True)
     row = conn.execute("SELECT id,data FROM attestations LIMIT 1").fetchone()
     d = json.loads(row["data"])
     d["assets"]["hndl_exposed"] += 500
