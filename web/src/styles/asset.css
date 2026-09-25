@@ -81,9 +81,11 @@
 .tl-ax span.l { transform: none; }
 .tl-ax span.r { transform: translateX(-100%); }
 .tl-tr { height: 10px; border-radius: 99px; background: var(--line); position: relative; }
-.tl-x { position: absolute; left: 0; top: 0; height: 100%; background: var(--brand-line); border-radius: 99px 0 0 99px; }
+.tl-x { position: absolute; left: 0; top: 0; height: 100%; background: var(--ink-4); border-radius: 99px 0 0 99px; }
 .tl-y { position: absolute; top: 0; height: 100%; background: var(--high-line); }
+.tl-y.exp { background: var(--crit-line); }
 .tl-e { position: absolute; top: var(--s3); height: 4px; background: var(--crit-ink); border-radius: 2px; }
+.years-bar.mini .tl-tr { height: 8px; }
 .tl-z { position: absolute; top: calc(-1 * var(--s1)); height: 22px; width: 2px; transform: translateX(-1px); background: var(--ink); border-radius: 2px; }
 .tl-key { display: flex; gap: var(--s3); flex-wrap: wrap; margin-top: var(--s4); font-size: 9.5px; color: var(--ink-3); }
 .tl-key i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; margin-right: var(--s1); vertical-align: middle; }

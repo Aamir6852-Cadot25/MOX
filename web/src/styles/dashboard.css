@@ -3,8 +3,6 @@
 .head h1 { font-size: 17px; font-weight: 500; line-height: 1.2; color: var(--ink); }
 .head .sub { font-size: 11.5px; color: var(--ink-3); }
 .head-act { margin-left: auto; display: flex; gap: var(--s2); }
-.dash-b { padding: var(--s4); display: flex; flex-direction: column; gap: var(--gap); }
-.dash-row { display: flex; gap: var(--gap); align-items: flex-start; } /* each card sizes to its content (B5) */
 
 .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--gap); }
 .tile { height: 88px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: var(--s3) var(--s4);
@@ -17,24 +15,6 @@
 .tile.crit { background: var(--crit-bg); border-color: var(--crit-line); } .tile.crit .n { color: var(--crit-ink); }
 .tile.high { background: var(--high-bg); border-color: var(--high-line); } .tile.high .n { color: var(--high-ink); }
 .tile.safe { background: var(--safe-bg); border-color: var(--safe-line); } .tile.safe .n { color: var(--safe-ink); }
-
-.vbar { display: flex; height: 28px; border-radius: var(--r); overflow: hidden; border: 1px solid var(--line); background: var(--surface); }
-.vseg + .vseg { border-left: 2px solid var(--surface); }
-.vseg { display: flex; align-items: center; justify-content: center; gap: var(--s2); font-size: 10.5px; font-weight: 500; text-decoration: none; min-width: 0; white-space: nowrap; overflow: hidden; }
-.vseg:focus-visible { outline: 2px solid var(--brand-ink); outline-offset: -2px; }
-.vseg.m { background: var(--crit-bg); color: var(--crit-ink); }
-.vseg.c { background: var(--med-bg); color: var(--med-ink); }
-.vseg.a { background: var(--safe-bg); color: var(--safe-ink); }
-/* B5: the verdict card gives its space to "is anything on fire?" instead of leaving it empty */
-.urgent { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); margin-top: var(--s3); padding: var(--s2) var(--s3);
-  border: 1px solid var(--crit-line); background: var(--crit-bg); border-radius: var(--r); font-size: 11px; color: var(--ink-2); }
-.urgent a { color: var(--crit-ink); font-weight: 500; text-decoration: none; } .urgent a:hover { text-decoration: underline; }
-.vcols { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s3); margin-top: var(--s3); }
-.vcol { display: flex; flex-direction: column; gap: var(--s1); padding: var(--s2) var(--s3); border: 1px solid var(--line); border-radius: var(--r);
-  background: var(--surface-2); font-size: 10.5px; color: var(--ink-2); text-decoration: none; line-height: 1.45; }
-.vcol:hover { background: var(--brand-soft); }
-.vcol:focus-visible { outline: 2px solid var(--brand-ink); outline-offset: 2px; }
-.vcol .vh { display: flex; align-items: center; gap: var(--s2); font-size: 12px; font-weight: 500; color: var(--ink); }
 
 .cov { display: flex; gap: var(--s3); align-items: center; }
 .cov-seg { stroke: var(--line); }
@@ -70,3 +50,25 @@
 .rf-key > span { display: inline-flex; align-items: center; gap: var(--s1); }
 .rf-table { margin-left: auto; color: var(--brand-ink); text-decoration: none; }
 .rf-table:hover { text-decoration: underline; }
+
+/* Quantum Risk matrix (Task A2): 3 equal-width risk columns; a zero-count cell is always blank and neutral. */
+.qr-matrix { display: flex; flex-direction: column; gap: var(--s1); }
+.qr-matrix-row { display: grid; grid-template-columns: 64px repeat(3, 1fr); gap: var(--s1); align-items: center; }
+.qr-matrix-head { color: var(--ink-3); font-size: 10.5px; }
+.qr-matrix-collabel { text-align: center; }
+.qr-matrix-rowlabel { color: var(--ink-2); font-size: 11px; }
+.qr-matrix-cell { height: 44px; width: 100%; font-size: 15px; font-family: var(--font-mono); border-radius: var(--r); border: 1px solid var(--line-2); background: var(--surface-2); color: var(--ink-3); cursor: pointer; }
+.qr-matrix-cell.crit { background: var(--crit-bg); color: var(--crit-ink); border-color: var(--crit-line); }
+.qr-matrix-cell.high { background: var(--high-bg); color: var(--high-ink); border-color: var(--high-line); }
+.qr-matrix-cell.active { border-color: var(--ink); border-width: 2px; }
+
+/* Quantum Risk asset list: algorithm/location, criticality sub-label, mini years bar, overdue/left. */
+.qr-list { display: flex; flex-direction: column; }
+.qr-row { display: grid; grid-template-columns: minmax(0, 1fr) 96px 108px; align-items: center; gap: var(--s3); padding: var(--s2) var(--s3); border-bottom: 1px solid var(--line); text-decoration: none; color: inherit; }
+.qr-row:last-child { border-bottom: 0; }
+.qr-row:hover { background: var(--surface-2); }
+.qr-row-loc { font-size: 12px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qr-row-loc .dim { margin-left: var(--s2); font-size: 10.5px; }
+.qr-row-sub { font-size: 10.5px; color: var(--ink-3); margin-top: var(--s1); }
+.qr-row-exp { text-align: right; font-size: 11px; white-space: nowrap; color: var(--ink-2); }
+.qr-row-exp.exp { color: var(--crit-ink); }

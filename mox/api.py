@@ -121,6 +121,9 @@ def _asset(conn, row, full=False) -> dict:
     # "Open fix" is offered only where a fixer actually produces a patch for the file as it is now.
     ok = flow.fixable(conn, [l["finding_id"] for l in locs if l["plane"] in ("code", "configs")])
     d["fix_finding"] = next((l["finding_id"] for l in locs if l["finding_id"] in ok), None)
+    # One real file:line for the queue/matrix row (Quantum Risk list); None when the location has no line.
+    loc0 = locs[0] if locs else None
+    d["primary_location"] = (f"{loc0['file']}:{loc0['line']}" if loc0 and loc0.get("line") else loc0["file"] if loc0 else None)
     if full:
         for l in locs:
             l["fixable"] = l["finding_id"] in ok

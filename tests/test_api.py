@@ -52,6 +52,7 @@ def test_scan_assets_and_settings(client):
     lst = client.get("/api/assets").json()
     assert lst == sorted(lst, key=lambda a: -a["score"])
     gw = next(a for a in lst if a["label"].endswith("api-gw.key"))
+    assert gw["primary_location"] and gw["primary_location"].split(":")[0] in gw["files"]
     d = client.get(f"/api/assets/{gw['id']}").json()
     assert len(d["findings"]) > 1 and "→ 1 asset" in d["summary"]
     assert "BEGIN" not in str(d)
