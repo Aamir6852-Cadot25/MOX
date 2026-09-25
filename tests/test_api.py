@@ -113,3 +113,15 @@ def test_discover_type_counts_match_the_cbom(client):
     assert by_type["protocols"] == types.count("protocol")
     assert by_type["algorithms"] + by_type["libraries"] == types.count("algorithm")
     assert by_type["keys"] >= 1 and by_type["libraries"] >= 1
+
+
+def test_history_and_reference_endpoints(client):
+    login(client)
+    client.post("/api/scans", json={"path": client.demo})
+    history = client.get("/api/scans/history").json()
+    assert len(history) >= 1
+    assert history[0]["target"]
+    assert history[0]["findings_count"] >= 1
+    ref = client.get("/api/reference").json()
+    assert "algorithms" in ref
+    assert "RSA" in ref["algorithms"]

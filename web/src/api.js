@@ -46,6 +46,8 @@ export const api = {
   attest: (sector) => call("GET", `/api/attest?sector=${sector}`),
   sectors: () => call("GET", "/api/sectors"),
   audit: () => call("GET", "/api/audit"),
+  history: () => call("GET", "/api/scans/history"),
+  reference: () => call("GET", "/api/reference"),
   report: () => call("GET", "/api/report"),
   setSettings: (body) => call("PUT", "/api/settings", body),
   projectsMeta: () => call("GET", "/api/projects/meta"),

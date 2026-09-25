@@ -6,6 +6,8 @@ import Attest, { prefetchAttest } from "./Attest.jsx";
 import Report from "./Report.jsx";
 import Audit from "./Audit.jsx";
 import Sector from "./Sector.jsx";
+import History from "./History.jsx";
+import Reference from "./Reference.jsx";
 import PageHeader from "../components/PageHeader.jsx";
 
 const PRIMARY = [["cbom", "CBOM"], ["attestation", "Attestation"], ["national", "Sector view (NCIIPC)"], ["more", "More"]];
@@ -47,12 +49,8 @@ export default function Reports({ summary }) {
       {tab === "attestation" && <Attest summary={summary} />}
       {tab === "national" && <Sector />}
       {tab === "audit" && <Audit />}
-      {tab === "history" && (
-        <div className="panel p-4 dim">Scan-over-scan history and delta land in Phase 6.</div>
-      )}
-      {tab === "reference" && (
-        <div className="panel p-4 dim">A browsable NIST status reference lands in Phase 6.</div>
-      )}
+      {tab === "history" && <History />}
+      {tab === "reference" && <Reference />}
     </div>
   );
 }

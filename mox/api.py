@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import attest, auth, browse, cbom, coverage, db, extract, gitsource, jobs, netguard, projects, report, scanner, source
+from . import attest, auth, browse, cbom, coverage, db, extract, gitsource, jobs, netguard, nist, projects, report, scanner, source
 from .fixers import flow
 from .analyze import analyze
 from .db import ROOT
@@ -482,6 +482,15 @@ def create_app() -> FastAPI:
     @app.get("/api/audit")
     def audit_log(u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
         return [dict(r) for r in conn.execute("SELECT * FROM audit ORDER BY id DESC LIMIT 200")]
+
+    @app.get("/api/scans/history")
+    def scans_history(u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
+        rows = conn.execute("SELECT id, target, started_at, seconds, files_scanned, findings_count, planes_hit FROM scans ORDER BY id DESC LIMIT 50").fetchall()
+        return [dict(r) for r in rows]
+
+    @app.get("/api/reference")
+    def nist_reference(u=Depends(_user)):
+        return nist.table()
 
     if DIST.is_dir():
         app.mount("/assets", StaticFiles(directory=DIST / "assets"), name="assets")
