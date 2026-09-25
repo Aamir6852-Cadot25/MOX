@@ -77,7 +77,7 @@ export default function App() {
         <Route path="/scan" element={<NewScan summary={summary} onScanned={refresh} />} />
         <Route path="/dashboard" element={<Dashboard summary={summary} onScanned={refresh} />} />
         <Route path="/findings" element={<Queue summary={summary} />} />
-        <Route path="/findings/:id" element={<Asset onChanged={refresh} />} />
+        <Route path="/findings/:id" element={<Asset onChanged={refresh} summary={summary} />} />
         <Route path="/code" element={<Fix onChanged={refresh} summary={summary} />} />
         <Route path="/code/:findingId" element={<Fix onChanged={refresh} />} />
         <Route path="/reports" element={<Navigate to="/reports/cbom" replace />} />
