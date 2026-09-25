@@ -1,0 +1,18 @@
+/* Launch splash (components/Splash.jsx): one pass, token durations, no loop. */
+.splash { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--s2); background: var(--paper); opacity: 1; transition: opacity var(--t-slow) var(--ease); }
+.splash.out { opacity: 0; pointer-events: none; }
+.splash-art { width: 360px; height: 360px; max-width: 80vw; max-height: 80vw; overflow: visible; transform-origin: 50% 50%; animation: splash-breathe var(--t-splash) var(--ease-out) both; }
+.splash-ring { fill: none; stroke: var(--ink-4); stroke-width: .75; stroke-dasharray: 1 1; stroke-dashoffset: 1;
+  animation: splash-draw calc(var(--t-splash) - var(--i) * var(--t-splash-stagger)) var(--ease-out) both;
+  animation-delay: calc(var(--i) * var(--t-splash-stagger)); }
+.splash-word { animation: splash-in var(--t-slow) var(--ease) both; animation-delay: var(--t-slow); }
+.splash-mo { font-family: var(--font-sans); font-weight: 400; font-size: 64px; letter-spacing: .04em; fill: var(--ink); }
+.splash-x { fill: none; stroke: var(--brand); stroke-width: 9; stroke-linecap: butt; }
+.splash-wave { fill: none; stroke: var(--brand); stroke-width: .75; stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: 1 1; stroke-dashoffset: 1; animation: splash-draw var(--t-splash) var(--ease) both; }
+.splash-by { display: flex; align-items: center; gap: var(--s2); font-size: 12px; letter-spacing: .04em; color: var(--ink-3); animation: splash-in var(--t-slow) var(--ease) both; animation-delay: var(--t-slow); }
+.splash-by svg { color: var(--brand); }
+
+@keyframes splash-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes splash-breathe { from { transform: rotate(-8deg) scale(.94); } to { transform: none; } }
+@keyframes splash-in { from { opacity: 0; } to { opacity: 1; } }

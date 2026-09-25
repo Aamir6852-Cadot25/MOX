@@ -3,6 +3,7 @@
 @import "./styles/tokens.css";
 @import "./styles/layout.css";
 @import "./styles/asset.css";
+@import "./styles/splash.css";
 @import "./styles/dashboard.css";
 @import "./styles/queue.css";
 
@@ -214,4 +215,6 @@ input[type="range"] { accent-color: var(--brand); }
   .expander.open > div { opacity: 1; }
   .qt tr.settle { transition: none; }
   .qt tbody tr td:first-child { transition: background-color var(--t-fast) var(--ease); }
+  .splash-art { animation: none; }
+  .splash-ring, .splash-wave { stroke-dashoffset: 0; animation: splash-in var(--t-slow) var(--ease) both; }
 }

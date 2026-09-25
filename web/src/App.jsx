@@ -12,6 +12,7 @@ import AirGapPill from "./components/AirGapPill.jsx";
 import EvalBanner from "./components/EvalBanner.jsx";
 import Icon from "./components/Icon.jsx";
 import Mark from "./components/Mark.jsx";
+import Splash from "./components/Splash.jsx";
 import { RouteStage } from "./components/Motion.jsx";
 
 /** D1: every old route redirects to its new home with the same entity selected, preserving any query/hash. */
@@ -20,6 +21,11 @@ function OldRoute({ to }) {
   const loc = useLocation();
   return <Navigate to={`${to(params)}${loc.search}${loc.hash}`} replace />;
 }
+
+const SPLASH_KEY = "mox_splash_seen";
+// Storage can be blocked (private window, policy): then the splash simply plays, and nothing breaks.
+const splashSeen = () => { try { return sessionStorage.getItem(SPLASH_KEY) === "1"; } catch { return false; } };
+const markSplashSeen = () => { try { sessionStorage.setItem(SPLASH_KEY, "1"); } catch { /* storage blocked: harmless */ } };
 
 /** Post-login landing always opens 1 Discover; never jump straight to Quantum Risk. */
 function Landing({ summary }) {
@@ -30,6 +36,7 @@ function Landing({ summary }) {
 export default function App() {
   const [user, setUser] = useState(undefined);
   const [summary, setSummary] = useState(null);
+  const [showSplash, setShowSplash] = useState(() => !splashSeen());
   const nav = useNavigate();
 
   // A failed load is not "no scan": keep the error so no screen claims the database is empty.
@@ -41,10 +48,17 @@ export default function App() {
     if (user) refresh();
   }, [user]);
 
-  if (user === undefined) return null;
+  // The splash leaves only once the real boot requests have answered (session, then the latest scan if signed in).
+  const splash = showSplash
+    ? <Splash ready={user !== undefined && (user === null || summary !== null)}
+        onDone={() => { markSplashSeen(); setShowSplash(false); }} />
+    : null;
+
+  if (user === undefined) return <>{splash}</>; // same tree position as below, so the splash is not remounted
   if (!user)
     return (
       <>
+        {splash}
         <EvalBanner />
         <Routes>
           <Route path="*" element={<Login onLogin={(u) => { setUser(u); nav("/"); }} />} />
@@ -60,6 +74,7 @@ export default function App() {
   );
   return (
     <>
+      {splash}
       <EvalBanner />
       <div className="shell">
       <aside className="side">
