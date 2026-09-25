@@ -38,6 +38,7 @@
   --rail:180px;
   --aside:296px;
   --bar:44px;
+  --banner-h:28px;
 
   /* layout system (Run A, Task A1): one content width and gutter for every page */
   --content-max:1280px;

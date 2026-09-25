@@ -9,6 +9,7 @@ import Fix from "./pages/Fix.jsx";
 import Reports from "./pages/Reports.jsx";
 import NewScan from "./pages/NewScan.jsx";
 import AirGapPill from "./components/AirGapPill.jsx";
+import EvalBanner from "./components/EvalBanner.jsx";
 import Icon from "./components/Icon.jsx";
 import Mark from "./components/Mark.jsx";
 import { RouteStage } from "./components/Motion.jsx";
@@ -43,9 +44,12 @@ export default function App() {
   if (user === undefined) return null;
   if (!user)
     return (
-      <Routes>
-        <Route path="*" element={<Login onLogin={(u) => { setUser(u); nav("/"); }} />} />
-      </Routes>
+      <>
+        <EvalBanner />
+        <Routes>
+          <Route path="*" element={<Login onLogin={(u) => { setUser(u); nav("/"); }} />} />
+        </Routes>
+      </>
     );
 
   const scan = summary?.scan;
@@ -55,7 +59,9 @@ export default function App() {
     <NavLink key={l} to={to} className={({ isActive }) => "nav" + (isActive ? " on" : "")}><Icon name={icon} size="nav" />{l}</NavLink>
   );
   return (
-    <div className="shell">
+    <>
+      <EvalBanner />
+      <div className="shell">
       <aside className="side">
         <div className="logo"><Mark />MOX</div>
         {work.map(([to, l, icon]) => navRow(to, l, icon))}
@@ -98,6 +104,7 @@ export default function App() {
       </Routes>
       )}</RouteStage>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
