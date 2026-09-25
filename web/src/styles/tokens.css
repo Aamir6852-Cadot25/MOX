@@ -38,6 +38,13 @@
   --rail:180px;
   --aside:296px;
   --bar:44px;
+
+  /* layout system (Run A, Task A1): one content width and gutter for every page */
+  --content-max:1280px;
+  --gutter:24px;
+
+  /* type scale 24/18/15/13/12; key figures are never smaller than --fs-1 */
+  --fs-1:24px; --fs-2:18px; --fs-3:15px; --fs-4:13px; --fs-5:12px;
 }
 
 /* MOX extensions (docs/JUDGE-AUDIT.md Part C). Components use these, never literal values. */

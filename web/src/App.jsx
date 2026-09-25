@@ -58,7 +58,6 @@ export default function App() {
     <div className="shell">
       <aside className="side">
         <div className="logo"><Mark />MOX</div>
-        <div className="grp">Work</div>
         {work.map(([to, l, icon]) => navRow(to, l, icon))}
       </aside>
       <div className="main">
@@ -69,7 +68,7 @@ export default function App() {
           <div className="sp" />
           {scan && <div className="chip"><span className="mono">{scan.files_scanned}</span> files, <span className="mono">{summary.kpi.planes}</span> planes, <span className="mono">{scan.seconds}</span> s</div>}
           <AirGapPill />
-          <span className="dim" style={{ fontSize: 11 }}>{user.username}</span>
+          <span className="dim" style={{ fontSize: 11 }} title={user.username}>Signed in as CISO</span>
           <button className="bp-btn" onClick={() => api.logout().then(() => setUser(null))}><Icon name="log-out" />Sign out</button>
         </div>
       <RouteStage>{(loc) => (

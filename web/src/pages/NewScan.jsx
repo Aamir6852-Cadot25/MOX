@@ -4,6 +4,7 @@ import { api } from "../api.js";
 import { PLANES } from "../components/Pipeline.jsx";
 import { Num, Disclosure } from "../components/Motion.jsx";
 import Icon from "../components/Icon.jsx";
+import PageHeader from "../components/PageHeader.jsx";
 
 const FILE_PLANES = PLANES.filter((p) => p !== "tls");
 const PLANE_NAME = { code: "Algorithm calls", dependencies: "Library manifests", configs: "Protocol/config",
@@ -15,6 +16,7 @@ export default function NewScan({ summary, onScanned }) {
   const [run, setRun] = useState(null); // {state, stages, progress, error, bytesRead}
   const [err, setErr] = useState("");
   const [revealed, setRevealed] = useState(0);
+  const [unidentified, setUnidentified] = useState(null);
   const es = useRef(null);
 
   useEffect(() => () => es.current?.close(), []);
@@ -41,7 +43,7 @@ export default function NewScan({ summary, onScanned }) {
 
   const start = async (e) => {
     e.preventDefault();
-    setErr(""); setRevealed(0);
+    setErr(""); setRevealed(0); setUnidentified(null);
     es.current?.close();
     try {
       const st = await api.scanStart({ source: "folder", path, planes: [...on] });
@@ -57,6 +59,8 @@ export default function NewScan({ summary, onScanned }) {
   const filesTotal = FILE_PLANES.reduce((sum, p) => sum + (detect?.[p]?.files ?? run?.progress?.[p]?.total ?? 0), 0);
   const filesDone = FILE_PLANES.reduce((sum, p) => sum + (detect ? (detect[p]?.files ?? 0) : (run?.progress?.[p]?.done ?? 0)), 0);
   const feed = FILE_PLANES.map((p) => ({ plane: p, findings: detect?.[p]?.findings ?? 0 })).filter((f) => detect && f.findings > 0);
+  const maxFeed = Math.max(1, ...feed.map((f) => f.findings));
+  const lastStage = run?.stages?.[run.stages.length - 1];
 
   // Stagger the (real, final) feed reveal over ~3s total; never before Detect's own numbers exist.
   useEffect(() => {
@@ -67,9 +71,15 @@ export default function NewScan({ summary, onScanned }) {
     return () => clearInterval(t);
   }, [detect]);
 
+  // Real count of assets with no identified algorithm, fetched once the scan is done (never estimated).
+  useEffect(() => {
+    if (!done) return;
+    api.assets().then((assets) => setUnidentified(assets.filter((a) => a.algorithm === "unknown").length)).catch(() => setUnidentified(null));
+  }, [done]);
+
   return (
-    <div className="p-4 flex flex-col gap-3" style={{ maxWidth: 900, margin: "0 auto" }}>
-      <h1>Discover</h1>
+    <div className="page" style={{ maxWidth: 900 }}>
+      <PageHeader step="1 Discover" title="What cryptography do we run?" />
       <form className="bp-card" onSubmit={start}>
         <div className="card-h"><h2>What to scan</h2></div>
         <div className="card-b flex flex-col gap-3">
@@ -89,9 +99,9 @@ export default function NewScan({ summary, onScanned }) {
         </div>
       </form>
 
-      {run && (
-        <div className="bp-card">
-          <div className="card-h"><h2>{done ? "Scan complete" : run.state === "error" ? "Scan failed" : "Scanning\u2026"}</h2>
+      {run && !done && (
+        <div className="bp-card" style={{ marginTop: "var(--s3)" }}>
+          <div className="card-h"><h2>{run.state === "error" ? "Scan failed" : "Scanning\u2026"}</h2>
             <span className="note mono">{run.path}</span></div>
           <div className="card-b flex flex-col gap-3">
             {run.state === "error" && <div className="errbox">{run.error}</div>}
@@ -112,17 +122,36 @@ export default function NewScan({ summary, onScanned }) {
                 );
               })}
             </div>
+          </div>
+        </div>
+      )}
 
-            {feed.length > 0 && (
-              <div className="flex flex-col gap-1">
-                <div className="lbl">Found, by type</div>
-                {feed.slice(0, revealed).map((f, i) => (
-                  <div key={f.plane} className="kv num-fade" style={{ animationDelay: `${i * 40}ms` }}>
-                    <span>{PLANE_NAME[f.plane]}</span><span className="mono">{f.findings}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+      {done && (
+        <div className="bp-card" style={{ marginTop: "var(--s3)" }}>
+          <div className="card-h"><h2>Scan complete</h2><span className="note mono">{run.path}</span></div>
+          <div className="card-b flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <div className="lbl">Inventory, by plane</div>
+              {feed.slice(0, revealed).map((f, i) => (
+                <div key={f.plane} className="flex items-center gap-2 num-fade" style={{ animationDelay: `${i * 40}ms` }}>
+                  <span className="mono" style={{ width: 140, fontSize: 11 }}>{PLANE_NAME[f.plane]}</span>
+                  <div className="meter-bar" style={{ flex: 1, margin: 0 }}><i style={{ width: `${(100 * f.findings) / maxFeed}%` }} /></div>
+                  <span className="mono tn" style={{ width: 40, textAlign: "right", fontSize: 11 }}>{f.findings}</span>
+                </div>
+              ))}
+              {!feed.length && <div className="hint">No cryptographic asset was found in the planes that ran.</div>}
+            </div>
+
+            <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+              <div className="panel p-3"><div className="dim" style={{ fontSize: 11 }}>Unidentified items</div>
+                <div className="mono" style={{ fontSize: 20 }}>{unidentified ?? "\u2013"}</div></div>
+              <div className="panel p-3"><div className="dim" style={{ fontSize: 11 }}>Target</div>
+                <div className="mono" style={{ fontSize: 13, wordBreak: "break-all" }}>{run.path}</div></div>
+              <div className="panel p-3"><div className="dim" style={{ fontSize: 11 }}>Duration</div>
+                <div className="mono" style={{ fontSize: 20 }}>{lastStage ? (lastStage.t_ms / 1000).toFixed(1) : "\u2013"}s</div></div>
+              <div className="panel p-3"><div className="dim" style={{ fontSize: 11 }}>Outbound connects</div>
+                <div className="mono" style={{ fontSize: 20 }}>{run.net?.outbound ?? 0}<span className="dim" style={{ fontSize: 11 }}> (measured)</span></div></div>
+            </div>
 
             {run.stages?.length > 0 && (
               <Disclosure summary="Scan details">
@@ -132,7 +161,7 @@ export default function NewScan({ summary, onScanned }) {
               </Disclosure>
             )}
 
-            {done && <Link className="bp-btn pri" style={{ alignSelf: "flex-start" }} to="/dashboard">Assess quantum risk &#8594;</Link>}
+            <Link className="bp-btn pri" style={{ alignSelf: "flex-start" }} to="/dashboard">Assess quantum risk &#8594;</Link>
           </div>
         </div>
       )}
