@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api.js";
 import { Disclosure } from "../components/Motion.jsx";
@@ -22,9 +22,10 @@ export default function Dashboard({ summary, onScanned }) {
   const [z, setZ] = useState(null);
   const [zBusy, setZBusy] = useState(false);
   const [filter, setFilter] = useState(null); // {row, col} or null
+  const seq = useRef(0); // only the newest horizon change may write results; older responses are dropped
 
-  const load = () => { api.assets().then(setAssets).catch((e) => setErr(e.message)); };
-  useEffect(load, [summary?.scan?.id]);
+  const load = (n = seq.current) => { api.assets().then((a) => { if (n === seq.current) setAssets(a); }).catch((e) => setErr(e.message)); };
+  useEffect(() => load(), [summary?.scan?.id]);
   useEffect(() => { api.settings().then((s) => setZ(s.threat_horizon)).catch(() => {}); }, []);
 
   if (!summary) return <div className="page hint">Loading the latest scan</div>;
@@ -49,8 +50,9 @@ export default function Dashboard({ summary, onScanned }) {
   const saveZ = async (n) => {
     setZ(n);
     setZBusy(true);
-    try { await api.setSettings({ threat_horizon: n }); await onScanned(); await load(); } catch { /* keep the slider value; it reflects the last saved Z on reload */ }
-    setZBusy(false);
+    const mine = ++seq.current;
+    try { await api.setSettings({ threat_horizon: n }); if (mine !== seq.current) return; await onScanned(); load(mine); } catch { /* keep the slider value; it reflects the last saved Z on reload */ }
+    if (mine === seq.current) setZBusy(false);
   };
 
   const plotted = assets.filter((a) => a.breakdown.mosca.exposure != null);
@@ -97,9 +99,8 @@ export default function Dashboard({ summary, onScanned }) {
       {urgent && (
         <div className="urgent-line" style={{ marginBottom: "var(--gutter)" }}>
           {/* primary_location/files can be missing on assets serialized before that field existed; fall back to label, then algorithm alone. */}
-          <span className="mono">Most urgent: {urgent.algorithm}{urgent.primary_location ? ` ${urgent.primary_location}`
-            : urgent.files?.length ? ` ${urgent.files[0]}` : urgent.label ? ` ${urgent.label}` : ""}</span>
-          <span className="dim">, {urgentExp > 0 ? `${urgentExp} yrs overdue` : `score ${urgent.score}`}</span>
+          <span className="mono">Most urgent: {urgent.label || urgent.algorithm}</span>
+          <span className="dim">{urgentExp > 0 ? `${urgentExp} yrs overdue (X + Y − Z)` : `score ${urgent.score}`}</span>
           <Link className="bp-btn pri" style={{ marginLeft: "auto" }} to={`/findings/${urgent.id}`}>Fix this &#8594;</Link>
         </div>
       )}
@@ -148,11 +149,12 @@ export default function Dashboard({ summary, onScanned }) {
                     <Link key={a.id} to={`/findings/${a.id}`} className="qr-row">
                       <div style={{ minWidth: 0 }}>
                         <div className="qr-row-loc mono">{a.label}{a.primary_location && <span className="dim"> {a.primary_location}</span>}</div>
-                        <div className="qr-row-sub">{CRIT_FULL[a.breakdown.criticality]}</div>
+                        <div className="qr-row-sub">{CRIT_FULL[a.breakdown.criticality]}
+                          <span className="mono"> &middot; X {a.breakdown.mosca.x} + Y {a.breakdown.mosca.y} &minus; Z {a.breakdown.mosca.z} = {exp}</span></div>
                       </div>
                       <YearsBar m={a.breakdown.mosca} mini />
                       <div className={`qr-row-exp mono tn${exp > 0 ? " exp" : ""}`}>
-                        {exp > 0 ? `${exp} yrs overdue` : `${-exp} yrs left`}
+                        {exp > 0 ? `${exp} yr${exp === 1 ? "" : "s"} overdue` : `${-exp} yr${exp === -1 ? "" : "s"} left`}
                       </div>
                     </Link>
                   );

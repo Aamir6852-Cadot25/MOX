@@ -9,6 +9,8 @@ import PageHeader from "../components/PageHeader.jsx";
 import FolderBrowser from "../components/FolderBrowser.jsx";
 
 const FILE_PLANES = PLANES.filter((p) => p !== "tls");
+const TYPE_NAMES = [["algorithms", "Algorithms"], ["keys", "Keys"], ["certificates", "Certificates"],
+  ["protocols", "Protocols"], ["libraries", "Libraries"]];
 const PLANE_NAME = { code: "Algorithm calls", dependencies: "Library manifests", configs: "Protocol/config",
   certificates: "Certificates", containers: "Container images", binaries: "Binaries" };
 
@@ -35,7 +37,7 @@ export default function NewScan({ summary, onScanned }) {
     src.addEventListener("done", (e) => {
       src.close();
       const d = JSON.parse(e.data);
-      upd(() => ({ state: "done", net: d.net, bytesRead: d.bytes_read }));
+      upd(() => ({ state: "done", scanId: d.scan_id, net: d.net, bytesRead: d.bytes_read }));
       onScanned();
     });
     src.addEventListener("error", (e) => {
@@ -58,6 +60,8 @@ export default function NewScan({ summary, onScanned }) {
 
   const running = run?.state === "running";
   const done = run?.state === "done";
+  // only the summary of THIS scan: a stale summary from a previous scan must never be shown as its result
+  const byType = done && summary?.scan?.id === run.scanId ? summary.by_type : null;
   const toggle = (p) => setOn((s) => { const n = new Set(s); n.has(p) ? n.delete(p) : n.add(p); return n; });
   const detect = run?.stages?.find((s) => s.stage === "Detect")?.detail;
   const filesTotal = FILE_PLANES.reduce((sum, p) => sum + (detect?.[p]?.files ?? run?.progress?.[p]?.total ?? 0), 0);
@@ -159,6 +163,18 @@ export default function NewScan({ summary, onScanned }) {
               ))}
               {!feed.length && <div className="hint">No cryptographic asset was found in the planes that ran.</div>}
             </div>
+
+            {byType && (
+              <div className="flex flex-col gap-1">
+                <div className="lbl">Artefacts, by type (as exported in the CBOM)</div>
+                <div className="grid gap-3 grid-cols-5">
+                  {TYPE_NAMES.map(([k, name]) => (
+                    <div key={k} className="panel p-3"><div className="dim" style={{ fontSize: 11 }}>{name}</div>
+                      <div className="mono tn" style={{ fontSize: 20 }}>{byType[k]}</div></div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
               <div className="panel p-3"><div className="dim" style={{ fontSize: 11 }}>Unidentified items</div>

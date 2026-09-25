@@ -182,6 +182,7 @@ def _summary(conn, scan, assets) -> dict:
                                                    "quantum_vulnerable": len(qv)},
                                                   {"migrate": verdicts["MIGRATE"]}, len(ran)),
                     "safe": len(assets) - len(qv), "hybrid": sum(1 for a in assets if a["hybrid"])},
+            "by_type": cbom.type_counts(conn, scan["id"]),
             "verdicts": verdicts,
             "verdict_detail": _verdict_detail(assets),
             "stages": json.loads(scan["stages"] or "[]"),

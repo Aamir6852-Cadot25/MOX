@@ -51,8 +51,11 @@ export const FAMILIES = {
   },
 };
 
-/** Which family an asset's algorithm falls into, or null if none of the tables apply. */
-export function familyFor(algorithm) {
+/** Which family an asset's algorithm falls into, or null if none of the tables apply. RSA is both a
+ * key-exchange and a signature algorithm: when its only quantum threat is forgery (certificates, signing
+ * keys) the replacement is a signature scheme, never a KEM. */
+export function familyFor(algorithm, forgeryOnly = false) {
+  if (forgeryOnly && FAMILIES.signature.match(algorithm)) return "signature";
   return Object.entries(FAMILIES).find(([, f]) => f.match(algorithm))?.[0] || null;
 }
 
@@ -61,8 +64,8 @@ export function familyFor(algorithm) {
  * HNDL-exposed prefers the KEM first; mission-critical prefers a higher security level.
  * Returns { family, options, recommended, reason } or null if no table applies.
  */
-export function recommend(algorithm, { verdict, hndl, criticality } = {}) {
-  const family = familyFor(algorithm);
+export function recommend(algorithm, { verdict, hndl, forgery, criticality } = {}) {
+  const family = familyFor(algorithm, forgery && !hndl);
   if (!family) return null;
   const options = FAMILIES[family].options;
   let recommended = options[0];

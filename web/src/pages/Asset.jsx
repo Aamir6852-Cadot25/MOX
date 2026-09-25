@@ -58,7 +58,7 @@ function optionFromDiff(diff, options) {
 function Decision({ a, top, fix }) {
   const b = a.breakdown;
   const hndl = b.threats?.includes("hndl");
-  const r = recommend(a.algorithm, { verdict: a.verdict, hndl, criticality: b.criticality });
+  const r = recommend(a.algorithm, { verdict: a.verdict, hndl, forgery: b.threats?.includes("forgery"), criticality: b.criticality });
   const why = top ? THREAT[top][0] : a.reason;
   const patched = r ? optionFromDiff(fix?.diff, r.options) : null;
   const recommended = patched || r?.recommended;
@@ -195,7 +195,7 @@ export default function Asset({ onChanged, summary }) {
   const step = fix && fix.status !== "previewed" ? 4 : 1;
   const formulaLine = `${terms.subtotal.value} × ${terms.criticality.value} × ${terms.confidence.value} = ${a.score}`;
   const primaryFile = a.locations[0]?.file;
-  const r = recommend(a.algorithm, { verdict: a.verdict, hndl: b.threats?.includes("hndl"), criticality: b.criticality });
+  const r = recommend(a.algorithm, { verdict: a.verdict, hndl: b.threats?.includes("hndl"), forgery: b.threats?.includes("forgery"), criticality: b.criticality });
 
   const apply = async () => {
     setBusy(true); setFixErr("");

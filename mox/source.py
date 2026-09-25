@@ -5,7 +5,9 @@ Archive, container image and artefact uploads all reduce to the same shape: plac
 per-scan temp directory, then run the ordinary local-folder pipeline over it. Git adds one extra fact
 (the commit SHA); live-TLS-only scans just have nothing to walk.
 """
+import os
 import shutil
+import stat
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -49,8 +51,17 @@ def _temp_dir() -> Path:
     return Path(tempfile.mkdtemp(prefix="mox-scan-"))
 
 
+def _force_writable(func, target, _exc):
+    # Windows: git marks pack/object files read-only, which makes a plain rmtree leave the clone behind.
+    try:
+        os.chmod(target, stat.S_IWRITE)
+        func(target)
+    except OSError:
+        pass
+
+
 def _cleanup(path: Path) -> callable:
-    return lambda: shutil.rmtree(path, ignore_errors=True)
+    return lambda: shutil.rmtree(path, onexc=_force_writable)
 
 
 def from_upload(kind: str, files: list[tuple[str, bytes]]) -> Resolved:

@@ -67,6 +67,19 @@ def _component(a) -> dict:
             "properties": [{"name": f"mox:{k}", "value": str(v)} for k, v in props.items()]}
 
 
+def type_counts(conn, scan_id: int) -> dict:
+    """Artefacts by type, from the same classifier the CBOM export uses. A non-primitive name
+    (OpenSSL, node-forge, ...) exported as algorithm/other is a crypto library."""
+    out = {"algorithms": 0, "keys": 0, "certificates": 0, "protocols": 0, "libraries": 0}
+    for a in _load(conn, scan_id):
+        t = _crypto(a)["assetType"]
+        if t == "algorithm":
+            out["algorithms" if a["algorithm"] in _PRIMITIVE else "libraries"] += 1
+        else:
+            out[{"related-crypto-material": "keys", "certificate": "certificates", "protocol": "protocols"}[t]] += 1
+    return out
+
+
 def build(conn, scan_id: int, version: int = 1) -> dict:
     scan = conn.execute("SELECT * FROM scans WHERE id=?", (scan_id,)).fetchone()
     assets = _load(conn, scan_id)

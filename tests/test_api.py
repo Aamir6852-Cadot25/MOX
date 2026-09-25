@@ -98,3 +98,18 @@ def test_urgent_asset_has_algorithm_and_location(client):
     assert location
     line = f"Most urgent: {urgent['algorithm']} {location}"
     assert line.strip() and not line.endswith(" ") and ",  " not in f"{line}, "
+
+
+def test_discover_type_counts_match_the_cbom(client):
+    """Discover's artefact-type counts come from the CBOM classifier, so the two screens always agree."""
+    login(client)
+    client.post("/api/scans", json={"path": client.demo})
+    by_type = client.get("/api/scans/latest").json()["by_type"]
+    comps = client.get("/api/cbom").json()["bom"]["components"]
+    assert sum(by_type.values()) == len(comps)
+    types = [c["cryptoProperties"]["assetType"] for c in comps]
+    assert by_type["certificates"] == types.count("certificate")
+    assert by_type["keys"] == types.count("related-crypto-material")
+    assert by_type["protocols"] == types.count("protocol")
+    assert by_type["algorithms"] + by_type["libraries"] == types.count("algorithm")
+    assert by_type["keys"] >= 1 and by_type["libraries"] >= 1
