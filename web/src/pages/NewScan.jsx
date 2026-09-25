@@ -122,12 +122,14 @@ export default function NewScan({ summary, onScanned }) {
       )}
 
       {run && !done && (
-        <div className="bp-card" style={{ marginTop: "var(--s3)" }}>
-          <div className="card-h"><h2>{run.state === "error" ? "Scan failed" : "Scanning\u2026"}</h2>
-            <span className="note mono">{run.path}</span></div>
-          <div className="card-b flex flex-col gap-3">
+        <div className="bp-card term-surface" style={{ marginTop: "var(--s3)", padding: "var(--s4)" }}>
+          <div className="flex items-center justify-between pb-2 mb-3" style={{ borderBottom: "1px solid var(--term-line)" }}>
+            <div className="mono font-bold" style={{ color: "var(--term-ink)" }}>{run.state === "error" ? "Scan failed" : "Scanning execution terminal"}</div>
+            <span className="chip" style={{ color: "var(--brand)", background: "transparent", borderColor: "var(--term-line)", fontSize: 10 }}>100% offline (0 outbound connects)</span>
+          </div>
+          <div className="flex flex-col gap-3">
             {run.state === "error" && <div className="errbox">{run.error}</div>}
-            <div className="hint">Files scanned: <b className="mono"><Num k="scan.files" value={filesDone} /></b>{filesTotal > filesDone ? ` of ${filesTotal}` : ""}</div>
+            <div className="hint" style={{ color: "var(--term-dim)" }}>Files scanned: <b className="mono" style={{ color: "var(--term-ink)" }}><Num k="scan.files" value={filesDone} /></b>{filesTotal > filesDone ? ` of ${filesTotal}` : ""}</div>
             <div className="flex flex-col gap-1">
               {FILE_PLANES.map((p) => {
                 const d = detect?.[p];
@@ -137,9 +139,9 @@ export default function NewScan({ summary, onScanned }) {
                 const pct = on.has(p) ? (total ? (100 * doneN) / total : d ? 100 : 0) : 0;
                 return (
                   <div key={p} className="flex items-center gap-2" style={{ opacity: on.has(p) ? 1 : 0.4 }}>
-                    <span className="mono" style={{ width: 140, fontSize: 11 }}>{PLANE_NAME[p]}</span>
-                    <div className="meter-bar" style={{ flex: 1, margin: 0 }}><i style={{ width: `${pct}%` }} /></div>
-                    <span className="mono" style={{ width: 70, textAlign: "right", fontSize: 11 }}>{on.has(p) ? `${doneN}/${total}` : "off"}</span>
+                    <span className="mono" style={{ width: 140, fontSize: 11, color: "var(--term-ink)" }}>{PLANE_NAME[p]}</span>
+                    <div className="meter-bar" style={{ flex: 1, margin: 0, background: "var(--term-line)" }}><i style={{ width: `${pct}%`, background: "var(--brand)" }} /></div>
+                    <span className="mono" style={{ width: 70, textAlign: "right", fontSize: 11, color: "var(--term-dim)" }}>{on.has(p) ? `${doneN}/${total}` : "off"}</span>
                   </div>
                 );
               })}

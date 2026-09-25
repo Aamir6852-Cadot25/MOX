@@ -86,11 +86,11 @@ export default function Attest({ summary }) {
           {STAYS.map((t) => <div key={t} className="kv"><span className="flex items-center gap-2"><Icon name="x" label="does not leave" />{t}</span></div>)}
         </div>
       </div>
-      <div className={`panel p-4${busy ? " busy" : ""}`}>
-        <div className="flex items-center mb-2"><div><div className="h">attestation.json</div><div className="dim">preview — exactly what will be exported</div></div>
-          <div className="flex-1" /><span className="chip">{busy ? "updating…" : `${(d.bytes / 1024).toFixed(1)} KB`}</span></div>
-        <pre className="mono text-[12px] overflow-auto" style={{ maxHeight: 560 }}>{JSON.stringify(a, null, 2)}</pre>
-        <div className="dim text-[11px] mt-2">No paths, hosts, key material or code: checked by the self-check on the right.</div>
+      <div className={`panel p-4 term-surface${busy ? " busy" : ""}`}>
+        <div className="flex items-center mb-2"><div><div className="h" style={{ color: "var(--term-ink)" }}>attestation.json</div><div className="dim" style={{ color: "var(--term-dim)" }}>preview — exactly what will be exported</div></div>
+          <div className="flex-1" /><span className="chip" style={{ background: "transparent", borderColor: "var(--term-line)", color: "var(--term-dim)" }}>{busy ? "updating…" : `${(d.bytes / 1024).toFixed(1)} KB`}</span></div>
+        <pre className="mono text-[12px] overflow-auto" style={{ maxHeight: 560, color: "var(--term-ink)" }}>{JSON.stringify(a, null, 2)}</pre>
+        <div className="dim text-[11px] mt-2" style={{ color: "var(--term-dim)" }}>No paths, hosts, key material or code: checked by the self-check on the right.</div>
       </div>
       <div className="flex flex-col gap-4">
         <div className="panel p-4"><div className="h">NCIIPC readiness index</div>

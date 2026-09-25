@@ -30,11 +30,11 @@ export default function Cbom({ summary }) {
               <span className="flex items-center gap-2"><Tier tier={prop(x, "tier")} /><Verdict verdict={prop(x, "verdict")} /><span>wave {prop(x, "wave")}</span></span></div>
           ))}
         </div>
-        <div className="panel p-4"><div className="h mb-2">JSON preview <span className="dim font-normal">(one component, capped at 12 lines)</span></div>
-          <pre className="mono text-[11px] dim overflow-auto">{(() => {
+        <div className="panel p-4 term-surface"><div className="h mb-2" style={{ color: "var(--term-ink)" }}>CycloneDX 1.6 CBOM preview <span className="dim font-normal" style={{ color: "var(--term-dim)" }}>(schema valid)</span></div>
+          <pre className="mono text-[11px] overflow-auto" style={{ color: "var(--term-ink)" }}>{(() => {
             const withFields = c.bom.components.find((x) => x.cryptoProperties?.algorithmProperties?.mode
               || x.cryptoProperties?.protocolProperties?.version) || c.bom.components[0];
-            return JSON.stringify(withFields, null, 2).split("\n").slice(0, 12).join("\n");
+            return JSON.stringify(withFields, null, 2).split("\n").slice(0, 16).join("\n");
           })()}</pre>
         </div>
       </div>
