@@ -1,7 +1,8 @@
+import { useEffect } from "react";
 import { Link, Navigate, NavLink, useParams } from "react-router-dom";
 import Cbom from "./Cbom.jsx";
 import Roadmap from "./Roadmap.jsx";
-import Attest from "./Attest.jsx";
+import Attest, { prefetchAttest } from "./Attest.jsx";
 import Report from "./Report.jsx";
 import Audit from "./Audit.jsx";
 import Sector from "./Sector.jsx";
@@ -16,6 +17,9 @@ const KNOWN = new Set(["cbom", "attestation", "national", ...MORE_KEYS]);
  * Default tab is Attestation (Task B3): that is what a CISO opens this page for. */
 export default function Reports({ summary }) {
   const { tab } = useParams();
+  // Prefetched as soon as the Report page opens, regardless of which tab is active, so switching to
+  // the Attestation tab for the default sector never shows a loading flash.
+  useEffect(() => prefetchAttest(summary, "government"), [summary]);
   if (!tab || !KNOWN.has(tab)) return <Navigate to="/reports/attestation" replace />;
   const inMore = MORE_KEYS.has(tab);
   return (

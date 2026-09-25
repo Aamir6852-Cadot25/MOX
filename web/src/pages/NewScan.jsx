@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { api } from "../api.js";
 import { PLANES } from "../components/Pipeline.jsx";
 import { Num, Disclosure } from "../components/Motion.jsx";
+import { token } from "../motion.js";
 import Icon from "../components/Icon.jsx";
 import PageHeader from "../components/PageHeader.jsx";
 import FolderBrowser from "../components/FolderBrowser.jsx";
@@ -65,11 +66,11 @@ export default function NewScan({ summary, onScanned }) {
   const maxFeed = Math.max(1, ...feed.map((f) => f.findings));
   const lastStage = run?.stages?.[run.stages.length - 1];
 
-  // Stagger the (real, final) feed reveal over ~3s total; never before Detect's own numbers exist.
+  // Stagger the (real, final) feed reveal over --t-feed total; never before Detect's own numbers exist.
   useEffect(() => {
     if (!detect || !feed.length) return;
     setRevealed(0);
-    const step = Math.min(600, 3000 / feed.length);
+    const step = Math.min(600, token("--t-feed") / feed.length);
     const t = setInterval(() => setRevealed((n) => (n >= feed.length ? (clearInterval(t), n) : n + 1)), step);
     return () => clearInterval(t);
   }, [detect]);

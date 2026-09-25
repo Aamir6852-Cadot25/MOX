@@ -25,17 +25,31 @@ function download(sector) {
 const SECTOR_NAMES = { power: "Power & Energy", telecom: "Telecom", government: "Government",
   banking: "Banking, Financial Services & Insurance", transport: "Transport", strategic: "Strategic & Public Enterprises" };
 
+// Attestation data rarely changes within a session (only a new scan changes it), so cache it by
+// scan+sector. Reports.jsx prefetches "government" as soon as the Report page opens, so switching
+// to the Attestation tab for the sector the recording uses never shows a loading flash.
+const cache = {};
+const cacheKey = (summary, sector) => `${summary?.scan?.id}:${sector}`;
+export function prefetchAttest(summary, sector) {
+  const key = cacheKey(summary, sector);
+  if (!summary?.scan || cache[key]) return;
+  api.attest(sector).then((r) => { cache[key] = r; }).catch(() => {});
+}
+
 export default function Attest({ summary }) {
   const [sector, setSector] = useState("government");
-  const [d, setD] = useState(null);
+  const [d, setD] = useState(() => cache[cacheKey(summary, "government")] || null);
   const [err, setErr] = useState(null);
-  const [busy, setBusy] = useState(true);
+  const [busy, setBusy] = useState(!d);
   const [copyLabel, confirmCopy] = useConfirm("Copy root", "Copied");
   const copyRoot = (root) => navigator.clipboard.writeText(root).then(() => confirmCopy(), () => confirmCopy("Copy blocked"));
   const load = () => {
-    setBusy(true); setErr(null);
-    api.attest(sector).then((r) => { setD(r); setBusy(false); })
-      .catch((e) => { setErr(e); setBusy(false); });
+    const key = cacheKey(summary, sector);
+    const cached = cache[key];
+    if (cached) { setD(cached); setErr(null); setBusy(false); } else setBusy(true);
+    setErr(null);
+    api.attest(sector).then((r) => { cache[key] = r; setD(r); setBusy(false); })
+      .catch((e) => { if (!cached) { setErr(e); setBusy(false); } });
   };
   // Sector switcher stays interactive across loads: it never unmounts, so a slow or failed
   // fetch for one sector can't strand the user on a spinner with no way back.
