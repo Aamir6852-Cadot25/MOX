@@ -17,6 +17,7 @@ export default function NewScan({ summary, onScanned }) {
   const [err, setErr] = useState("");
   const [revealed, setRevealed] = useState(0);
   const [unidentified, setUnidentified] = useState(null);
+  const [formOpen, setFormOpen] = useState(true);
   const es = useRef(null);
 
   useEffect(() => () => es.current?.close(), []);
@@ -74,30 +75,38 @@ export default function NewScan({ summary, onScanned }) {
   // Real count of assets with no identified algorithm, fetched once the scan is done (never estimated).
   useEffect(() => {
     if (!done) return;
+    setFormOpen(false); // collapse "What to scan" once a scan completes (Task 1)
     api.assets().then((assets) => setUnidentified(assets.filter((a) => a.algorithm === "unknown").length)).catch(() => setUnidentified(null));
   }, [done]);
 
   return (
     <div className="page" style={{ maxWidth: 900 }}>
       <PageHeader step="1 Discover" title="What cryptography do we run?" />
-      <form className="bp-card" onSubmit={start}>
-        <div className="card-h"><h2>What to scan</h2></div>
-        <div className="card-b flex flex-col gap-3">
-          <div className="flex gap-2">
-            <input className="bp-input mono flex-1" placeholder="D:\code\my-repo" value={path} aria-label="Folder to scan"
-              onChange={(e) => setPath(e.target.value)} disabled={running} />
-            <button className="bp-btn pri" disabled={running || !path.trim() || !on.size}>
-              <Icon name="play" />{running ? "Scanning" : "Start scan"}</button>
+      {formOpen ? (
+        <form className="bp-card" onSubmit={start}>
+          <div className="card-h"><h2>What to scan</h2></div>
+          <div className="card-b flex flex-col gap-3">
+            <div className="flex gap-2">
+              <input className="bp-input mono flex-1" placeholder="D:\code\my-repo" value={path} aria-label="Folder to scan"
+                onChange={(e) => setPath(e.target.value)} disabled={running} />
+              <button className="bp-btn pri" disabled={running || !path.trim() || !on.size}>
+                <Icon name="play" />{running ? "Scanning" : "Start scan"}</button>
+            </div>
+            <div className="flex gap-2" style={{ flexWrap: "wrap" }}>
+              {FILE_PLANES.map((p) => (
+                <button type="button" key={p} className={`filt${on.has(p) ? " on" : ""}`} aria-pressed={on.has(p)}
+                  onClick={() => toggle(p)} disabled={running}>{PLANE_NAME[p]}</button>
+              ))}
+            </div>
+            {err && <div className="errbox">{err}</div>}
           </div>
-          <div className="flex gap-2" style={{ flexWrap: "wrap" }}>
-            {FILE_PLANES.map((p) => (
-              <button type="button" key={p} className={`filt${on.has(p) ? " on" : ""}`} aria-pressed={on.has(p)}
-                onClick={() => toggle(p)} disabled={running}>{PLANE_NAME[p]}</button>
-            ))}
-          </div>
-          {err && <div className="errbox">{err}</div>}
+        </form>
+      ) : (
+        <div className="panel" style={{ padding: "var(--s2) var(--s4)", fontSize: 12 }}>
+          <span className="dim">Target:</span> <span className="mono">{run.path}</span>
+          <button type="button" className="linkbtn" style={{ marginLeft: "var(--s3)" }} onClick={() => setFormOpen(true)}>Change source</button>
         </div>
-      </form>
+      )}
 
       {run && !done && (
         <div className="bp-card" style={{ marginTop: "var(--s3)" }}>
