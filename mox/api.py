@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import attest, auth, cbom, coverage, db, extract, gitsource, jobs, netguard, projects, report, scanner, source
+from . import attest, auth, browse, cbom, coverage, db, extract, gitsource, jobs, netguard, projects, report, scanner, source
 from .fixers import flow
 from .analyze import analyze
 from .db import ROOT
@@ -213,6 +213,10 @@ def create_app() -> FastAPI:
     @app.get("/api/auth/me")
     def me(u=Depends(_user)):
         return {"username": u["sub"], "role": u["role"]}
+
+    @app.get("/api/browse")
+    def browse_dir(path: str = "", u=Depends(_user)):
+        return browse.list_dir(path)
 
     @app.post("/api/scans")
     def start_scan(body: ScanReq, u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):

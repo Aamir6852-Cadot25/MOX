@@ -5,6 +5,7 @@ import { PLANES } from "../components/Pipeline.jsx";
 import { Num, Disclosure } from "../components/Motion.jsx";
 import Icon from "../components/Icon.jsx";
 import PageHeader from "../components/PageHeader.jsx";
+import FolderBrowser from "../components/FolderBrowser.jsx";
 
 const FILE_PLANES = PLANES.filter((p) => p !== "tls");
 const PLANE_NAME = { code: "Algorithm calls", dependencies: "Library manifests", configs: "Protocol/config",
@@ -18,6 +19,7 @@ export default function NewScan({ summary, onScanned }) {
   const [revealed, setRevealed] = useState(0);
   const [unidentified, setUnidentified] = useState(null);
   const [formOpen, setFormOpen] = useState(true);
+  const [browsing, setBrowsing] = useState(false);
   const es = useRef(null);
 
   useEffect(() => () => es.current?.close(), []);
@@ -89,9 +91,15 @@ export default function NewScan({ summary, onScanned }) {
             <div className="flex gap-2">
               <input className="bp-input mono flex-1" placeholder="D:\code\my-repo" value={path} aria-label="Folder to scan"
                 onChange={(e) => setPath(e.target.value)} disabled={running} />
+              <button type="button" className="bp-btn" disabled={running} onClick={() => setBrowsing(true)}>
+                <Icon name="folder" />Browse&#8230;</button>
               <button className="bp-btn pri" disabled={running || !path.trim() || !on.size}>
                 <Icon name="play" />{running ? "Scanning" : "Start scan"}</button>
             </div>
+            {browsing && (
+              <FolderBrowser start={path} onClose={() => setBrowsing(false)}
+                onSelect={(p) => { setPath(p); setBrowsing(false); }} />
+            )}
             <div className="flex gap-2" style={{ flexWrap: "wrap" }}>
               {FILE_PLANES.map((p) => (
                 <button type="button" key={p} className={`filt${on.has(p) ? " on" : ""}`} aria-pressed={on.has(p)}

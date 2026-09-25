@@ -33,6 +33,7 @@ export const api = {
   netstat: () => call("GET", "/api/netstat"),
   scanStatus: (id) => call("GET", `/api/scans/${id}/status`),
   scan: (path) => call("POST", "/api/scans", path ? { path } : {}),
+  browse: (path) => call("GET", `/api/browse?path=${encodeURIComponent(path || "")}`),
   assets: () => call("GET", "/api/assets"),
   asset: (id) => call("GET", `/api/assets/${id}`),
   override: (id, body) => call("PUT", `/api/assets/${id}/override`, body),

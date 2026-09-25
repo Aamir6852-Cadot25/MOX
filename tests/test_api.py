@@ -65,6 +65,24 @@ def test_scan_assets_and_settings(client):
     assert client.post("/api/scans", json={"path": "Z:/nope"}).status_code == 400
 
 
+def test_browse_lists_subdirectories(client, tmp_path):
+    assert client.get("/api/browse").status_code == 401  # unauthenticated
+    login(client)
+    root = tmp_path / "browse-root"
+    (root / "alpha").mkdir(parents=True)
+    (root / "beta").mkdir()
+    (root / "afile.txt").write_text("x")
+    r = client.get("/api/browse", params={"path": str(root)}).json()
+    assert r["error"] is None
+    assert [d["name"] for d in r["dirs"]] == ["alpha", "beta"]
+    assert r["dirs"][0]["path"] == str(root / "alpha")
+    assert r["parent"] == str(root.parent)
+    into_alpha = client.get("/api/browse", params={"path": r["dirs"][0]["path"]}).json()
+    assert into_alpha["dirs"] == [] and into_alpha["error"] is None
+    missing = client.get("/api/browse", params={"path": str(root / "nope")}).json()
+    assert missing["error"] == "path does not exist"
+
+
 def test_urgent_asset_has_algorithm_and_location(client):
     """Dashboard's "Most urgent: <algorithm> <file:line>" line reads these two fields off the
     highest-exposure overdue asset (or, if none is overdue, the highest score) - regression for a
