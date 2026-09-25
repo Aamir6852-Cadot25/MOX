@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api.js";
 import { Disclosure } from "../components/Motion.jsx";
+import Icon from "../components/Icon.jsx";
 import PageHeader from "../components/PageHeader.jsx";
 import YearsBar from "../components/YearsBar.jsx";
 
@@ -14,7 +15,7 @@ const COLS = [
   ["exposed", "Exposed", (e) => e > 0],
 ];
 const colOf = (exposure) => COLS.find(([, , test]) => test(exposure))?.[0];
-const colTone = (col) => (col === "exposed" ? "crit" : col === "near" ? "high" : "plain");
+const colTone = (col) => (col === "exposed" ? "crit" : col === "near" ? "high" : col === "safe" ? "safe" : "plain");
 
 export default function Dashboard({ summary, onScanned }) {
   const [assets, setAssets] = useState(null);
@@ -98,9 +99,13 @@ export default function Dashboard({ summary, onScanned }) {
 
       {urgent && (
         <div className="urgent-line" style={{ marginBottom: "var(--gutter)" }}>
-          {/* primary_location/files can be missing on assets serialized before that field existed; fall back to label, then algorithm alone. */}
-          <span className="mono">Most urgent: {urgent.label || urgent.algorithm}</span>
-          <span className="dim">{urgentExp > 0 ? `${urgentExp} yrs overdue (X + Y − Z)` : `score ${urgent.score}`}</span>
+          <div className="flex items-center gap-2" style={{ color: "var(--crit-ink)" }}>
+            <Icon name="triangle-alert" />
+            <span className="mono font-bold" style={{ color: "var(--ink)" }}>Most urgent: {urgent.label || urgent.algorithm}</span>
+          </div>
+          <span className="chip" style={{ color: "var(--crit-ink)", background: "var(--crit-bg)", borderColor: "var(--crit-line)", fontSize: 11 }}>
+            {urgentExp > 0 ? `${urgentExp} yrs overdue (X + Y − Z)` : `score ${urgent.score}`}
+          </span>
           <Link className="bp-btn pri" style={{ marginLeft: "auto" }} to={`/findings/${urgent.id}`}>Fix this &#8594;</Link>
         </div>
       )}
@@ -145,10 +150,23 @@ export default function Dashboard({ summary, onScanned }) {
               <div className="qr-list">
                 {shown.map((a) => {
                   const exp = a.breakdown.mosca.exposure;
+                  const threats = a.breakdown.threats || [];
                   return (
                     <Link key={a.id} to={`/findings/${a.id}`} className="qr-row">
                       <div style={{ minWidth: 0 }}>
-                        <div className="qr-row-loc mono">{a.label}{a.primary_location && <span className="dim"> {a.primary_location}</span>}</div>
+                        <div className="qr-row-loc mono">
+                          {a.label}{a.primary_location && <span className="dim"> {a.primary_location}</span>}
+                          {threats.includes("hndl") && (
+                            <span className="chip" style={{ color: "var(--crit-ink)", background: "var(--crit-bg)", borderColor: "var(--crit-line)", fontSize: 10, padding: "0 var(--s1)", height: "var(--badge-h)", marginLeft: "var(--s2)" }}>
+                              HNDL
+                            </span>
+                          )}
+                          {threats.includes("forgery") && (
+                            <span className="chip" style={{ color: "var(--high-ink)", background: "var(--high-bg)", borderColor: "var(--high-line)", fontSize: 10, padding: "0 var(--s1)", height: "var(--badge-h)", marginLeft: "var(--s2)" }}>
+                              Forgery
+                            </span>
+                          )}
+                        </div>
                         <div className="qr-row-sub">{CRIT_FULL[a.breakdown.criticality]}
                           <span className="mono"> &middot; X {a.breakdown.mosca.x} + Y {a.breakdown.mosca.y} &minus; Z {a.breakdown.mosca.z} = {exp}</span></div>
                       </div>

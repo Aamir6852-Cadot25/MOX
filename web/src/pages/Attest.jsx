@@ -93,10 +93,13 @@ export default function Attest({ summary }) {
         <div className="dim text-[11px] mt-2">No paths, hosts, key material or code: checked by the self-check on the right.</div>
       </div>
       <div className="flex flex-col gap-4">
-        <div className="panel p-4"><div className="h">Readiness index</div>
+        <div className="panel p-4"><div className="h">NCIIPC readiness index</div>
           <div className="mono text-[30px] font-bold" style={{ color: "var(--ink)" }}>{r}<span className="dim text-[16px]"> / 100</span></div>
           <div className="meter-bar"><i style={{ width: `${r}%` }} /></div>
-          <div className="dim">Weighted by HNDL exposure, quantum-vulnerable share, MIGRATE share and plane coverage</div>
+          <div className="dim">Weighted by HNDL exposure, quantum-vulnerable share, MIGRATE share and plane coverage.</div>
+          <div className="dim text-[11px]" style={{ marginTop: "var(--s1)", color: "var(--safe-ink)" }}>
+            Zero-knowledge proof: shares readiness index, counts, and Merkle root. No file paths or source code leave.
+          </div>
           <button className="btn w-full" style={{ marginTop: 12 }} disabled={!d.checks.every((c) => c.ok)}
             onClick={() => download(sector)}><Icon name="download" />Export attestation</button></div>
         <div className="panel p-4"><div className="h mb-1">Signing</div>
