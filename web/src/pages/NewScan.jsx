@@ -87,12 +87,12 @@ export default function NewScan({ summary, onScanned }) {
             <span>Scan uncommitted code</span>
           </button>
           <button className={"ptog" + (source === "zip" ? " on" : "")} onClick={() => setSource("zip")}>
-            <Icon name="archive" size="20" />
+            <Icon name="folder" size="20" />
             <b>ZIP Archive</b>
             <span>Vendor drop</span>
           </button>
           <button className={"ptog" + (source === "git" ? " on" : "")} onClick={() => setSource("git")}>
-            <Icon name="git-branch" size="20" />
+            <Icon name="folder" size="20" />
             <b>Local Git</b>
             <span>Repository history</span>
           </button>
@@ -108,7 +108,7 @@ export default function NewScan({ summary, onScanned }) {
                 <div className="lbl">Path to Scan</div>
                 <div style={{ display: "flex", gap: "var(--s2)" }}>
                   <input className="bp-input" style={{ flex: 1 }} value={path} onChange={(e) => setPath(e.target.value)} disabled={run?.state === "running"} />
-                  {source === "folder" && <button type="button" className="bp-btn" onClick={() => setBrowsing(true)} disabled={run?.state === "running"}><Icon name="folder-search" />Browse</button>}
+                  {source === "folder" && <button type="button" className="bp-btn" onClick={() => setBrowsing(true)} disabled={run?.state === "running"}><Icon name="search" />Browse</button>}
                 </div>
               </div>
               <div>
