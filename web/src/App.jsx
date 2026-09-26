@@ -3,6 +3,8 @@ import { NavLink, Navigate, Route, Routes, useLocation, useNavigate, useParams }
 import { api } from "./api.js";
 import Login from "./pages/Login.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
+import Correlate from "./pages/Correlate.jsx";
+import Remediate from "./pages/Remediate.jsx";
 import Queue from "./pages/Queue.jsx";
 import Asset from "./pages/Asset.jsx";
 import Fix from "./pages/Fix.jsx";
@@ -67,8 +69,7 @@ export default function App() {
     );
 
   const scan = summary?.scan;
-  const work = [["/scan", "1 Discover", "scan-search"], ["/dashboard", "2 Quantum Risk", "layout-dashboard"],
-    ["/findings", "3 Remediate", "list-checks"], ["/reports", "4 Report", "file-text"]];
+  const work = [["/scan", "Discover", "scan-search"], ["/dashboard", "Quantum Risk", "layout-dashboard"], ["/correlate", "Correlate", "network"], ["/remediate", "Remediate", "list-checks"], ["/report", "Report & Attest", "file-text"]];
   const navRow = (to, l, icon) => (
     <NavLink key={l} to={to} className={({ isActive }) => "nav" + (isActive ? " on" : "")}><Icon name={icon} size="nav" />{l}</NavLink>
   );
@@ -96,6 +97,10 @@ export default function App() {
       <Routes location={loc}>
         <Route path="/" element={<Landing summary={summary} />} />
         <Route path="/scan" element={<NewScan summary={summary} onScanned={refresh} />} />
+        <Route path="/correlate" element={<Correlate summary={summary} />} />
+        <Route path="/remediate" element={<Remediate summary={summary} onChanged={refresh} />} />
+        <Route path="/report" element={<Navigate to="/report/attestation" replace />} />
+        <Route path="/report/:tab" element={<Reports summary={summary} />} />
         <Route path="/dashboard" element={<Dashboard summary={summary} onScanned={refresh} />} />
         <Route path="/findings" element={<Queue summary={summary} />} />
         <Route path="/findings/:id" element={<Asset onChanged={refresh} summary={summary} />} />

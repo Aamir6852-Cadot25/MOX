@@ -1,34 +1,34 @@
 /* Design tokens: the :root block of docs/MOX_UI_Blueprint.html, verbatim. Single source of visual truth. */
 :root{
   /* surfaces */
-  --paper:#EEF1F4;
-  --canvas:#F6F8F9;
-  --surface:#FFFFFF;
-  --surface-2:#FAFBFC;
+  --paper:#050812;
+  --canvas:#050812;
+  --surface:#0A111E;
+  --surface-2:#0D1424;
 
   /* ink */
-  --ink:#1E2A35;
-  --ink-2:#4B5A68;
-  --ink-3:#7E8B97;
-  --ink-4:#A4AFB9;
+  --ink:#F1F5F9;
+  --ink-2:#CBD5E1;
+  --ink-3:#94A3B8;
+  --ink-4:#64748B;
 
   /* lines */
-  --line:#E3E8ED;
-  --line-2:#D2DAE1;
+  --line:#1E2D3D;
+  --line-2:#2B3F56;
 
   /* brand — CipherX green, the one accent (D8). Action only; never a badge or a meaning. */
   --brand:#81B500;
-  --brand-hover:#74A300;
-  --brand-ink:#4E6F00;
-  --brand-soft:#F2F8E1;
-  --brand-line:#C9DE8F;
+  --brand-hover:#95CE05;
+  --brand-ink:#050812;
+  --brand-soft:rgba(129,181,0,0.1);
+  --brand-line:rgba(129,181,0,0.3);
 
   /* risk — pastel fill, saturated ink */
-  --crit-bg:#F9E9E6; --crit-ink:#9A382B; --crit-line:#E9C9C2;
-  --high-bg:#FAF0E2; --high-ink:#8C5C1C; --high-line:#EAD7BC;
-  --med-bg:#F7F3E2;  --med-ink:#74641E;  --med-line:#E5DDBE;
-  --low-bg:#EEF1F4;  --low-ink:#4B5A68;  --low-line:#D2DAE1;
-  --safe-bg:#E5EEF0; --safe-ink:#2E5D66; --safe-line:#C7DCE0;
+  --crit-bg:rgba(76,5,25,0.4); --crit-ink:#F87171; --crit-line:rgba(136,19,55,0.5);
+  --high-bg:rgba(69,26,3,0.4); --high-ink:#FB923C; --high-line:rgba(120,53,15,0.5);
+  --med-bg:rgba(66,32,6,0.4);  --med-ink:#FACC15;  --med-line:rgba(113,63,18,0.5);
+  --low-bg:rgba(2,44,34,0.4);  --low-ink:#4ADE80;  --low-line:rgba(6,78,59,0.5);
+  --safe-bg:rgba(2,44,34,0.4); --safe-ink:#4ADE80; --safe-line:rgba(6,78,59,0.5);
 
   /* geometry — 8pt grid */
   --r:6px;
@@ -79,8 +79,8 @@
 
   /* D9: TerminalSurface is a surface, not a theme. Used only for the scan ledger, code editor,
      JSON/CBOM/attestation previews and the command palette. */
-  --term-bg:#1B2530;
-  --term-ink:#D6DEE5;
+  --term-bg:#0D1014;
+  --term-ink:#E6E9ED;
   --term-dim:#7E8B97;
   --term-line:#2A3642;
 }

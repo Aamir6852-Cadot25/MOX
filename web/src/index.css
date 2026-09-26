@@ -12,15 +12,16 @@
 :root { --bg: var(--surface-2); --card: var(--surface); --text: var(--ink); --muted: var(--ink-3); --accent: var(--brand-ink); --soft: var(--brand-soft); }
 * { box-sizing: border-box; }
 /* Depth comes from surface change: the page is --paper, cards and panels are --surface (white) on top of it. No shadows. */
-body { margin: 0; min-height: 100vh; font-family: var(--font-sans); font-size: 13px; color: var(--ink); background: var(--paper); }
+body { margin: 0; min-height: 100vh; font-family: var(--font-sans); font-size: 13px; color: var(--ink); background: var(--paper); overflow: hidden; }
+#root { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 /* Eval banner (removable, see components/EvalBanner.jsx): the fixed sidebar and sticky topbar are offset
    by --banner-h below the very top of the viewport so the banner never overlaps them. */
 .eval-banner { position: fixed; top: 0; left: 0; right: 0; z-index: 50; height: var(--banner-h); display: flex;
   align-items: center; justify-content: center; background: var(--ink-2); color: var(--surface); font-size: 11px; text-align: center; padding: 0 var(--s4); }
-.shell { display: flex; min-height: 100vh; }
-.side { position: fixed; top: var(--banner-h); right: auto; bottom: 0; left: 0; width: var(--rail); background: var(--surface); border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: var(--s4) var(--s2); overflow-y: auto; }
-.main { margin-left: var(--rail); margin-top: var(--banner-h); flex: 1; min-width: 0; }
-.topbar { position: sticky; top: var(--banner-h); z-index: 10; height: var(--bar); display: flex; align-items: center; gap: var(--s3); padding: 0 var(--s4); border-bottom: 1px solid var(--line); background: var(--surface); }
+.shell { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+.side { width: var(--rail); background: var(--surface); border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: var(--s4) var(--s2); overflow-y: auto; flex-shrink: 0; }
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+.topbar { z-index: 10; height: var(--bar); display: flex; align-items: center; gap: var(--s3); padding: 0 var(--s4); border-bottom: 1px solid var(--line); background: var(--surface); flex-shrink: 0; }
 .topbar .target { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .logo { display: flex; align-items: center; gap: var(--s2); font-weight: 600; font-size: 18px; letter-spacing: .08em; padding: 0 var(--s2) var(--s3); color: var(--ink); }
 .logo svg { color: var(--brand); }
@@ -101,7 +102,8 @@ input[type="range"] { accent-color: var(--brand); }
 .ledger-stage .fill { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--term-line); }
 .ledger-stage .fill i { display: block; height: 100%; background: var(--brand); transition: width var(--t-fast) linear; }
 .ledger-stage.failed .fill i { background: var(--crit-line); }
-.ledger-body { flex: 1; display: flex; min-height: 0; }
+.ledger-body { margin: 0; min-height: 100vh; font-family: var(--font-sans); font-size: 13px; color: var(--ink); background: var(--paper); overflow: hidden; }
+#root { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 .ledger-log { flex: 1; min-width: 0; padding: var(--s3) var(--s4); overflow-y: auto; font-size: 11.5px; line-height: 1.7; }
 .ledger-line { display: flex; gap: var(--s2); white-space: pre; }
 .ledger-line .tag { color: var(--term-dim); }

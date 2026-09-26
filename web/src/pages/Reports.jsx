@@ -10,8 +10,8 @@ import History from "./History.jsx";
 import Reference from "./Reference.jsx";
 import PageHeader from "../components/PageHeader.jsx";
 
-const PRIMARY = [["cbom", "CBOM"], ["attestation", "Attestation"], ["national", "Sector view (NCIIPC)"], ["more", "More"]];
-const MORE = [["roadmap", "Roadmap"], ["compliance", "Compliance"], ["audit", "Audit log"], ["history", "History"], ["reference", "Reference"]];
+const PRIMARY = [["cbom", "CycloneDX 1.6 CBOM"], ["attestation", "Sectoral Attestation"], ["national", "Sector Readiness"], ["roadmap", "Migration Roadmap"]];
+const MORE = [];
 const MORE_KEYS = new Set(MORE.map(([k]) => k));
 const KNOWN = new Set(["cbom", "attestation", "national", ...MORE_KEYS]);
 
@@ -22,7 +22,7 @@ export default function Reports({ summary }) {
   // Prefetched as soon as the Report page opens, regardless of which tab is active, so switching to
   // the Attestation tab for the default sector never shows a loading flash.
   useEffect(() => prefetchAttest(summary, "government"), [summary]);
-  if (!tab || !KNOWN.has(tab)) return <Navigate to="/reports/attestation" replace />;
+  if (!tab || !KNOWN.has(tab)) return <Navigate to="/report/cbom" replace />;
   const inMore = MORE_KEYS.has(tab);
   return (
     <div className="page">

@@ -1,6 +1,6 @@
 /* Layout system (Run A, Task A1): one content width, one 12-col grid, one page header, applied to
    every page. Only the page itself scrolls — a column or card never gets its own overflow. */
-.page { max-width: var(--content-max); margin: 0 auto; padding: var(--s5) var(--s5) var(--s6); box-sizing: border-box; }
+.page { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden;  max-width: var(--content-max); margin: 0 auto; padding: var(--s5) var(--s5) var(--s6); box-sizing: border-box; }
 .grid-12 { display: grid; grid-template-columns: repeat(12, 1fr); gap: var(--gutter); align-items: start; }
 .col-4 { grid-column: span 4; }
 .col-5 { grid-column: span 5; }
