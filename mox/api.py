@@ -266,6 +266,17 @@ def create_app() -> FastAPI:
         auth.audit(conn, u["sub"], "scan", f"{target} -> {s['findings']} findings, {s['assets']} assets")
         return s
 
+    @app.post("/api/demo/scan")
+    @app.get("/api/demo/scan")
+    def demo_scan(u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
+        target = ROOT / "demo_target"
+        if not target.is_dir():
+            from . import demo_target
+            demo_target.build(target)
+        s = scanner.scan(str(target), conn=conn, settings=_settings(conn), overrides=_overrides(conn))
+        auth.audit(conn, u["sub"], "demo-scan", f"Demo target scanned -> {s['findings']} findings, {s['assets']} assets")
+        return s
+
     def _resolve_source(body: StartReq):
         if body.source == "git":
             return source.from_git(body.path or None, body.git_remote, body.git_authorized)

@@ -121,6 +121,39 @@ export default function History({
   const downloadFile = async (url, filename) => {
     try {
       if (showToast) showToast(`Downloading ${filename}…`);
+      if (api.isDemoActive && api.isDemoActive()) {
+        let content = "";
+        let mime = "application/json";
+        if (filename.endsWith(".json")) {
+          const cbomRes = await api.cbom(selectedScanId);
+          content = JSON.stringify(cbomRes?.bom || {}, null, 2);
+        } else {
+          content = `MOX Enterprise Cryptography Discovery & Compliance Report
+Target: demo_target (Enterprise Demo)
+Status: DEMO REPORT
+Files Scanned: 23
+Cryptographic Assets: 26
+Quantum-Vulnerable Assets: 10
+Readiness Score: 73/100
+Air-Gap Assurance: 0 outbound connections
+Generated: ${new Date().toISOString()}
+Standards: NIST SP 800-131A Rev.2, IR 8547 (draft), FIPS 203/204/205
+`;
+          mime = "text/plain";
+          filename = filename.replace(/\.pdf$/i, ".txt");
+        }
+        const blob = new Blob([content], { type: mime });
+        const objUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = objUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(objUrl);
+        if (showToast) showToast(`${filename} downloaded`);
+        return;
+      }
       const res = await fetch(url, { credentials: "include" });
       if (!res.ok) throw new Error("Download failed");
       const blob = await res.blob();

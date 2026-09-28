@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { api } from "../api";
-import { Folder, GitBranch, Upload, Shield, Play } from "lucide-react";
+import { Folder, GitBranch, Upload, Shield, Play, ShieldCheck, RotateCw, AlertCircle, Sparkles } from "lucide-react";
 
 const SOURCES = [
   { id: "folder", label: "Upload folder", sub: "Folder from your computer", icon: Folder },
@@ -56,8 +56,67 @@ export default function Scan({ onScanComplete, showToast }) {
   // Execution State
   const [showConfirm, setShowConfirm] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+  const [isDemoLoading, setIsDemoLoading] = useState(false);
+  const [backendError, setBackendError] = useState(false);
   const [planeStates, setPlaneStates] = useState({});
   const [scanProgressText, setScanProgressText] = useState("7 available · TLS needs an authorised endpoint");
+
+  const handleLoadDemoScan = async () => {
+    if (isScanning || isDemoLoading) return;
+    setIsDemoLoading(true);
+    setIsScanning(true);
+    setBackendError(false);
+    setScanProgressText("Ingesting enterprise demo target (23 files)…");
+
+    const initialPlanes = {};
+    PLANES_CONFIG.forEach((p) => {
+      initialPlanes[p.id] = p.id === "tls" ? "skip" : "run";
+    });
+    setPlaneStates(initialPlanes);
+
+    try {
+      // Stage 1: Ingest (250ms)
+      await new Promise((r) => setTimeout(r, 250));
+      setScanProgressText("Stage: Ingest · 23 files claimed across 6 planes");
+
+      // Stage 2: Detect (450ms)
+      await new Promise((r) => setTimeout(r, 450));
+      setScanProgressText("Stage: Detect · 26 cryptographic assets discovered");
+      setPlaneStates((prev) => {
+        const next = { ...prev };
+        Object.keys(next).forEach((k) => {
+          if (k !== "tls") next[k] = "done";
+        });
+        return next;
+      });
+
+      // Stage 3: Correlate & Score (350ms)
+      await new Promise((r) => setTimeout(r, 350));
+      setScanProgressText("Stage: Score · NIST SP 800-131A & PQC readiness evaluated");
+
+      // Complete demo scan
+      const res = await api.demoScan();
+      const demoScanId = res?.scan_id || 19;
+
+      await new Promise((r) => setTimeout(r, 200));
+      setIsScanning(false);
+      setIsDemoLoading(false);
+
+      if (showToast) {
+        showToast("✓ Enterprise demo scan loaded (23 files, 26 assets)");
+      }
+
+      if (onScanComplete) {
+        onScanComplete(demoScanId);
+      }
+    } catch (err) {
+      console.warn("Demo load fallback:", err);
+      api.enableDemoMode();
+      setIsScanning(false);
+      setIsDemoLoading(false);
+      if (onScanComplete) onScanComplete(19);
+    }
+  };
 
   useEffect(() => {
     api.projects().then((res) => {
@@ -382,8 +441,9 @@ export default function Scan({ onScanComplete, showToast }) {
       };
     } catch (err) {
       setIsScanning(false);
-      if (showToast) showToast(err.message || "Failed to start scan");
-      setScanProgressText("Scan preparation failed");
+      setBackendError(true);
+      if (showToast) showToast(err.message || "Failed to reach scanning backend");
+      setScanProgressText("Backend unavailable — Load Demo Scan to explore features");
     }
   };
 
@@ -462,6 +522,126 @@ export default function Scan({ onScanComplete, showToast }) {
           <h1>Cryptographic Discovery Scanner</h1>
           <p>Choose a source, describe the system, pick the scan planes.</p>
         </div>
+        <div className="act">
+          <button
+            className="btn pri"
+            onClick={handleLoadDemoScan}
+            disabled={isScanning || isDemoLoading}
+            style={{ whiteSpace: "nowrap" }}
+            title="Load the included enterprise demo target"
+          >
+            {isDemoLoading ? (
+              <>
+                <RotateCw size={14} className="spin" /> Loading Demo…
+              </>
+            ) : (
+              <>
+                <Sparkles size={14} /> Load Demo Scan
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {backendError && (
+        <div
+          className="card"
+          style={{
+            marginBottom: "16px",
+            background: "#FEF2F2",
+            borderColor: "#FECACA",
+            padding: "14px 18px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "12px",
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <AlertCircle size={20} style={{ color: "#DC2626", flexShrink: 0 }} />
+            <div>
+              <b style={{ color: "#991B1B", fontSize: "13px" }}>Live Scanner Backend Unavailable</b>
+              <div style={{ color: "#B91C1C", fontSize: "12px", marginTop: "2px" }}>
+                The live scanning server is currently offline on this cloud deployment. Use Demo Mode to explore all discovery, CBOM, and remediation features.
+              </div>
+            </div>
+          </div>
+          <button
+            className="btn cy"
+            style={{ fontSize: "12px", padding: "6px 14px", whiteSpace: "nowrap" }}
+            onClick={handleLoadDemoScan}
+            disabled={isScanning || isDemoLoading}
+          >
+            <Play size={13} /> Load Demo Scan
+          </button>
+        </div>
+      )}
+
+      {/* Demo Mode Quick Access Card */}
+      <div
+        className="card"
+        style={{
+          marginBottom: "18px",
+          background: "linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 100%)",
+          borderColor: "#BAE6FD",
+          padding: "16px 20px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "16px",
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+          <div
+            style={{
+              width: "40px",
+              height: "40px",
+              borderRadius: "10px",
+              background: "#0EA5C9",
+              color: "#fff",
+              display: "grid",
+              placeItems: "center",
+              flexShrink: 0,
+            }}
+          >
+            <ShieldCheck size={22} />
+          </div>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <b style={{ color: "#0B2540", fontSize: "15px" }}>Instant Demo Mode</b>
+              <span className="pill cyp" style={{ fontSize: "11px", fontWeight: 700 }}>
+                Enterprise Target
+              </span>
+            </div>
+            <p style={{ margin: "2px 0 0", fontSize: "13px", color: "#0369A1" }}>
+              Explore MOX using the included enterprise cryptography demo target (23 files, 6 planes, 26 assets, PQC readiness).
+            </p>
+          </div>
+        </div>
+        <button
+          className="btn cy"
+          style={{
+            fontSize: "13px",
+            fontWeight: 700,
+            padding: "9px 20px",
+            whiteSpace: "nowrap",
+            boxShadow: "0 2px 4px rgba(14, 165, 201, 0.2)",
+          }}
+          onClick={handleLoadDemoScan}
+          disabled={isScanning || isDemoLoading}
+        >
+          {isDemoLoading ? (
+            <>
+              <RotateCw size={14} className="spin" /> Loading Demo Scan…
+            </>
+          ) : (
+            <>
+              <Play size={14} /> Load Demo Scan
+            </>
+          )}
+        </button>
       </div>
 
       {/* Sources Grid */}

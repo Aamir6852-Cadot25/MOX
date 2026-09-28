@@ -182,6 +182,16 @@ export default function App() {
     await loadAllScans();
   };
 
+  const handleResetDemo = async () => {
+    api.resetDemoScan();
+    setLatestScan(null);
+    setAssets([]);
+    setSelectedScanId(null);
+    setScansList([]);
+    handleNavigate("scan");
+    if (showToast) showToast("Demo mode cleared — Scanner ready for fresh input");
+  };
+
   if (splashState !== "hidden") {
     return <Splash fading={splashState === "fading"} />;
   }
@@ -194,6 +204,8 @@ export default function App() {
         onSelectScan={handleSelectScan}
         netstat={netstat}
         onOpenSettings={() => setShowSettings(true)}
+        isDemoMode={api.isDemoActive && api.isDemoActive()}
+        onResetDemo={handleResetDemo}
       />
 
       <Sidebar

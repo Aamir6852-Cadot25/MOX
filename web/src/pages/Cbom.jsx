@@ -107,6 +107,22 @@ export default function Cbom({ selectedScanId, assets = [], onAssetUpdated, show
   const downloadJSON = async () => {
     try {
       if (showToast) showToast("Downloading mox-cbom.cdx.json…");
+      if ((api.isDemoActive && api.isDemoActive()) || cbomData?.bom) {
+        const bomObj = cbomData?.bom;
+        if (bomObj) {
+          const blob = new Blob([JSON.stringify(bomObj, null, 2)], { type: "application/json" });
+          const objUrl = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = objUrl;
+          a.download = "mox-cbom.cdx.json";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.URL.revokeObjectURL(objUrl);
+          if (showToast) showToast("mox-cbom.cdx.json downloaded");
+          return;
+        }
+      }
       const url = selectedScanId ? `/api/cbom/download?scan_id=${selectedScanId}` : "/api/cbom/download";
       const res = await fetch(url, { credentials: "include" });
       if (!res.ok) throw new Error("Download failed");

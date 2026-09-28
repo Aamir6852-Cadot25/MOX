@@ -7,6 +7,8 @@ export default function Header({
   onSelectScan,
   netstat,
   onOpenSettings,
+  isDemoMode,
+  onResetDemo,
 }) {
   const formatDate = (isoStr) => {
     if (!isoStr) return "";
@@ -61,6 +63,45 @@ export default function Header({
       )}
 
       <div className="r">
+        {isDemoMode && (
+          <span
+            style={{
+              background: "rgba(14, 165, 201, 0.15)",
+              color: "#38BDF8",
+              border: "1px solid rgba(14, 165, 201, 0.35)",
+              borderRadius: "999px",
+              padding: "2px 9px",
+              fontSize: "11px",
+              fontWeight: 700,
+              letterSpacing: "0.5px",
+              textTransform: "uppercase",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "5px",
+            }}
+            title="Active scan is loaded from the deterministic enterprise demo target"
+          >
+            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#38BDF8" }} />
+            Demo Scan
+          </span>
+        )}
+        {isDemoMode && onResetDemo && (
+          <button
+            className="btn"
+            style={{
+              fontSize: "11px",
+              padding: "3px 9px",
+              background: "rgba(255, 255, 255, 0.08)",
+              color: "#E2E8F0",
+              border: "1px solid rgba(255, 255, 255, 0.15)",
+              whiteSpace: "nowrap",
+            }}
+            onClick={onResetDemo}
+            title="Clear demo data and return to clean Scanner"
+          >
+            New Scan
+          </button>
+        )}
         <span style={{ fontSize: "12px", color: "#C9D6E3", whiteSpace: "nowrap" }}>
           Hosted demo · product runs air-gapped on-premise
         </span>
