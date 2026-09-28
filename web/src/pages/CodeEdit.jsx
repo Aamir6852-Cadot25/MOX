@@ -58,6 +58,7 @@ const DEFAULT_JAVA_CODE = [
 export default function CodeEdit({
   assets = [],
   selectedAssetId,
+  selectedScanId,
   latestScan,
   onTriggerRescan,
   showToast,
@@ -122,7 +123,7 @@ export default function CodeEdit({
 
     setLoadingFile(true);
     api
-      .file(loc.file, loc.line)
+      .file(loc.file, loc.line, selectedScanId)
       .then((res) => {
         if (res && res.lines && res.lines.length > 0) {
           setFileLines(res.lines);

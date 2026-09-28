@@ -14,7 +14,7 @@ from pathlib import Path
 
 from . import extract, gitsource
 
-ARCHIVE_KINDS = ("archive", "container", "artefacts")
+ARCHIVE_KINDS = ("archive", "container", "artefacts", "zip", "upload")
 
 
 class SourceError(Exception):
@@ -67,6 +67,13 @@ def _cleanup(path: Path) -> callable:
 def from_upload(kind: str, files: list[tuple[str, bytes]]) -> Resolved:
     """kind: "archive" (one file, extracted safely), "container" (one docker-save .tar, left for the
     containers plane to walk), or "artefacts" (any number of binaries/certs/configs, placed as-is)."""
+    if kind in ("zip", "upload"):
+        if len(files) == 1 and files[0][0].lower().endswith(".tar"):
+            kind = "container"
+        elif len(files) == 1 and files[0][0].lower().endswith(extract.ARCHIVE_SUFFIXES):
+            kind = "archive"
+        else:
+            kind = "artefacts"
     if kind not in ARCHIVE_KINDS:
         raise SourceError(f"unknown upload source: {kind}")
     if not files:

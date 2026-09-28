@@ -98,11 +98,15 @@ export default function Scan({ onScanComplete, showToast }) {
 
       if (source === "zip" && uploadedFiles.length > 0) {
         const formData = new FormData();
-        formData.append("source", "upload");
+        formData.append("source", "archive");
         formData.append("planes", Array.from(selectedPlanes).join(","));
         formData.append("tls_authorized", tlsAuthorized ? "true" : "false");
         if (projId) formData.append("project_id", String(projId));
         if (projName) formData.append("project_name", projName);
+        formData.append("sector", sector);
+        formData.append("system_type", systemType);
+        formData.append("criticality", String(criticality));
+        formData.append("shelf_life_years", String(shelfLifeYears));
         for (const file of uploadedFiles) {
           formData.append("files", file);
         }
@@ -133,30 +137,98 @@ export default function Scan({ onScanComplete, showToast }) {
 
       // Stream events from SSE
       const evSource = new EventSource(`/api/scans/${jobId}/events`);
-      let stepCount = 0;
-      const totalSteps = selectedPlanes.size;
+      let finished = false;
+
+      const finishOnce = (data) => {
+        if (finished) return;
+        finished = true;
+        try {
+          evSource.close();
+        } catch {}
+        finishScan(jobId, data);
+      };
+
+      const handleStage = (data) => {
+        if (data && data.stage) {
+          setScanProgressText(`Stage: ${data.stage} · ${data.count || 0} findings / items`);
+        }
+      };
+
+      const handleProgress = (planesData) => {
+        if (planesData && typeof planesData === "object") {
+          setPlaneStates((prev) => {
+            const next = { ...prev };
+            Object.keys(planesData).forEach((p) => {
+              const info = planesData[p];
+              if (info) {
+                if (info.status === "ok" || info.status === "done" || (info.total && info.done >= info.total)) {
+                  next[p] = "done";
+                } else if (info.status === "failed") {
+                  next[p] = "skip";
+                } else if (info.done > 0 || info.status === "run") {
+                  next[p] = "run";
+                }
+              }
+            });
+            return next;
+          });
+        }
+      };
+
+      evSource.addEventListener("stage", (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          handleStage(data);
+        } catch {}
+      });
+
+      evSource.addEventListener("progress", (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          handleProgress(data);
+        } catch {}
+      });
+
+      evSource.addEventListener("done", (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          finishOnce(data);
+        } catch {
+          finishOnce({});
+        }
+      });
+
+      evSource.addEventListener("error", (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data && data.error) {
+            evSource.close();
+            setIsScanning(false);
+            alert(`Scan error: ${data.error}`);
+            setScanProgressText(`Scan error: ${data.error}`);
+            return;
+          }
+        } catch {}
+        checkJobStatus(jobId);
+      });
 
       evSource.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
+          if (data.stage) handleStage(data);
           if (data.plane) {
-            stepCount++;
-            setScanProgressText(`Processing step ${Math.min(stepCount, totalSteps)} / ${totalSteps}`);
             setPlaneStates((prev) => ({
               ...prev,
               [data.plane]: data.status === "completed" || data.status === "ok" ? "done" : "run",
             }));
           }
-          if (data.stage === "done" || data.completed || data.finished) {
-            evSource.close();
-            finishScan(jobId, data);
+          if (data.stage === "done" || data.completed || data.finished || data.scan_id) {
+            finishOnce(data);
           }
-        } catch {
-          // ignore
-        }
+        } catch {}
       };
 
-      evSource.onerror = async () => {
+      evSource.onerror = () => {
         evSource.close();
         checkJobStatus(jobId);
       };
@@ -170,10 +242,16 @@ export default function Scan({ onScanComplete, showToast }) {
   const checkJobStatus = async (jobId) => {
     try {
       const res = await api.scanStatus(jobId);
-      if (res.completed || res.status === "completed" || res.status === "finished") {
+      if (res.state === "error" || res.error) {
+        setIsScanning(false);
+        alert(res.error || "Scan job encountered an error");
+        setScanProgressText("Scan failed");
+        return;
+      }
+      if (res.state === "done" || res.completed || res.status === "completed" || res.status === "finished") {
         finishScan(jobId, res);
       } else {
-        setTimeout(() => checkJobStatus(jobId), 400);
+        setTimeout(() => checkJobStatus(jobId), 500);
       }
     } catch {
       setIsScanning(false);
@@ -434,7 +512,23 @@ export default function Scan({ onScanComplete, showToast }) {
                 textAlign: "center",
                 color: "var(--mut)",
                 cursor: "pointer",
-                background: "#FAFBFC",
+                background: uploadedFiles.length > 0 ? "rgba(14, 165, 201, 0.05)" : "#FAFBFC",
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                  const files = Array.from(e.dataTransfer.files);
+                  setUploadedFiles(files);
+                  if (files.length > 0 && (!projectName || projectName === "demo_target")) {
+                    const cleanName = files[0].name.replace(/\.(zip|tar\.gz|tar|tgz|jar|war)$/i, "");
+                    setProjectName(cleanName);
+                  }
+                }
               }}
               onClick={() => document.getElementById("zip-upload-input").click()}
             >
@@ -444,15 +538,23 @@ export default function Scan({ onScanComplete, showToast }) {
                 style={{ display: "none" }}
                 multiple
                 accept=".zip,.tar,.tar.gz,.tgz,.bin,.jar,.war"
-                onChange={(e) => setUploadedFiles(Array.from(e.target.files))}
+                onChange={(e) => {
+                  const files = Array.from(e.target.files);
+                  setUploadedFiles(files);
+                  if (files.length > 0 && (!projectName || projectName === "demo_target")) {
+                    const cleanName = files[0].name.replace(/\.(zip|tar\.gz|tar|tgz|jar|war)$/i, "");
+                    setProjectName(cleanName);
+                  }
+                }}
               />
+              <Upload size={24} style={{ color: "var(--cy)", margin: "0 auto 8px" }} />
               <b style={{ color: "var(--ink)", display: "block" }}>
                 {uploadedFiles.length > 0
-                  ? `Selected: ${uploadedFiles.map((f) => f.name).join(", ")}`
+                  ? `Selected: ${uploadedFiles.map((f) => `${f.name} (${(f.size / 1024).toFixed(1)} KB)`).join(", ")}`
                   : "Click or drag a .zip or image .tar here"}
               </b>
               <div style={{ fontSize: "12px", marginTop: "4px" }}>
-                Extracted safely into a temporary folder, then scanned
+                Extracted safely into a temporary folder, then scanned with live progress streaming
               </div>
             </div>
           </div>

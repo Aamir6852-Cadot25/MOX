@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { api } from "../api";
 
 const WN = {
   1: "Now — already broken or disallowed",
@@ -16,6 +17,8 @@ const PRIORITY_MAP = {
 };
 
 function repl(a) {
+  if (a.replacement) return [a.replacement];
+  if (a.replacements && a.replacements[0]) return [a.replacements[0].to, a.replacements[0].note || ""];
   const x = a.algorithm || a.label?.split(" ")[0] || "RSA";
   const loc = a.primary_location || a.files?.[0] || "";
   if (x === "RSA")
@@ -41,7 +44,20 @@ function repl(a) {
   ];
 }
 
-export default function Remediation({ assets = [] }) {
+export default function Remediation({ assets = [], selectedScanId }) {
+  const [backendWaves, setBackendWaves] = useState([]);
+
+  useEffect(() => {
+    if (selectedScanId) {
+      api.roadmap(selectedScanId)
+        .then((res) => {
+          if (Array.isArray(res) && res.length > 0) {
+            setBackendWaves(res);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [selectedScanId]);
   const wavesOrder = [1, 2, 4, 5];
 
   return (

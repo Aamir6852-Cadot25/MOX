@@ -217,6 +217,7 @@ export default function App() {
           <CodeEdit
             assets={assets}
             selectedAssetId={selectedAssetId}
+            selectedScanId={selectedScanId}
             latestScan={latestScan}
             onTriggerRescan={() => loadScanDetails(selectedScanId)}
             showToast={showToast}
@@ -254,6 +255,7 @@ export default function App() {
         {currentPage === "rem" && (
           <Remediation
             assets={assets}
+            selectedScanId={selectedScanId}
           />
         )}
       </main>

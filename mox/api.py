@@ -263,6 +263,44 @@ def create_app() -> FastAPI:
             return source.tls_only()
         return source.from_folder(body.path)
 
+    def _normalize_sector(sector: str | None) -> str:
+        if not sector:
+            return "other"
+        s = sector.strip().lower()
+        mapping = {
+            "government": "government",
+            "banking & finance": "bfsi",
+            "banking and finance": "bfsi",
+            "finance": "bfsi",
+            "bfsi": "bfsi",
+            "telecom": "telecom",
+            "power & energy": "power",
+            "power and energy": "power",
+            "power": "power",
+            "transport": "transport",
+            "defence": "strategic",
+            "defense": "strategic",
+            "strategic": "strategic",
+            "strategic and public enterprises": "strategic",
+            "healthcare": "other",
+            "other": "other",
+        }
+        return mapping.get(s, s if s in projects.SECTORS else "other")
+
+    def _normalize_criticality(val) -> int:
+        try:
+            c = int(val)
+            return c if c in (1, 2, 3) else 2
+        except (ValueError, TypeError):
+            return 2
+
+    def _normalize_shelf_life(val) -> int:
+        try:
+            y = int(val)
+            return y if 0 <= y <= 50 else 5
+        except (ValueError, TypeError):
+            return 5
+
     @app.post("/api/scans/start")
     def scan_start(body: StartReq, u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
         try:
@@ -275,8 +313,12 @@ def create_app() -> FastAPI:
             if p_row:
                 project_id = p_row["id"]
             else:
-                p = projects.create(conn, body.project_name.strip(), body.sector or "other", body.system_type or "mixed",
-                                    body.criticality or 2, body.shelf_life_years or 5, source_kind=body.source)
+                p = projects.create(conn, body.project_name.strip(),
+                                    _normalize_sector(body.sector),
+                                    body.system_type or "mixed",
+                                    _normalize_criticality(body.criticality),
+                                    _normalize_shelf_life(body.shelf_life_years),
+                                    source_kind=body.source)
                 project_id = p["id"]
         if not project_id:
             project_id = db.ensure_default_project(conn)
@@ -289,13 +331,19 @@ def create_app() -> FastAPI:
             raise HTTPException(e.status, str(e))
 
     @app.post("/api/scans/upload")
-    async def scan_upload(kind: str = Form(alias="source"), planes: str = Form(""), probes: str = Form(""),
+    async def scan_upload(kind: str = Form("archive", alias="source"), planes: str = Form(""), probes: str = Form(""),
                           tls_authorized: bool = Form(False), project_id: int | None = Form(None),
                           project_name: str | None = Form(None),
+                          sector: str | None = Form(None),
+                          system_type: str | None = Form(None),
+                          criticality: int | None = Form(None),
+                          shelf_life_years: int | None = Form(None),
                           files: list[UploadFile] = File(...), u=Depends(_user),
                           conn: sqlite3.Connection = Depends(_conn)):
         """Archive / container image / artefacts (D1): the upload is placed or safely extracted into a
         fresh per-scan temp directory, then scanned exactly like a local folder (mox/source.py)."""
+        if kind in ("zip", "upload"):
+            kind = "archive"
         try:
             payload = [(f.filename or "upload", await f.read()) for f in files]
             resolved = source.from_upload(kind, payload)
@@ -303,12 +351,22 @@ def create_app() -> FastAPI:
             raise HTTPException(400, str(e))
         plane_list = [p for p in planes.split(",") if p] or None
         probe_list = [p for p in probes.split(",") if p]
-        if not project_id and project_name:
-            p_row = conn.execute("SELECT id FROM projects WHERE name=?", (project_name.strip(),)).fetchone()
+
+        proj_name = project_name.strip() if project_name and project_name.strip() else None
+        if not proj_name and files and files[0].filename:
+            proj_name = Path(files[0].filename).stem
+
+        if not project_id and proj_name:
+            p_row = conn.execute("SELECT id FROM projects WHERE name=?", (proj_name,)).fetchone()
             if p_row:
                 project_id = p_row["id"]
             else:
-                p = projects.create(conn, project_name.strip(), "other", "mixed", 2, 5, source_kind=kind)
+                p = projects.create(conn, proj_name,
+                                    _normalize_sector(sector),
+                                    system_type or "mixed",
+                                    _normalize_criticality(criticality),
+                                    _normalize_shelf_life(shelf_life_years),
+                                    source_kind=kind)
                 project_id = p["id"]
         if not project_id:
             project_id = db.ensure_default_project(conn)
@@ -316,6 +374,7 @@ def create_app() -> FastAPI:
             return jobs.start(resolved.path, u["sub"], _settings(conn), _overrides(conn), plane_list, None,
                               probe_list, tls_authorized, project_id, cleanup=resolved.cleanup,
                               source_meta=resolved.meta)
+
         except jobs.JobError as e:
             resolved.cleanup()
             raise HTTPException(e.status, str(e))

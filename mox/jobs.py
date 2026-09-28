@@ -64,7 +64,7 @@ def _run(job: dict, user: str, settings: dict, overrides: dict) -> None:
             _emit(job, "error", {"error": str(e)})
     finally:
         cleanup = job.get("cleanup")
-        if cleanup:
+        if cleanup and job.get("state") == "error":
             cleanup()
 
 
