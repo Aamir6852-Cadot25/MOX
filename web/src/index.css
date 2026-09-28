@@ -33,13 +33,11 @@
 
 html {
   margin: 0;
-  min-height: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
-  scroll-behavior: smooth;
+  height: 100%;
+  overflow: hidden;
 }
 
-body { background: var(--paper); font-family: 'Inter', system-ui, -apple-system, sans-serif; color: var(--ink); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; overflow-x: hidden; min-height: 100%; margin: 0; }
+body { background: var(--paper); font-family: 'Inter', system-ui, -apple-system, sans-serif; color: var(--ink); font-size: 13.5px; line-height: 1.45; -webkit-font-smoothing: antialiased; overflow: hidden; height: 100%; margin: 0; }
 
 .bp-card { background: var(--surface); }
 
@@ -58,12 +56,12 @@ header {
   top: 0;
   left: 0;
   right: 0;
-  height: 56px;
+  height: 52px;
   background: var(--hdr);
   color: #fff;
   display: flex;
   align-items: center;
-  padding: 0 20px;
+  padding: 0 16px;
   gap: 12px;
   z-index: 50;
 }
@@ -126,13 +124,13 @@ header .r b {
 /* Sidebar */
 aside {
   position: fixed;
-  top: 56px;
+  top: 52px;
   bottom: 0;
   left: 0;
-  width: 236px;
+  width: 220px;
   background: var(--side);
   color: #DCE6F0;
-  padding: 18px 12px;
+  padding: 14px 10px;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -228,31 +226,34 @@ aside {
 
 /* Main Content */
 main {
-  margin: 56px 0 0 236px;
-  padding: 28px 32px 48px;
-  min-height: calc(100vh - 56px);
+  margin: 52px 0 0 220px;
+  padding: 12px 18px;
+  height: calc(100vh - 52px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
   background: var(--bg);
 }
 
 .ph {
   display: flex;
   align-items: flex-start;
-  gap: 16px;
-  margin-bottom: 22px;
+  gap: 12px;
+  margin-bottom: 10px;
 }
 
 .ph h1 {
   margin: 0;
-  font-size: 24px;
+  font-size: 19px;
   font-weight: 800;
   letter-spacing: -.3px;
   color: var(--ink);
 }
 
 .ph p {
-  margin: 4px 0 0;
+  margin: 2px 0 0;
   color: var(--mut);
-  font-size: 13.5px;
+  font-size: 12px;
 }
 
 .ph .act {
@@ -267,13 +268,13 @@ main {
   border: 1px solid var(--bd);
   border-radius: 10px;
   box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
-  padding: 20px 22px;
-  margin-bottom: 18px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
 }
 
 .card h3 {
-  margin: 0 0 14px;
-  font-size: 15px;
+  margin: 0 0 10px;
+  font-size: 14px;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -1159,33 +1160,32 @@ pre::-webkit-scrollbar-thumb:hover {
   background: #475569;
 }
 
-/* Floating Scroll to Top Button */
-.scroll-top-btn {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  background: #fff;
-  border: 1px solid var(--bd);
-  color: var(--mut);
+/* Fixed 16:9 Workspace Optimization for Code Edit */
+#p-code {
+  height: 100%;
+  min-height: 0;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  z-index: 45;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-.scroll-top-btn:hover {
-  color: var(--cy);
-  border-color: var(--cy);
-  box-shadow: 0 6px 16px rgba(14, 165, 201, 0.18);
-  transform: translateY(-2px);
+#p-code .ide {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr) 325px;
+  gap: 12px;
+  overflow: hidden;
 }
 
-.scroll-top-btn:active {
-  transform: translateY(0);
+#p-code .ide > .card {
+  height: 100%;
+  min-height: 0;
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 12px 14px;
+  box-sizing: border-box;
 }

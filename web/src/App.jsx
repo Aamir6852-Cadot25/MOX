@@ -5,7 +5,6 @@ import Sidebar from "./components/Sidebar";
 import Splash from "./components/Splash";
 import Toast from "./components/Toast";
 import SettingsModal from "./components/SettingsModal";
-import { ArrowUp } from "lucide-react";
 
 import Scan from "./pages/Scan";
 import Dashboard from "./pages/Dashboard";
@@ -163,20 +162,6 @@ export default function App() {
     return () => window.removeEventListener("hashchange", handleHash);
   }, [determinePageFromLocation]);
 
-  const [showScrollTop, setShowScrollTop] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setShowScrollTop(window.scrollY > 250);
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
   const handleNavigate = (page) => {
     setCurrentPage(page);
     window.location.hash = page;
@@ -281,17 +266,6 @@ export default function App() {
           showToast("Settings updated");
         }}
       />
-
-      {showScrollTop && (
-        <button
-          className="scroll-top-btn"
-          onClick={scrollToTop}
-          title="Scroll to top"
-          aria-label="Scroll to top"
-        >
-          <ArrowUp size={18} />
-        </button>
-      )}
 
       <Toast message={toastMessage} />
     </>

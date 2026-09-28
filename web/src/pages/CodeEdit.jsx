@@ -332,31 +332,37 @@ export default function CodeEdit({
 
   return (
     <section className="page on" id="p-code">
-      <div className="ph">
+      <div className="ph" style={{ marginBottom: "8px" }}>
         <div>
-          <h1>Code Edit</h1>
-          <p>Inspect real cryptographic findings in source and configs, preview automated fixes, apply and re-scan.</p>
+          <h1 style={{ fontSize: "19px" }}>Cryptography Discovery &amp; Analysis</h1>
+          <p style={{ fontSize: "12px", margin: "2px 0 0" }}>
+            <span style={{ color: "var(--cy)", fontWeight: 700 }}>DISCOVER</span> →{" "}
+            <span style={{ color: "var(--ink)", fontWeight: 600 }}>LOCATION ({loc.file.split("/").pop() || "source"}:{targetLine})</span> →{" "}
+            <span style={{ color: "var(--mut)", fontWeight: 600 }}>EVIDENCE</span> →{" "}
+            <span style={{ color: cfg.color, fontWeight: 700 }}>{cfg.code} RISK</span> →{" "}
+            <span style={{ color: "var(--cy)", fontWeight: 700 }}>REMEDIATE</span>
+          </p>
         </div>
         <div className="act">
           <button
             className="btn"
-            style={{ whiteSpace: "nowrap" }}
+            style={{ padding: "5px 10px", fontSize: "12px", whiteSpace: "nowrap" }}
             onClick={() => {
               if (showToast) showToast("Refreshing scan data…");
               if (onTriggerRescan) onTriggerRescan();
             }}
           >
-            <RotateCw size={15} /> Refresh Scan
+            <RotateCw size={13} /> Refresh Scan
           </button>
         </div>
       </div>
 
-      <div className="ide" style={{ display: "grid", gridTemplateColumns: "280px 1fr 340px", gap: "16px" }}>
+      <div className="ide" style={{ display: "grid", gridTemplateColumns: "250px minmax(0, 1fr) 325px", gap: "12px", height: "calc(100vh - 120px)", minHeight: 0 }}>
         {/* Left Column: Project Explorer / File Tree */}
-        <div className="card" style={{ padding: "14px", minWidth: 0, overflow: "hidden" }}>
-          <div className="row" style={{ marginBottom: "10px" }}>
-            <b style={{ fontSize: "13px" }}>Project explorer</b>
-            <span className="pill cyp" style={{ marginLeft: "auto", fontSize: "11px" }}>
+        <div className="card" style={{ padding: "12px 14px", minWidth: 0, height: "100%", display: "flex", flexDirection: "column", overflow: "hidden", marginBottom: 0 }}>
+          <div className="row" style={{ marginBottom: "8px" }}>
+            <b style={{ fontSize: "12.5px" }}>Project explorer</b>
+            <span className="pill cyp" style={{ marginLeft: "auto", fontSize: "10.5px" }}>
               {assets.length} assets
             </span>
           </div>
@@ -364,24 +370,25 @@ export default function CodeEdit({
           <input
             className="in"
             placeholder="Filter files…"
-            style={{ marginBottom: "10px", width: "100%" }}
+            style={{ marginBottom: "8px", width: "100%", padding: "5px 8px", fontSize: "11.5px" }}
             value={filterQuery}
             onChange={(e) => setFilterQuery(e.target.value)}
           />
 
           <div
             style={{
-              fontSize: "10.5px",
+              fontSize: "10px",
               letterSpacing: ".8px",
               color: "var(--mut)",
-              fontWeight: 600,
-              margin: "6px 0",
+              fontWeight: 700,
+              margin: "2px 0 6px",
+              textTransform: "uppercase",
             }}
           >
             FILES ({allFiles.length})
           </div>
 
-          <div className="tree" style={{ maxHeight: "calc(100vh - 280px)", overflowY: "auto" }}>
+          <div className="tree" style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingRight: "2px" }}>
             {Object.keys(dirs).map((d) => (
               <div key={d} style={{ display: "block", padding: 0 }}>
                 <div style={{ fontWeight: 600, fontSize: "11.5px", color: "var(--mut)", padding: "4px 0" }}>
@@ -450,26 +457,35 @@ export default function CodeEdit({
         </div>
 
         {/* Middle Column: Code View / Diff / Metadata */}
-        <div className="card" style={{ padding: "14px", minWidth: 0, display: "flex", flexDirection: "column" }}>
-          <div className="row" style={{ marginBottom: "10px", fontSize: "12px", flexWrap: "nowrap" }}>
-            <span
-              className="mono"
-              style={{
-                color: "var(--mut)",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                flex: 1,
-              }}
-              title={loc.file}
-            >
-              {loc.file || "—"}
-            </span>
-            {!isBinaryOrCert && (
-              <span style={{ color: "var(--p3)", fontWeight: 600, whiteSpace: "nowrap" }} className="mono">
-                Target line: {targetLine}
+        <div className="card" style={{ padding: "12px 14px", minWidth: 0, height: "100%", display: "flex", flexDirection: "column", overflow: "hidden", marginBottom: 0 }}>
+          <div className="row" style={{ marginBottom: "8px", fontSize: "12px", flexWrap: "nowrap", gap: "8px", justifyContent: "space-between" }}>
+            <div className="row" style={{ gap: "6px", overflow: "hidden", minWidth: 0, flex: 1 }}>
+              <span
+                className="mono"
+                style={{
+                  color: "var(--ink)",
+                  fontWeight: 600,
+                  fontSize: "12px",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+                title={loc.file}
+              >
+                {loc.file || "—"}
               </span>
-            )}
+              {!isBinaryOrCert && (
+                <span className="pill p3" style={{ fontSize: "10px", whiteSpace: "nowrap" }}>
+                  Line {targetLine}
+                </span>
+              )}
+            </div>
+            <span
+              className={`pill ${mode === "diff" ? "qs" : mode === "applied" ? "qs" : "cyp"}`}
+              style={{ fontSize: "10px", whiteSpace: "nowrap", marginLeft: "auto" }}
+            >
+              {mode === "diff" ? "Patch Preview" : mode === "applied" ? "✓ Remediated" : "Vulnerable Code"}
+            </span>
           </div>
 
           <div
@@ -477,13 +493,15 @@ export default function CodeEdit({
             ref={codeContainerRef}
             style={{
               flex: 1,
-              minHeight: "420px",
-              maxHeight: "calc(100vh - 280px)",
+              minHeight: 0,
               overflowY: "auto",
+              overflowX: "auto",
               background: "#081B2E",
               color: "#E2E8F0",
               borderRadius: "8px",
-              padding: "10px",
+              padding: "8px 10px",
+              fontSize: "12px",
+              lineHeight: "1.5",
             }}
           >
             {loadingFile ? (
@@ -629,16 +647,16 @@ export default function CodeEdit({
           </div>
 
           {/* Action Row */}
-          <div className="row" style={{ marginTop: "14px", gap: "10px" }}>
+          <div className="row" style={{ marginTop: "8px", gap: "8px", flexShrink: 0 }}>
             {mode === "view" && (
               <button
-                className="btn"
+                className="btn pri"
                 disabled={!currentAsset.fix_finding || loadingFix}
                 title={!currentAsset.fix_finding ? "No automatic fix available for this finding" : "Preview automated code patch"}
                 onClick={handlePreviewFix}
-                style={{ whiteSpace: "nowrap" }}
+                style={{ fontSize: "12px", padding: "5px 12px", whiteSpace: "nowrap" }}
               >
-                <Eye size={15} /> {loadingFix ? "Generating diff…" : "Preview fix"}
+                <Eye size={14} /> {loadingFix ? "Generating patch…" : "Preview fix"}
               </button>
             )}
 
@@ -648,14 +666,14 @@ export default function CodeEdit({
                   className="btn gr"
                   disabled={applyingFix}
                   onClick={handleApplyFix}
-                  style={{ whiteSpace: "nowrap" }}
+                  style={{ fontSize: "12px", padding: "5px 12px", whiteSpace: "nowrap" }}
                 >
-                  <Check size={15} /> {applyingFix ? "Applying & re-scanning…" : "Apply & re-scan"}
+                  <Check size={14} /> {applyingFix ? "Applying & re-scanning…" : "Apply & re-scan"}
                 </button>
                 <button
                   className="btn"
                   onClick={() => setMode("view")}
-                  style={{ whiteSpace: "nowrap" }}
+                  style={{ fontSize: "12px", padding: "5px 12px", whiteSpace: "nowrap" }}
                 >
                   Cancel
                 </button>
@@ -667,24 +685,24 @@ export default function CodeEdit({
                 <button
                   className="btn pri"
                   onClick={handleDownloadPatched}
-                  style={{ whiteSpace: "nowrap" }}
+                  style={{ fontSize: "12px", padding: "5px 12px", whiteSpace: "nowrap" }}
                 >
-                  <Download size={15} /> Download patched file
+                  <Download size={14} /> Download patched file
                 </button>
                 <button
                   className="btn"
                   onClick={() => setMode("view")}
-                  style={{ whiteSpace: "nowrap" }}
+                  style={{ fontSize: "12px", padding: "5px 12px", whiteSpace: "nowrap" }}
                 >
                   Back to source
                 </button>
               </>
             )}
 
-            {applyResult && (
+            {applyResult ? (
               <span
                 style={{
-                  fontSize: "12.5px",
+                  fontSize: "12px",
                   fontWeight: 600,
                   color: applyResult.cleared ? "var(--ok)" : "var(--p2)",
                   marginLeft: "auto",
@@ -694,24 +712,33 @@ export default function CodeEdit({
                   ? "✓ Patch applied · re-scan: finding cleared"
                   : `Patch applied · re-scan: ${applyResult.status}`}
               </span>
+            ) : (
+              <span style={{ fontSize: "11px", color: "var(--mut)", marginLeft: "auto", whiteSpace: "nowrap" }}>
+                Direct file edit &amp; remediation
+              </span>
             )}
           </div>
         </div>
 
         {/* Right Column: Finding Details & PQC Replacement */}
-        <div className="card" style={{ padding: "16px", minWidth: 0, overflowY: "auto", maxHeight: "calc(100vh - 180px)" }}>
-          <div className="row" style={{ marginBottom: "12px" }}>
-            <b style={{ fontSize: "13px" }}>Finding details</b>
-            <span
-              className={`pill ${cfg.pill}`}
-              style={{ marginLeft: "auto", whiteSpace: "nowrap" }}
-              title={assetDetails.priority_reason || ""}
-            >
-              {cfg.code}
-            </span>
+        <div className="card" style={{ padding: "12px 14px", minWidth: 0, height: "100%", display: "flex", flexDirection: "column", overflowY: "auto", marginBottom: 0 }}>
+          <div className="row" style={{ marginBottom: "8px", justifyContent: "space-between" }}>
+            <b style={{ fontSize: "12.5px" }}>Finding details</b>
+            <div className="row" style={{ gap: "6px" }}>
+              <span
+                className={`pill ${cfg.pill}`}
+                style={{ whiteSpace: "nowrap" }}
+                title={assetDetails.priority_reason || ""}
+              >
+                {cfg.code}
+              </span>
+              <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--ink)" }}>
+                {Number(assetDetails.score || 0).toFixed(1)}/100
+              </span>
+            </div>
           </div>
 
-          <div className="kv" style={{ fontSize: "12.5px" }}>
+          <div className="kv" style={{ fontSize: "11.5px", gap: "4px 8px" }}>
             <span className="i">1</span>
             <span className="k">Algorithm</span>
             <b style={{ color: "#0B7C99", wordBreak: "break-all" }}>
@@ -721,7 +748,7 @@ export default function CodeEdit({
 
             <span className="i">2</span>
             <span className="k">Location</span>
-            <span className="mono" style={{ fontSize: "11px", wordBreak: "break-all" }}>
+            <span className="mono" style={{ fontSize: "10.5px", wordBreak: "break-all" }}>
               {loc.file}:{loc.line}
             </span>
 
@@ -730,13 +757,13 @@ export default function CodeEdit({
             <b>{Number(assetDetails.score || 0).toFixed(1)} / 100</b>
 
             <span className="i">4</span>
-            <span className="k">Mosca Exposure</span>
+            <span className="k">Mosca Exp.</span>
             <span>
               {mosca.x !== undefined ? (
                 <>
-                  <b>X: {mosca.x}y</b> + <b>Y: {mosca.y}y</b> − <b>Z: {mosca.z}y</b> ={" "}
+                  <b>X:{mosca.x}y</b> + <b>Y:{mosca.y}y</b> − <b>Z:{mosca.z}y</b> ={" "}
                   <b style={{ color: mosca.exposure > 0 ? "var(--p1)" : "var(--ok)" }}>
-                    {mosca.exposure > 0 ? `+${mosca.exposure}` : mosca.exposure}y
+                    {mosca.exposure > 0 ? `+${mosca.exposure}y` : `${mosca.exposure}y`}
                   </b>
                 </>
               ) : (
@@ -745,20 +772,20 @@ export default function CodeEdit({
             </span>
 
             <span className="i">5</span>
-            <span className="k">Threat Profile</span>
+            <span className="k">Threat</span>
             <span>
               {assetDetails.breakdown?.threats?.includes("hndl") ? (
-                <span className="pill p1" style={{ fontSize: "10.5px" }}>HNDL (Harvest Now)</span>
+                <span className="pill p1" style={{ fontSize: "10px" }}>HNDL (Harvest Now)</span>
               ) : assetDetails.breakdown?.threats?.includes("forgery") ? (
-                <span className="pill p2" style={{ fontSize: "10.5px" }}>Forgery</span>
+                <span className="pill p2" style={{ fontSize: "10px" }}>Forgery</span>
               ) : (
-                <span className="pill p4" style={{ fontSize: "10.5px" }}>Classical / n/a</span>
+                <span className="pill p4" style={{ fontSize: "10px" }}>Classical / n/a</span>
               )}
             </span>
 
             <span className="i">6</span>
             <span className="k">NIST Status</span>
-            <span style={{ fontSize: "11.5px" }}>
+            <span style={{ fontSize: "11px" }}>
               Now: <b>{firstFinding.nist_now || "Disallowed"}</b> · 2030: <b>{firstFinding.nist_2030 || "Disallowed"}</b>
             </span>
 
@@ -772,27 +799,27 @@ export default function CodeEdit({
             </span>
           </div>
 
-          <div className="box weak" style={{ margin: "12px 0 10px" }}>
-            <h4 style={{ margin: "0 0 4px" }}>Why this is weak</h4>
-            <div style={{ fontSize: "12px", lineHeight: "1.4" }}>
+          <div className="box weak" style={{ margin: "8px 0 6px", padding: "8px 10px", borderRadius: "6px" }}>
+            <h4 style={{ margin: "0 0 3px", fontSize: "10.5px", textTransform: "uppercase", letterSpacing: ".5px" }}>Why this is weak</h4>
+            <div style={{ fontSize: "11.5px", lineHeight: "1.35" }}>
               {assetDetails.reason
                 ? assetDetails.reason.split(". ")[0] + "."
                 : "Algorithm is vulnerable to quantum cryptanalysis under NIST SP 800-131A & IR 8547 (draft)."}
             </div>
           </div>
 
-          <div className="box fix" style={{ marginBottom: "10px" }}>
-            <h4 style={{ margin: "0 0 4px" }}>Recommended PQC replacement</h4>
-            <b style={{ fontSize: "12.5px", color: "var(--ink)", display: "block" }}>
+          <div className="box fix" style={{ margin: "0 0 6px", padding: "8px 10px", borderRadius: "6px" }}>
+            <h4 style={{ margin: "0 0 3px", fontSize: "10.5px", textTransform: "uppercase", letterSpacing: ".5px" }}>Recommended Remediation</h4>
+            <b style={{ fontSize: "11.5px", color: "var(--ink)", display: "block" }}>
               {recommendedPqc.title}
             </b>
-            <div style={{ color: "var(--mut)", fontSize: "11.5px", marginTop: "4px" }}>
+            <div style={{ color: "var(--mut)", fontSize: "10.5px", marginTop: "2px", lineHeight: "1.3" }}>
               {recommendedPqc.detail}
             </div>
           </div>
 
-          <div style={{ fontSize: "11.5px", color: "var(--mut)", marginTop: "10px" }}>
-            {assetDetails.findings_count || assetDetails.findings?.length || 1} finding(s) merged into 1 asset
+          <div style={{ fontSize: "10.5px", color: "var(--mut)", marginTop: "auto", paddingTop: "4px" }}>
+            Direct file remediation enabled · {assetDetails.findings_count || assetDetails.findings?.length || 1} finding(s) merged
           </div>
         </div>
       </div>

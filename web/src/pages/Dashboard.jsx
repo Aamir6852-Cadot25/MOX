@@ -114,7 +114,7 @@ export default function Dashboard({ latestScan, assets = [], onNavigate, onOpenA
       ) : (
         <>
           {/* 5 KPI Stat Cards */}
-          <div className="grid g5" style={{ marginBottom: "18px" }}>
+          <div className="grid g5" style={{ marginBottom: "10px" }}>
             <div className="stat" style={{ minWidth: 0 }}>
               <div className="lb">
                 <span className="dot" style={{ background: "var(--cy)" }} />
@@ -156,13 +156,13 @@ export default function Dashboard({ latestScan, assets = [], onNavigate, onOpenA
           </div>
 
           {/* Quantum Risk & Evidence Card */}
-          <div className="card">
-            <h3>Quantum Risk &amp; Evidence</h3>
+          <div className="card" style={{ padding: "12px 16px", marginBottom: "10px" }}>
+            <h3 style={{ margin: "0 0 10px" }}>Quantum Risk &amp; Evidence</h3>
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "190px 1fr 1fr",
-                gap: "18px",
+                gridTemplateColumns: "175px 1fr 1fr",
+                gap: "12px",
                 alignItems: "stretch",
               }}
             >
@@ -252,48 +252,48 @@ export default function Dashboard({ latestScan, assets = [], onNavigate, onOpenA
             </div>
 
             {/* Verdict 3-column stats */}
-            <div className="grid g3" style={{ marginTop: "16px" }}>
-              <div className="stat row" style={{ padding: "14px", minWidth: 0 }}>
-                <span className="pill vM" style={{ fontSize: "12px", whiteSpace: "nowrap" }}>
+            <div className="grid g3" style={{ marginTop: "10px", gap: "10px" }}>
+              <div className="stat row" style={{ padding: "10px 14px", minWidth: 0 }}>
+                <span className="pill vM" style={{ fontSize: "11.5px", whiteSpace: "nowrap" }}>
                   MIGRATE
                 </span>
                 <div>
-                  <div style={{ fontWeight: 800, fontSize: "20px" }}>{migrateCount}</div>
-                  <div style={{ fontSize: "12px", color: "var(--mut)" }}>Change the code or key now</div>
+                  <div style={{ fontWeight: 800, fontSize: "18px" }}>{migrateCount}</div>
+                  <div style={{ fontSize: "11px", color: "var(--mut)" }}>Change the code or key now</div>
                 </div>
               </div>
 
-              <div className="stat row" style={{ padding: "14px", minWidth: 0 }}>
-                <span className="pill vC" style={{ fontSize: "12px", whiteSpace: "nowrap" }}>
+              <div className="stat row" style={{ padding: "10px 14px", minWidth: 0 }}>
+                <span className="pill vC" style={{ fontSize: "11.5px", whiteSpace: "nowrap" }}>
                   CONTAIN
                 </span>
                 <div>
-                  <div style={{ fontWeight: 800, fontSize: "20px" }}>{containCount}</div>
-                  <div style={{ fontSize: "12px", color: "var(--mut)" }}>
+                  <div style={{ fontWeight: 800, fontSize: "18px" }}>{containCount}</div>
+                  <div style={{ fontSize: "11px", color: "var(--mut)" }}>
                     Too slow to patch (firmware, KMS, binaries) — isolate it
                   </div>
                 </div>
               </div>
 
-              <div className="stat row" style={{ padding: "14px", minWidth: 0 }}>
-                <span className="pill vA" style={{ fontSize: "12px", whiteSpace: "nowrap" }}>
+              <div className="stat row" style={{ padding: "10px 14px", minWidth: 0 }}>
+                <span className="pill vA" style={{ fontSize: "11.5px", whiteSpace: "nowrap" }}>
                   ACCEPT
                 </span>
                 <div>
-                  <div style={{ fontWeight: 800, fontSize: "20px" }}>{acceptCount}</div>
-                  <div style={{ fontSize: "12px", color: "var(--mut)" }}>Low risk — re-check next scan</div>
+                  <div style={{ fontWeight: 800, fontSize: "18px" }}>{acceptCount}</div>
+                  <div style={{ fontSize: "11px", color: "var(--mut)" }}>Low risk — re-check next scan</div>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Findings Table Card */}
-          <div className="card" style={{ padding: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", padding: "16px 20px" }}>
-              <h3 style={{ margin: 0 }}>
+          <div className="card" style={{ padding: 0, marginBottom: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", padding: "10px 16px" }}>
+              <h3 style={{ margin: 0, fontSize: "13.5px" }}>
                 Findings{" "}
-                <span style={{ fontWeight: 500, fontSize: "12px", color: "var(--mut)", marginLeft: "6px" }}>
-                  One asset = one key or algorithm, even if found in many files · click a row to open in Code Edit
+                <span style={{ fontWeight: 500, fontSize: "11.5px", color: "var(--mut)", marginLeft: "6px" }}>
+                  One asset = one key or algorithm · click row to open in Code Edit
                 </span>
               </h3>
               <div className="chips" style={{ marginLeft: "auto" }}>
@@ -318,7 +318,7 @@ export default function Dashboard({ latestScan, assets = [], onNavigate, onOpenA
                 No findings match priority filter "{filter}".
               </div>
             ) : (
-              <div style={{ overflowX: "auto" }}>
+              <div style={{ overflowX: "auto", overflowY: "auto", maxHeight: "240px" }}>
                 <table style={{ tableLayout: "auto", width: "100%" }}>
                   <thead>
                     <tr>
