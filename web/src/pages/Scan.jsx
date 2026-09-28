@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { api } from "../api";
 import { Folder, GitBranch, Upload, Shield, Play } from "lucide-react";
-import BrowseModal from "../components/BrowseModal";
 
 const SOURCES = [
-  { id: "folder", label: "Local project", sub: "Folder on this machine", icon: Folder },
-  { id: "git", label: "GitHub repository", sub: "Clone & scan a URL", icon: GitBranch },
-  { id: "zip", label: "ZIP / container upload", sub: "Archive or image .tar", icon: Upload },
+  { id: "folder", label: "Upload folder", sub: "Folder from your computer", icon: Folder },
+  { id: "zip", label: "Upload files / ZIP / container", sub: "Source, certs, archives, images", icon: Upload },
+  { id: "git", label: "Git repository", sub: "Public HTTPS URL clone", icon: GitBranch },
   { id: "tls", label: "TLS endpoint", sub: "Probe an authorised host", icon: Shield },
 ];
 
@@ -22,32 +21,40 @@ const PLANES_CONFIG = [
 
 export default function Scan({ onScanComplete, showToast }) {
   const [source, setSource] = useState("folder");
-  const [folderPath, setFolderPath] = useState("D:\\MOX\\demo_target");
+
+  // Folder Upload State
+  const [folderFiles, setFolderFiles] = useState([]);
+  const [folderName, setFolderName] = useState("");
+
+  // Files / Archive Upload State
+  const [uploadedFiles, setUploadedFiles] = useState([]);
+
+  // Git State
   const [gitUrl, setGitUrl] = useState("");
   const [gitBranch, setGitBranch] = useState("main");
   const [gitAuthorized, setGitAuthorized] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState([]);
-  const [tlsEndpoint, setTlsEndpoint] = useState("127.0.0.1:8443");
+
+  // TLS State
+  const [tlsEndpoint, setTlsEndpoint] = useState("");
   const [tlsAuthorized, setTlsAuthorized] = useState(false);
 
-  // Projects
+  // Project Info
   const [existingProjects, setExistingProjects] = useState([]);
-  const [projectMode, setProjectMode] = useState("new"); // 'new' | 'existing'
+  const [projectMode, setProjectMode] = useState("new");
   const [selectedProjectId, setSelectedProjectId] = useState("");
-  const [projectName, setProjectName] = useState("demo_target");
+  const [projectName, setProjectName] = useState("");
   const [systemType, setSystemType] = useState("Web service / API");
   const [sector, setSector] = useState("Government");
   const [criticality, setCriticality] = useState(3);
   const [shelfLifeYears, setShelfLifeYears] = useState(5);
 
-  // Scan planes selection
+  // Planes
   const [selectedPlanes, setSelectedPlanes] = useState(
     new Set(["code", "dependencies", "binaries", "containers", "certificates", "configs"])
   );
 
-  // Modals & execution state
+  // Execution State
   const [showConfirm, setShowConfirm] = useState(false);
-  const [showBrowse, setShowBrowse] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [planeStates, setPlaneStates] = useState({});
   const [scanProgressText, setScanProgressText] = useState("7 available · TLS needs an authorised endpoint");
@@ -57,7 +64,9 @@ export default function Scan({ onScanComplete, showToast }) {
       if (Array.isArray(res) && res.length > 0) {
         setExistingProjects(res);
       }
-    }).catch(() => {});
+    }).catch((err) => {
+      console.warn("Failed to load existing projects:", err);
+    });
   }, []);
 
   const handleSelectExistingProject = (projId) => {
@@ -80,6 +89,119 @@ export default function Scan({ onScanComplete, showToast }) {
     setSelectedPlanes(next);
   };
 
+  const handleFolderChange = (e) => {
+    const rawFiles = Array.from(e.target.files || []);
+    if (rawFiles.length === 0) return;
+
+    const filtered = [];
+    let totalSize = 0;
+    let skipped = 0;
+    let oversized = 0;
+
+    for (const f of rawFiles) {
+      const rel = f.webkitRelativePath || f.name;
+      const parts = rel.split(/[\\/]/);
+      if (parts.some((p) => [".git", "node_modules", ".venv", "venv", "__pycache__", ".pytest_cache", "dist"].includes(p))) {
+        skipped++;
+        continue;
+      }
+      if (f.size > 20 * 1024 * 1024) {
+        oversized++;
+        continue;
+      }
+      totalSize += f.size;
+      filtered.push(f);
+    }
+
+    if (totalSize > 100 * 1024 * 1024) {
+      if (showToast) showToast("Total folder size exceeds 100 MB limit");
+      return;
+    }
+
+    if (filtered.length === 0) {
+      if (showToast) showToast("0 valid files found (all were skipped or >20 MB)");
+      return;
+    }
+
+    setFolderFiles(filtered);
+    const rootName = rawFiles[0].webkitRelativePath?.split(/[\\/]/)[0] || "project";
+    setFolderName(rootName);
+    if (!projectName || projectName === "demo_target" || projectName === "") {
+      setProjectName(rootName);
+    }
+    if (showToast) {
+      showToast(`Selected "${rootName}": ${filtered.length} files (${(totalSize / 1024 / 1024).toFixed(2)} MB)`);
+    }
+  };
+
+  const handleFilesChange = (filesList) => {
+    const raw = Array.from(filesList || []);
+    if (raw.length === 0) return;
+
+    const filtered = [];
+    let totalSize = 0;
+
+    for (const f of raw) {
+      if (f.size > 20 * 1024 * 1024) {
+        if (showToast) showToast(`File ${f.name} exceeds 20 MB limit (skipped)`);
+        continue;
+      }
+      totalSize += f.size;
+      filtered.push(f);
+    }
+
+    if (totalSize > 100 * 1024 * 1024) {
+      if (showToast) showToast("Total upload exceeds 100 MB limit");
+      return;
+    }
+
+    if (filtered.length === 0) {
+      if (showToast) showToast("No valid files to upload");
+      return;
+    }
+
+    setUploadedFiles(filtered);
+    if (!projectName || projectName === "demo_target" || projectName === "") {
+      const cleanName = filtered[0].name.replace(/\.[^/.]+$/, "");
+      setProjectName(cleanName);
+    }
+    if (showToast) {
+      showToast(`Selected ${filtered.length} file(s) for upload`);
+    }
+  };
+
+  const validateBeforeStart = () => {
+    if (source === "folder" && folderFiles.length === 0) {
+      if (showToast) showToast("Please select a folder to upload first");
+      return false;
+    }
+    if (source === "zip" && uploadedFiles.length === 0) {
+      if (showToast) showToast("Please select files or an archive to upload first");
+      return false;
+    }
+    if (source === "git") {
+      if (!gitUrl.trim()) {
+        if (showToast) showToast("Please enter a public HTTPS Git repository URL");
+        return false;
+      }
+      if (!gitAuthorized) {
+        if (showToast) showToast("Please check 'I am authorised to scan this repository'");
+        return false;
+      }
+    }
+    if (source === "tls") {
+      if (!tlsEndpoint.trim()) {
+        if (showToast) showToast("Please enter a TLS endpoint (host:port)");
+        return false;
+      }
+      if (!tlsAuthorized) {
+        if (showToast) showToast("Please check 'I am authorised to probe this endpoint'");
+        return false;
+      }
+    }
+    return true;
+  };
+
   const startScanJob = async () => {
     setShowConfirm(false);
     setIsScanning(true);
@@ -96,9 +218,24 @@ export default function Scan({ onScanComplete, showToast }) {
       const projId = projectMode === "existing" && selectedProjectId ? Number(selectedProjectId) : undefined;
       const projName = projectName.trim() || undefined;
 
-      if (source === "zip" && uploadedFiles.length > 0) {
+      if (source === "folder") {
         const formData = new FormData();
-        formData.append("source", "archive");
+        formData.append("source", "folder");
+        formData.append("planes", Array.from(selectedPlanes).join(","));
+        formData.append("tls_authorized", tlsAuthorized ? "true" : "false");
+        if (projId) formData.append("project_id", String(projId));
+        if (projName) formData.append("project_name", projName);
+        formData.append("sector", sector);
+        formData.append("system_type", systemType);
+        formData.append("criticality", String(criticality));
+        formData.append("shelf_life_years", String(shelfLifeYears));
+        for (const file of folderFiles) {
+          formData.append("files", file, file.webkitRelativePath || file.name);
+        }
+        jobRes = await api.scanUpload(formData);
+      } else if (source === "zip") {
+        const formData = new FormData();
+        formData.append("source", "upload");
         formData.append("planes", Array.from(selectedPlanes).join(","));
         formData.append("tls_authorized", tlsAuthorized ? "true" : "false");
         if (projId) formData.append("project_id", String(projId));
@@ -108,13 +245,13 @@ export default function Scan({ onScanComplete, showToast }) {
         formData.append("criticality", String(criticality));
         formData.append("shelf_life_years", String(shelfLifeYears));
         for (const file of uploadedFiles) {
-          formData.append("files", file);
+          formData.append("files", file, file.name);
         }
         jobRes = await api.scanUpload(formData);
       } else {
         const req = {
-          source: source === "tls" ? "tls" : source === "git" ? "git" : "folder",
-          path: source === "folder" ? folderPath : source === "git" ? gitUrl : "",
+          source: source === "tls" ? "tls" : "git",
+          path: "",
           planes: Array.from(selectedPlanes),
           probe: source === "tls" ? tlsEndpoint : undefined,
           tls_authorized: tlsAuthorized,
@@ -132,7 +269,7 @@ export default function Scan({ onScanComplete, showToast }) {
 
       const jobId = jobRes.job_id || jobRes.id;
       if (!jobId) {
-        throw new Error("Scan job did not return a job ID");
+        throw new Error("Scan job did not return a valid job ID");
       }
 
       // Stream events from SSE
@@ -144,7 +281,9 @@ export default function Scan({ onScanComplete, showToast }) {
         finished = true;
         try {
           evSource.close();
-        } catch {}
+        } catch (e) {
+          console.warn("EventSource close error:", e);
+        }
         finishScan(jobId, data);
       };
 
@@ -179,21 +318,26 @@ export default function Scan({ onScanComplete, showToast }) {
         try {
           const data = JSON.parse(event.data);
           handleStage(data);
-        } catch {}
+        } catch (e) {
+          console.warn("Error parsing stage event:", e);
+        }
       });
 
       evSource.addEventListener("progress", (event) => {
         try {
           const data = JSON.parse(event.data);
           handleProgress(data);
-        } catch {}
+        } catch (e) {
+          console.warn("Error parsing progress event:", e);
+        }
       });
 
       evSource.addEventListener("done", (event) => {
         try {
           const data = JSON.parse(event.data);
           finishOnce(data);
-        } catch {
+        } catch (e) {
+          console.warn("Error parsing done event:", e);
           finishOnce({});
         }
       });
@@ -204,11 +348,13 @@ export default function Scan({ onScanComplete, showToast }) {
           if (data && data.error) {
             evSource.close();
             setIsScanning(false);
-            alert(`Scan error: ${data.error}`);
+            if (showToast) showToast(`Scan error: ${data.error}`);
             setScanProgressText(`Scan error: ${data.error}`);
             return;
           }
-        } catch {}
+        } catch (e) {
+          console.warn("Error parsing error event:", e);
+        }
         checkJobStatus(jobId);
       });
 
@@ -225,7 +371,9 @@ export default function Scan({ onScanComplete, showToast }) {
           if (data.stage === "done" || data.completed || data.finished || data.scan_id) {
             finishOnce(data);
           }
-        } catch {}
+        } catch (e) {
+          console.warn("Error parsing message event:", e);
+        }
       };
 
       evSource.onerror = () => {
@@ -234,8 +382,8 @@ export default function Scan({ onScanComplete, showToast }) {
       };
     } catch (err) {
       setIsScanning(false);
-      alert(err.message || "Failed to start scan");
-      setScanProgressText("7 available · TLS needs an authorised endpoint");
+      if (showToast) showToast(err.message || "Failed to start scan");
+      setScanProgressText("Scan preparation failed");
     }
   };
 
@@ -244,7 +392,7 @@ export default function Scan({ onScanComplete, showToast }) {
       const res = await api.scanStatus(jobId);
       if (res.state === "error" || res.error) {
         setIsScanning(false);
-        alert(res.error || "Scan job encountered an error");
+        if (showToast) showToast(res.error || "Scan job encountered an error");
         setScanProgressText("Scan failed");
         return;
       }
@@ -253,7 +401,8 @@ export default function Scan({ onScanComplete, showToast }) {
       } else {
         setTimeout(() => checkJobStatus(jobId), 500);
       }
-    } catch {
+    } catch (e) {
+      console.warn("checkJobStatus error:", e);
       setIsScanning(false);
       setScanProgressText("7 available · TLS needs an authorised endpoint");
     }
@@ -272,28 +421,36 @@ export default function Scan({ onScanComplete, showToast }) {
     try {
       const s = await api.scanStatus(jobId);
       if (s) finalData = s;
-    } catch {
-      // ignore
+    } catch (e) {
+      console.warn("Failed to fetch final scan status:", e);
     }
 
-    const files = finalData?.files_scanned ?? finalData?.files;
-    const findings = finalData?.findings_count ?? finalData?.findings;
-    const assets = finalData?.assets;
-    const seconds = finalData?.seconds !== undefined ? Number(finalData.seconds).toFixed(3) : "";
-    const scanId = finalData?.scan_id || finalData?.id || data?.scan_id || data?.id;
+    const files = finalData?.result?.files_scanned ?? finalData?.files_scanned ?? finalData?.files;
+    const findings = finalData?.result?.findings ?? finalData?.findings_count ?? finalData?.findings;
+    const assets = finalData?.result?.assets ?? finalData?.assets;
+    const seconds = finalData?.result?.seconds ?? finalData?.seconds;
+    const scanId = finalData?.result?.scan_id || finalData?.scan_id || finalData?.id || data?.scan_id || data?.id;
+
+    if (files === 0) {
+      setIsScanning(false);
+      setScanProgressText("Warning: 0 files scanned (no supported files found)");
+      if (showToast) showToast("Warning: 0 files scanned — no supported cryptographic files found");
+      return;
+    }
 
     if (files !== undefined && findings !== undefined) {
-      setScanProgressText(`✓ ${files} files · ${findings} findings → ${assets || 0} assets · ${seconds} s`);
+      const secStr = seconds !== undefined ? `${Number(seconds).toFixed(3)} s` : "";
+      setScanProgressText(`✓ ${files} files · ${findings} findings → ${assets || 0} assets · ${secStr}`);
     } else {
       setScanProgressText("✓ Scan completed");
     }
 
-    if (showToast) showToast("Scan completed successfully");
+    if (showToast) showToast(`Scan completed: ${files} files scanned (${findings || 0} findings)`);
 
     setTimeout(() => {
       setIsScanning(false);
-      if (onScanComplete) onScanComplete(scanId);
-    }, 800);
+      if (onScanComplete && scanId) onScanComplete(scanId);
+    }, 700);
   };
 
   const currentSourceInfo = SOURCES.find((s) => s.id === source);
@@ -443,67 +600,63 @@ export default function Scan({ onScanComplete, showToast }) {
       <div className="card">
         {source === "folder" && (
           <div>
-            <h3>Project folder</h3>
-            <div className="row" style={{ gap: "8px" }}>
-              <input
-                className="in mono"
-                value={folderPath}
-                onChange={(e) => setFolderPath(e.target.value)}
-                disabled={isScanning}
-              />
-              <button
-                className="btn cy"
-                disabled={isScanning}
-                onClick={() => setShowBrowse(true)}
-              >
-                Browse
-              </button>
-            </div>
-            <p style={{ fontSize: "12px", color: "var(--ok)", margin: "8px 0 0" }}>
-              ✓ Runs fully offline — files never leave this machine.
+            <h3>Upload folder</h3>
+            <p style={{ color: "var(--mut)", fontSize: "13px", margin: "4px 0 14px" }}>
+              Select any local codebase or folder from your computer. The browser OS file explorer will open.
             </p>
-          </div>
-        )}
-
-        {source === "git" && (
-          <div>
-            <h3>Repository</h3>
-            <div className="grid" style={{ gridTemplateColumns: "3fr 1fr", gap: "12px" }}>
-              <div>
-                <label className="f">Git URL</label>
-                <input
-                  className="in mono"
-                  placeholder="https://github.com/org/repo.git"
-                  value={gitUrl}
-                  onChange={(e) => setGitUrl(e.target.value)}
-                  disabled={isScanning}
-                />
-              </div>
-              <div>
-                <label className="f">Branch</label>
-                <input
-                  className="in mono"
-                  value={gitBranch}
-                  onChange={(e) => setGitBranch(e.target.value)}
-                  disabled={isScanning}
-                />
+            <div
+              style={{
+                border: "1.5px dashed #CBD5E1",
+                borderRadius: "10px",
+                padding: "26px",
+                textAlign: "center",
+                color: "var(--mut)",
+                cursor: "pointer",
+                background: folderFiles.length > 0 ? "rgba(14, 165, 201, 0.05)" : "#FAFBFC",
+              }}
+              onClick={() => document.getElementById("folder-upload-input").click()}
+            >
+              <input
+                type="file"
+                id="folder-upload-input"
+                style={{ display: "none" }}
+                webkitdirectory=""
+                mozdirectory=""
+                directory=""
+                multiple
+                onChange={handleFolderChange}
+              />
+              <Folder size={32} style={{ color: "var(--cy)", margin: "0 auto 8px" }} />
+              <b style={{ color: "var(--ink)", display: "block", fontSize: "14px" }}>
+                {folderFiles.length > 0
+                  ? `Selected folder: ${folderName} (${folderFiles.length} files, ${(folderFiles.reduce((acc, f) => acc + f.size, 0) / 1024 / 1024).toFixed(2)} MB)`
+                  : "Click to open file explorer and select folder"}
+              </b>
+              <div style={{ fontSize: "12px", marginTop: "6px" }}>
+                All code, configs, certs and dependencies will be processed across all 7 scan planes.
               </div>
             </div>
-            <label style={{ display: "flex", gap: "8px", fontSize: "12.5px", marginTop: "10px", color: "var(--mut)", cursor: "pointer" }}>
-              <input
-                type="checkbox"
-                checked={gitAuthorized}
-                onChange={(e) => setGitAuthorized(e.target.checked)}
-                disabled={isScanning}
-              />
-              I am authorised to scan this repository
-            </label>
+            {folderFiles.length > 0 && (
+              <div className="row" style={{ marginTop: "12px" }}>
+                <span className="pill cyp">✓ Ready to scan {folderFiles.length} files</span>
+                <button
+                  className="btn"
+                  style={{ marginLeft: "auto" }}
+                  onClick={() => document.getElementById("folder-upload-input").click()}
+                >
+                  Choose different folder
+                </button>
+              </div>
+            )}
           </div>
         )}
 
         {source === "zip" && (
           <div>
-            <h3>Upload</h3>
+            <h3>Upload files / ZIP / container</h3>
+            <p style={{ color: "var(--mut)", fontSize: "13px", margin: "4px 0 14px" }}>
+              Upload individual source files, certificates (.pem, .crt, .key), container images (.tar), or ZIP archives.
+            </p>
             <div
               style={{
                 border: "1.5px dashed #CBD5E1",
@@ -522,12 +675,7 @@ export default function Scan({ onScanComplete, showToast }) {
                 e.preventDefault();
                 e.stopPropagation();
                 if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                  const files = Array.from(e.dataTransfer.files);
-                  setUploadedFiles(files);
-                  if (files.length > 0 && (!projectName || projectName === "demo_target")) {
-                    const cleanName = files[0].name.replace(/\.(zip|tar\.gz|tar|tgz|jar|war)$/i, "");
-                    setProjectName(cleanName);
-                  }
+                  handleFilesChange(e.dataTransfer.files);
                 }
               }}
               onClick={() => document.getElementById("zip-upload-input").click()}
@@ -537,41 +685,88 @@ export default function Scan({ onScanComplete, showToast }) {
                 id="zip-upload-input"
                 style={{ display: "none" }}
                 multiple
-                accept=".zip,.tar,.tar.gz,.tgz,.bin,.jar,.war"
-                onChange={(e) => {
-                  const files = Array.from(e.target.files);
-                  setUploadedFiles(files);
-                  if (files.length > 0 && (!projectName || projectName === "demo_target")) {
-                    const cleanName = files[0].name.replace(/\.(zip|tar\.gz|tar|tgz|jar|war)$/i, "");
-                    setProjectName(cleanName);
-                  }
-                }}
+                onChange={(e) => handleFilesChange(e.target.files)}
               />
-              <Upload size={24} style={{ color: "var(--cy)", margin: "0 auto 8px" }} />
-              <b style={{ color: "var(--ink)", display: "block" }}>
+              <Upload size={32} style={{ color: "var(--cy)", margin: "0 auto 8px" }} />
+              <b style={{ color: "var(--ink)", display: "block", fontSize: "14px" }}>
                 {uploadedFiles.length > 0
-                  ? `Selected: ${uploadedFiles.map((f) => `${f.name} (${(f.size / 1024).toFixed(1)} KB)`).join(", ")}`
-                  : "Click or drag a .zip or image .tar here"}
+                  ? `Selected: ${uploadedFiles.map((f) => f.name).join(", ")}`
+                  : "Click or drag files, archives (.zip, .tar.gz) or container image (.tar) here"}
               </b>
-              <div style={{ fontSize: "12px", marginTop: "4px" }}>
-                Extracted safely into a temporary folder, then scanned with live progress streaming
+              <div style={{ fontSize: "12px", marginTop: "6px" }}>
+                Accepts binaries, keys, certificates, source code and configs (up to 100 MB).
               </div>
             </div>
+            {uploadedFiles.length > 0 && (
+              <div className="row" style={{ marginTop: "12px" }}>
+                <span className="pill cyp">✓ {uploadedFiles.length} file(s) selected</span>
+                <button
+                  className="btn"
+                  style={{ marginLeft: "auto" }}
+                  onClick={() => document.getElementById("zip-upload-input").click()}
+                >
+                  Choose more files
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {source === "git" && (
+          <div>
+            <h3>Git repository</h3>
+            <p style={{ color: "var(--mut)", fontSize: "13px", margin: "4px 0 14px" }}>
+              Clone and scan any public HTTPS repository.
+            </p>
+            <div className="grid" style={{ gridTemplateColumns: "3fr 1fr", gap: "12px" }}>
+              <div>
+                <label className="f">Git repository URL (HTTPS)</label>
+                <input
+                  className="in mono"
+                  placeholder="https://github.com/org/repo.git"
+                  value={gitUrl}
+                  onChange={(e) => setGitUrl(e.target.value)}
+                  disabled={isScanning}
+                />
+              </div>
+              <div>
+                <label className="f">Branch</label>
+                <input
+                  className="in mono"
+                  value={gitBranch}
+                  onChange={(e) => setGitBranch(e.target.value)}
+                  disabled={isScanning}
+                />
+              </div>
+            </div>
+            <label style={{ display: "flex", gap: "8px", fontSize: "12.5px", marginTop: "12px", color: "var(--mut)", cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={gitAuthorized}
+                onChange={(e) => setGitAuthorized(e.target.checked)}
+                disabled={isScanning}
+              />
+              I am authorised to clone and scan this repository
+            </label>
           </div>
         )}
 
         {source === "tls" && (
           <div>
             <h3>TLS endpoint</h3>
+            <p style={{ color: "var(--mut)", fontSize: "13px", margin: "4px 0 14px" }}>
+              Public host:port only. Private or loopback IP ranges are restricted on this hosted prototype.
+            </p>
             <div className="row">
               <input
                 className="in mono"
+                placeholder="example.com:443"
                 value={tlsEndpoint}
                 onChange={(e) => setTlsEndpoint(e.target.value)}
                 disabled={isScanning}
               />
             </div>
-            <label style={{ display: "flex", gap: "8px", fontSize: "12.5px", marginTop: "10px", color: "var(--mut)", cursor: "pointer" }}>
+            <label style={{ display: "flex", gap: "8px", fontSize: "12.5px", marginTop: "12px", color: "var(--mut)", cursor: "pointer" }}>
               <input
                 type="checkbox"
                 checked={tlsAuthorized}
@@ -614,12 +809,16 @@ export default function Scan({ onScanComplete, showToast }) {
         </div>
       </div>
 
-      {/* Big Action Button */}
+      {/* Action Button */}
       <button
         className="btn pri"
         disabled={isScanning}
-        style={{ width: "100%", justifyContent: "center", padding: "13px", fontSize: "14px" }}
-        onClick={() => setShowConfirm(true)}
+        style={{ width: "100%", justifyContent: "center", padding: "13px", fontSize: "14px", whiteSpace: "nowrap" }}
+        onClick={() => {
+          if (validateBeforeStart()) {
+            setShowConfirm(true);
+          }
+        }}
       >
         {isScanning ? (
           <>
@@ -634,7 +833,7 @@ export default function Scan({ onScanComplete, showToast }) {
                 animation: "sp .8s linear infinite",
               }}
             />
-            Running analysis…
+            Running cryptographic scan…
           </>
         ) : (
           <>
@@ -659,7 +858,7 @@ export default function Scan({ onScanComplete, showToast }) {
               </button>
             </div>
             <p style={{ color: "var(--mut)", fontSize: "13px", margin: "6px 0 16px" }}>
-              Check the project, source and planes before starting.
+              Verify target and configuration before launching analysis.
             </p>
             <table>
               <tbody>
@@ -679,25 +878,17 @@ export default function Scan({ onScanComplete, showToast }) {
                   <td style={{ color: "var(--mut)" }}>Target</td>
                   <td className="mono">
                     {source === "folder"
-                      ? folderPath
+                      ? `${folderName} (${folderFiles.length} files)`
                       : source === "git"
                       ? gitUrl
                       : source === "tls"
                       ? tlsEndpoint
-                      : uploadedFiles.map((f) => f.name).join(", ") || "Uploaded file"}
+                      : uploadedFiles.map((f) => f.name).join(", ") || "Uploaded file(s)"}
                   </td>
                 </tr>
                 <tr>
                   <td style={{ color: "var(--mut)" }}>Planes</td>
-                  <td>{selectedPlanes.size} of 7 planes</td>
-                </tr>
-                <tr>
-                  <td style={{ color: "var(--mut)" }}>Network</td>
-                  <td>
-                    {source === "tls"
-                      ? "Outbound probe to target port only"
-                      : "Offline — no data leaves this machine"}
-                  </td>
+                  <td>{selectedPlanes.size} of 7 planes enabled</td>
                 </tr>
               </tbody>
             </table>
@@ -712,14 +903,6 @@ export default function Scan({ onScanComplete, showToast }) {
           </div>
         </div>
       )}
-
-      {/* Browse Folder Modal */}
-      <BrowseModal
-        isOpen={showBrowse}
-        initialPath={folderPath}
-        onSelect={(p) => setFolderPath(p)}
-        onClose={() => setShowBrowse(false)}
-      />
     </section>
   );
 }

@@ -55,7 +55,9 @@ export default function Remediation({ assets = [], selectedScanId }) {
             setBackendWaves(res);
           }
         })
-        .catch(() => {});
+        .catch((err) => {
+          console.warn("Roadmap fetch error:", err);
+        });
     }
   }, [selectedScanId]);
   const wavesOrder = [1, 2, 4, 5];
@@ -73,9 +75,15 @@ export default function Remediation({ assets = [], selectedScanId }) {
       </div>
 
       <div className="card">
-        {wavesOrder.map((w) => {
-          const waveAssets = assets.filter((a) => (a.wave || (a.verdict === "ACCEPT" ? 5 : 1)) === w);
-          if (waveAssets.length === 0 && assets.length > 0) return null;
+        {assets.length === 0 ? (
+          <div style={{ padding: "36px 20px", textAlign: "center", color: "var(--mut)" }}>
+            <p style={{ margin: 0, fontSize: "14px", fontWeight: 600, color: "var(--ink)" }}>No cryptographic assets detected</p>
+            <p style={{ margin: "6px 0 0", fontSize: "13px" }}>Run a scan on code, certificates, or endpoints to generate migration waves and recommendations.</p>
+          </div>
+        ) : (
+          wavesOrder.map((w) => {
+            const waveAssets = assets.filter((a) => (a.wave || (a.verdict === "ACCEPT" ? 5 : 1)) === w);
+            if (waveAssets.length === 0) return null;
 
           return (
             <div key={w} className="wave">
@@ -122,7 +130,8 @@ export default function Remediation({ assets = [], selectedScanId }) {
               </div>
             </div>
           );
-        })}
+        })
+      )}
       </div>
     </section>
   );

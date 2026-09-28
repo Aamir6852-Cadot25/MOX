@@ -291,10 +291,14 @@ main {
   gap: 14px;
 }
 
+.grid > * {
+  min-width: 0;
+}
+
 .g5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.g2 { grid-template-columns: 1fr 1fr; }
+.g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
 /* Stat Card */
 .stat {
@@ -302,6 +306,7 @@ main {
   border: 1px solid var(--bd);
   border-radius: 10px;
   padding: 16px 18px;
+  min-width: 0;
 }
 
 .stat .lb {
@@ -358,6 +363,7 @@ main {
   line-height: 1;
   transition: filter 0.15s ease, background 0.15s ease;
   user-select: none;
+  white-space: nowrap;
 }
 
 .btn:hover {
@@ -421,6 +427,10 @@ table {
   border-collapse: collapse;
 }
 
+table.tbl-fixed {
+  table-layout: fixed;
+}
+
 th {
   font-size: 10.5px;
   letter-spacing: .8px;
@@ -438,6 +448,22 @@ td {
   border-bottom: 1px solid #F0F2F5;
   font-size: 13px;
   vertical-align: middle;
+}
+
+.cell-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-top: 1px solid var(--bd);
+  font-size: 12.5px;
+  color: var(--mut);
 }
 
 tr.cl {
@@ -703,6 +729,10 @@ label.f {
   grid-template-columns: 260px 1fr 300px;
   gap: 14px;
   align-items: start;
+}
+
+.ide > * {
+  min-width: 0;
 }
 
 .tree {

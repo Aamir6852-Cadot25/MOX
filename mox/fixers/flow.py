@@ -28,11 +28,21 @@ def _target(conn, finding_id):
     if not f:
         raise FixError("finding not found", 404)
     f = dict(f)
-    root = Path(conn.execute("SELECT target FROM scans WHERE id=?", (f["scan_id"],)).fetchone()["target"]).resolve()
+    scan_row = conn.execute("SELECT target FROM scans WHERE id=?", (f["scan_id"],)).fetchone()
+    root = Path(scan_row["target"]).resolve()
     path = (root / f["file"]).resolve()
-    if root not in path.parents or not path.is_file():
-        raise FixError("file is not inside the scanned target or no longer exists", 404)
-    return f, root, path
+    if root in path.parents and path.is_file():
+        return f, root, path
+    row = conn.execute("SELECT content FROM scan_files WHERE scan_id=? AND path=?", (f["scan_id"], f["file"])).fetchone()
+    if row and row["content"] is not None:
+        from .. import db
+        cache_dir = db.data_dir() / "scan_cache" / str(f["scan_id"])
+        cached_file = cache_dir / f["file"]
+        cached_file.parent.mkdir(parents=True, exist_ok=True)
+        if not cached_file.is_file():
+            cached_file.write_text(row["content"], encoding="utf-8")
+        return f, cache_dir, cached_file
+    raise FixError("file is not inside the scanned target or no longer exists", 404)
 
 
 def _view(row) -> dict:
@@ -92,6 +102,7 @@ def apply(conn, fix_id: int, actor: str, note: str = "") -> dict:
         shutil.copy2(path, bak)
     new_bytes = d["new"].encode("utf-8")
     path.write_bytes(new_bytes)
+    conn.execute("UPDATE scan_files SET content=? WHERE scan_id=? AND path=?", (d["new"], f["scan_id"], f["file"]))
     auth.audit(conn, actor, "fix-apply", f"fix {fix_id} {f['file']} backup {bak.name} sha256 {_sha(bak.read_bytes())[:12]}")
     _trail(d, f"backup written · {bak.name} · sha256 {_sha(bak.read_bytes())[:12]}…")
     ctx = scanner.Ctx()
@@ -109,6 +120,7 @@ def apply(conn, fix_id: int, actor: str, note: str = "") -> dict:
     broken = [c for c in d["claims"] if c["state"] == "not-in-effect" and not c.get("limit")]
     d["cleared"] = cleared
     d["remaining"] = len(same)
+    d["patched_content"] = d["new"]
     d.pop("old", None)
     d.pop("new", None)
     status = "still-present" if not cleared else "not-in-effect" if broken else "cleared"

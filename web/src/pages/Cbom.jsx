@@ -28,7 +28,8 @@ export default function Cbom({ selectedScanId, assets = [], onAssetUpdated, show
     try {
       const res = await api.cbom(selectedScanId);
       setCbomData(res);
-    } catch {
+    } catch (err) {
+      console.warn("CBOM fetch error:", err);
       setCbomData(null);
     } finally {
       setLoading(false);

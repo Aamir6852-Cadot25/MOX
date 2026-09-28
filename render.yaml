@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: mox
+    env: docker
+    plan: free
+    region: oregon
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: MOX_HOSTED
+        value: "1"

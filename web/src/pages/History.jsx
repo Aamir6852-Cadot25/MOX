@@ -24,16 +24,26 @@ export default function History({
   const [scanToDelete, setScanToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Pagination state (8 rows per page)
+  const [page, setPage] = useState(1);
+  const pageSize = 8;
+
   const loadData = async () => {
     try {
       const [hist, audit] = await Promise.all([
-        api.history().catch(() => []),
-        api.audit().catch(() => []),
+        api.history().catch((err) => {
+          console.warn("Scan history fetch error:", err);
+          return [];
+        }),
+        api.audit().catch((err) => {
+          console.warn("Audit events fetch error:", err);
+          return [];
+        }),
       ]);
       setHistoryList(Array.isArray(hist) ? hist : []);
       setAuditList(Array.isArray(audit) ? audit : []);
-    } catch {
-      // ignore
+    } catch (err) {
+      if (showToast) showToast(err.message || "Failed to load history data");
     } finally {
       setLoading(false);
     }
@@ -170,116 +180,151 @@ export default function History({
           <h3 style={{ margin: 0 }}>
             Scan timeline{" "}
             <span className="rt" style={{ marginLeft: "auto" }}>
-              {historyList.length} scans recorded
+              {historyList.length} scan{historyList.length === 1 ? "" : "s"} recorded
             </span>
           </h3>
         </div>
         {historyList.length === 0 ? (
-          <div style={{ padding: "32px", textAlign: "center", color: "var(--mut)" }}>
-            No scans recorded yet. Run a scan from the Scanner to view history.
+          <div style={{ padding: "40px 20px", textAlign: "center", color: "var(--mut)" }}>
+            <p style={{ margin: 0, fontSize: "14px", fontWeight: 600, color: "var(--ink)" }}>No scans recorded yet</p>
+            <p style={{ margin: "6px 0 0", fontSize: "13px" }}>Run a scan from the Scanner view to generate timeline records, CBOMs, and reports.</p>
           </div>
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Scan</th>
-                <th>Project</th>
-                <th>Target</th>
-                <th>Date</th>
-                <th>Files</th>
-                <th>Findings</th>
-                <th>Assets</th>
-                <th>QV Assets</th>
-                <th>Critical</th>
-                <th>Duration</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {historyList.map((s) => {
-                const isSelected = s.id === selectedScanId;
-                const dur = s.duration !== undefined ? `${Number(s.duration).toFixed(3)}s` : `${Number(s.seconds || 0).toFixed(3)}s`;
+          <>
+            <table className="tbl-fixed">
+              <thead>
+                <tr>
+                  <th style={{ width: "70px" }}>Scan</th>
+                  <th style={{ width: "130px" }}>Project</th>
+                  <th style={{ width: "200px" }}>Target</th>
+                  <th style={{ width: "135px" }}>Date</th>
+                  <th style={{ width: "65px" }}>Files</th>
+                  <th style={{ width: "75px" }}>Findings</th>
+                  <th style={{ width: "65px" }}>Assets</th>
+                  <th style={{ width: "80px" }}>QV Assets</th>
+                  <th style={{ width: "75px" }}>Critical</th>
+                  <th style={{ width: "75px" }}>Duration</th>
+                  <th style={{ width: "185px" }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {historyList
+                  .slice((Math.min(page, Math.max(1, Math.ceil(historyList.length / pageSize))) - 1) * pageSize, Math.min(page, Math.max(1, Math.ceil(historyList.length / pageSize))) * pageSize)
+                  .map((s) => {
+                    const isSelected = s.id === selectedScanId;
+                    const dur = s.duration !== undefined ? `${Number(s.duration).toFixed(3)}s` : `${Number(s.seconds || 0).toFixed(3)}s`;
 
-                return (
-                  <tr key={s.id} style={isSelected ? { background: "rgba(14, 165, 201, 0.05)" } : undefined}>
-                    <td>
-                      <b>#{s.id}</b>
-                      {isSelected && (
-                        <span
-                          className="pill"
-                          style={{
-                            marginLeft: "6px",
-                            background: "rgba(14, 165, 201, 0.15)",
-                            color: "#0B7C99",
-                            fontSize: "10.5px",
-                            fontWeight: 700,
-                          }}
-                        >
-                          ACTIVE
-                        </span>
-                      )}
-                    </td>
-                    <td>
-                      <b>{s.project_name || "Default project"}</b>
-                    </td>
-                    <td className="mono" style={{ fontSize: "12px", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={s.target}>
-                      {s.target}
-                    </td>
-                    <td style={{ fontSize: "12px", whiteSpace: "nowrap" }}>{formatDate(s.started_at || s.date)}</td>
-                    <td>{s.files ?? s.files_scanned ?? "—"}</td>
-                    <td>
-                      <span className="pill p3">{s.findings ?? s.findings_count ?? 0}</span>
-                    </td>
-                    <td>
-                      <b>{s.assets_count ?? "—"}</b>
-                    </td>
-                    <td>
-                      <span className={`pill ${s.qv_count > 0 ? "p1" : "p4"}`}>
-                        {s.qv_count ?? 0}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`pill ${s.critical_count > 0 ? "p1" : "p4"}`}>
-                        {s.critical_count ?? 0}
-                      </span>
-                    </td>
-                    <td className="mono" style={{ fontSize: "12px" }}>{dur}</td>
-                    <td>
-                      <div className="row" style={{ gap: "6px" }}>
-                        <button
-                          className={`btn ${isSelected ? "pri" : ""}`}
-                          style={{ padding: "4px 8px", fontSize: "11.5px" }}
-                          onClick={() => {
-                            if (onSelectScan) onSelectScan(s.id);
-                            if (onNavigate) onNavigate("dash");
-                          }}
-                          title="Open this scan in Dashboard and all views"
-                        >
-                          Open
-                        </button>
-                        <button
-                          className="btn"
-                          style={{ padding: "4px 8px", fontSize: "11.5px" }}
-                          onClick={() => handleOpenCompare(s)}
-                          title="Compare with previous project scan"
-                        >
-                          <GitCompare size={12} /> Compare
-                        </button>
-                        <button
-                          className="btn"
-                          style={{ padding: "4px 8px", fontSize: "11.5px", color: "var(--p1)" }}
-                          onClick={() => setScanToDelete(s)}
-                          title="Delete scan"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                    return (
+                      <tr key={s.id} style={isSelected ? { background: "rgba(14, 165, 201, 0.05)" } : undefined}>
+                        <td>
+                          <b>#{s.id}</b>
+                          {isSelected && (
+                            <span
+                              className="pill"
+                              style={{
+                                marginLeft: "6px",
+                                background: "rgba(14, 165, 201, 0.15)",
+                                color: "#0B7C99",
+                                fontSize: "10.5px",
+                                fontWeight: 700,
+                              }}
+                            >
+                              ACTIVE
+                            </span>
+                          )}
+                        </td>
+                        <td className="cell-ellipsis" title={s.project_name || "Default project"}>
+                          <b>{s.project_name || "Default project"}</b>
+                        </td>
+                        <td className="mono cell-ellipsis" style={{ fontSize: "12px" }} title={s.target}>
+                          {s.target}
+                        </td>
+                        <td className="cell-ellipsis" style={{ fontSize: "12px" }} title={formatDate(s.started_at || s.date)}>
+                          {formatDate(s.started_at || s.date)}
+                        </td>
+                        <td>{s.files ?? s.files_scanned ?? "—"}</td>
+                        <td>
+                          <span className="pill p3">{s.findings ?? s.findings_count ?? 0}</span>
+                        </td>
+                        <td>
+                          <b>{s.assets_count ?? "—"}</b>
+                        </td>
+                        <td>
+                          <span className={`pill ${s.qv_count > 0 ? "p1" : "p4"}`}>
+                            {s.qv_count ?? 0}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`pill ${s.critical_count > 0 ? "p1" : "p4"}`}>
+                            {s.critical_count ?? 0}
+                          </span>
+                        </td>
+                        <td className="mono" style={{ fontSize: "12px" }}>{dur}</td>
+                        <td>
+                          <div className="row" style={{ gap: "6px" }}>
+                            <button
+                              className={`btn ${isSelected ? "pri" : ""}`}
+                              style={{ padding: "4px 8px", fontSize: "11.5px" }}
+                              onClick={() => {
+                                if (onSelectScan) onSelectScan(s.id);
+                                if (onNavigate) onNavigate("dash");
+                              }}
+                              title="Open this scan in Dashboard and all views"
+                            >
+                              Open
+                            </button>
+                            <button
+                              className="btn"
+                              style={{ padding: "4px 8px", fontSize: "11.5px" }}
+                              onClick={() => handleOpenCompare(s)}
+                              title="Compare with previous project scan"
+                            >
+                              <GitCompare size={12} /> Compare
+                            </button>
+                            <button
+                              className="btn"
+                              style={{ padding: "4px 8px", fontSize: "11.5px", color: "var(--p1)" }}
+                              onClick={() => setScanToDelete(s)}
+                              title="Delete scan"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+            {Math.ceil(historyList.length / pageSize) > 1 && (
+              <div className="pagination">
+                <span>
+                  Showing {(Math.min(page, Math.ceil(historyList.length / pageSize)) - 1) * pageSize + 1}–{Math.min(Math.min(page, Math.ceil(historyList.length / pageSize)) * pageSize, historyList.length)} of {historyList.length} scans
+                </span>
+                <div className="row" style={{ gap: "8px" }}>
+                  <button
+                    className="btn"
+                    style={{ padding: "4px 10px", fontSize: "12px" }}
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  >
+                    Previous
+                  </button>
+                  <span style={{ fontSize: "12px", fontWeight: 600 }}>
+                    Page {Math.min(page, Math.ceil(historyList.length / pageSize))} of {Math.ceil(historyList.length / pageSize)}
+                  </span>
+                  <button
+                    className="btn"
+                    style={{ padding: "4px 10px", fontSize: "12px" }}
+                    disabled={page >= Math.ceil(historyList.length / pageSize)}
+                    onClick={() => setPage((p) => Math.min(Math.ceil(historyList.length / pageSize), p + 1))}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -294,32 +339,32 @@ export default function History({
           </h3>
         </div>
         {auditList.length === 0 ? (
-          <div style={{ padding: "20px", textAlign: "center", color: "var(--mut)" }}>
-            No audit events recorded.
+          <div style={{ padding: "24px 20px", textAlign: "center", color: "var(--mut)" }}>
+            No audit events recorded yet.
           </div>
         ) : (
-          <table>
+          <table className="tbl-fixed">
             <thead>
               <tr>
-                <th>Timestamp</th>
-                <th>Actor</th>
-                <th>Action</th>
+                <th style={{ width: "160px" }}>Timestamp</th>
+                <th style={{ width: "140px" }}>Actor</th>
+                <th style={{ width: "180px" }}>Action</th>
                 <th>Details</th>
               </tr>
             </thead>
             <tbody>
               {auditList.slice(0, 20).map((a, i) => (
                 <tr key={a.id || i}>
-                  <td className="mono" style={{ fontSize: "12px" }}>
+                  <td className="mono cell-ellipsis" style={{ fontSize: "12px" }}>
                     {a.ts ? a.ts.slice(0, 19).replace("T", " ") : "—"}
                   </td>
                   <td>
                     <span className="pill cyp">{a.actor || "local-analyst"}</span>
                   </td>
-                  <td>
+                  <td className="cell-ellipsis">
                     <b>{a.action}</b>
                   </td>
-                  <td style={{ fontSize: "12.5px", color: "var(--mut)" }}>
+                  <td className="cell-ellipsis" style={{ fontSize: "12.5px", color: "var(--mut)" }} title={a.detail || "—"}>
                     {a.detail || "—"}
                   </td>
                 </tr>

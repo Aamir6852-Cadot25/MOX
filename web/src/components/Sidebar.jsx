@@ -1,5 +1,5 @@
 import React from "react";
-import { FileCode, Wrench } from "lucide-react";
+import { FileCode, Wrench, Clock } from "lucide-react";
 
 export const PLANES = [
   ["code", "Source code", "Java, Python, Go, JS crypto calls"],
@@ -45,22 +45,6 @@ export default function Sidebar({ currentPage, onNavigate, latestScan }) {
         Code Edit
       </div>
 
-      <div
-        className={`ni ${currentPage === "mon" ? "on" : ""}`}
-        onClick={() => onNavigate("mon")}
-      >
-        <span className="n">4</span>
-        Monitoring
-      </div>
-
-      <div
-        className={`ni ${currentPage === "hist" ? "on" : ""}`}
-        onClick={() => onNavigate("hist")}
-      >
-        <span className="n">5</span>
-        History &amp; Reports
-      </div>
-
       <div className="sl" style={{ marginTop: "18px" }}>
         DEEP ANALYSIS
       </div>
@@ -79,6 +63,14 @@ export default function Sidebar({ currentPage, onNavigate, latestScan }) {
       >
         <Wrench size={16} />
         Remediation
+      </div>
+
+      <div
+        className={`ni ${currentPage === "hist" ? "on" : ""}`}
+        onClick={() => onNavigate("hist")}
+      >
+        <Clock size={16} />
+        History &amp; Reports
       </div>
 
       <div className="eng">

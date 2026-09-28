@@ -8,8 +8,6 @@ export default function Header({
   netstat,
   onOpenSettings,
 }) {
-  const outbound = netstat?.outbound || 0;
-
   const formatDate = (isoStr) => {
     if (!isoStr) return "";
     try {
@@ -20,8 +18,8 @@ export default function Header({
         hour: "2-digit",
         minute: "2-digit",
       });
-    } catch {
-      return isoStr.slice(0, 16).replace("T", " ");
+    } catch (e) {
+      return String(isoStr).slice(0, 16).replace("T", " ");
     }
   };
 
@@ -34,11 +32,11 @@ export default function Header({
         height="40"
         style={{ borderRadius: "10px", boxShadow: "0 0 0 1px #0EA5C9" }}
       />
-      <div>
-        <div className="t">
-          <img src="/mox-wordmark.svg" alt="MOX" height="30" />
+      <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: "4px", height: "40px" }}>
+        <div className="t" style={{ lineHeight: 0, margin: 0 }}>
+          <img src="/mox-wordmark.svg" alt="MOX" height="20" style={{ display: "block" }} />
         </div>
-        <div className="s">Cryptographic discovery &amp; PQC readiness</div>
+        <div className="s" style={{ lineHeight: 1.2, margin: 0 }}>Cryptographic discovery &amp; PQC readiness</div>
       </div>
 
       {scans.length > 0 && (
@@ -63,8 +61,8 @@ export default function Header({
       )}
 
       <div className="r">
-        <span>
-          Offline · {outbound} outbound connection{outbound === 1 ? "" : "s"}
+        <span style={{ fontSize: "12px", color: "#C9D6E3", whiteSpace: "nowrap" }}>
+          Hosted demo · product runs air-gapped on-premise
         </span>
         <button className="ib" title="Settings" onClick={onOpenSettings}>
           <Settings size={17} />

@@ -14,7 +14,7 @@ from pathlib import Path
 
 from . import extract, gitsource
 
-ARCHIVE_KINDS = ("archive", "container", "artefacts", "zip", "upload")
+ARCHIVE_KINDS = ("archive", "container", "artefacts", "zip", "upload", "folder")
 
 
 class SourceError(Exception):
@@ -66,7 +66,7 @@ def _cleanup(path: Path) -> callable:
 
 def from_upload(kind: str, files: list[tuple[str, bytes]]) -> Resolved:
     """kind: "archive" (one file, extracted safely), "container" (one docker-save .tar, left for the
-    containers plane to walk), or "artefacts" (any number of binaries/certs/configs, placed as-is)."""
+    containers plane to walk), "folder" (preserves directory structure), or "artefacts"."""
     if kind in ("zip", "upload"):
         if len(files) == 1 and files[0][0].lower().endswith(".tar"):
             kind = "container"
@@ -86,7 +86,7 @@ def from_upload(kind: str, files: list[tuple[str, bytes]]) -> Resolved:
             name, data = files[0]
             if not name.lower().endswith(extract.ARCHIVE_SUFFIXES):
                 raise SourceError(f"unsupported archive type: {name}")
-            tmp_archive = dest / f"_upload_{name}"
+            tmp_archive = dest / f"_upload_{Path(name).name}"
             tmp_archive.write_bytes(data)
             try:
                 extract.extract(tmp_archive, dest)
@@ -98,19 +98,45 @@ def from_upload(kind: str, files: list[tuple[str, bytes]]) -> Resolved:
             name, data = files[0]
             if not name.lower().endswith(".tar"):
                 raise SourceError(f"a container image must be a docker save .tar, not: {name}")
-            (dest / name).write_bytes(data)
-        else:  # artefacts: any number of files, placed by their own name
+            (dest / Path(name).name).write_bytes(data)
+        elif kind == "artefacts":
             for name, data in files:
                 target = dest / Path(name).name  # never trust a path separator from the client
                 target.write_bytes(data)
+        else:  # folder: preserve relative paths safely without ../
+            for name, data in files:
+                norm = name.replace("\\", "/").strip("/")
+                parts = [p for p in norm.split("/") if p and p != "." and p != ".."]
+                if not parts:
+                    continue
+                rel_path = Path(*parts)
+                target_file = (dest / rel_path).resolve()
+                if dest.resolve() not in target_file.parents and target_file != dest.resolve():
+                    continue
+                target_file.parent.mkdir(parents=True, exist_ok=True)
+                target_file.write_bytes(data)
     except extract.UnsafeArchive:
         shutil.rmtree(dest, ignore_errors=True)
         raise
     except Exception:
         shutil.rmtree(dest, ignore_errors=True)
         raise
-    names = ", ".join(n for n, _ in files)
-    return Resolved(dest, _cleanup(dest), {"source_kind": kind, "source_ref": names})
+
+    scan_path = dest
+    children = [p for p in dest.iterdir() if p.is_dir()]
+    if kind == "folder" and len(children) == 1 and not any(p.is_file() for p in dest.iterdir()):
+        scan_path = children[0]
+        ref = children[0].name
+    elif kind == "folder":
+        first_part = files[0][0].replace("\\", "/").strip("/").split("/")[0] if files else "Uploaded folder"
+        ref = first_part
+    elif kind in ("archive", "container"):
+        ref = Path(files[0][0]).name
+    else:
+        ref = ", ".join(Path(n).name for n, _ in files[:3])
+        if len(files) > 3:
+            ref += f" (+{len(files) - 3} more)"
+    return Resolved(scan_path, _cleanup(dest), {"source_kind": kind, "source_ref": ref})
 
 
 def from_git(path: str | None, remote_url: str | None, authorized: bool) -> Resolved:

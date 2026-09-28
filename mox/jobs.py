@@ -37,10 +37,11 @@ def _run(job: dict, user: str, settings: dict, overrides: dict) -> None:
     try:
         conn = db.connect()
         try:
+            source_ref = (job.get("source_meta") or {}).get("source_ref")
             s = scanner.scan(job["path"], conn=conn, settings=settings, overrides=overrides, on_stage=on_stage,
                              planes=job["planes"], probe=job["probe"], probes=job.get("probes"),
                              tls_authorized=job.get("tls_authorized", False), on_progress=on_progress,
-                             project_id=job.get("project_id"))
+                             project_id=job.get("project_id"), source_ref=source_ref)
             detail = f"{job['path']} -> {s['findings']} findings, {s['assets']} assets"
             if job.get("tls_authorized") and s.get("probes"):
                 detail += f"; TLS probe authorised for {len(s['probes'])} endpoint(s)"
@@ -64,7 +65,7 @@ def _run(job: dict, user: str, settings: dict, overrides: dict) -> None:
             _emit(job, "error", {"error": str(e)})
     finally:
         cleanup = job.get("cleanup")
-        if cleanup and job.get("state") == "error":
+        if cleanup:
             cleanup()
 
 

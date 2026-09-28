@@ -176,10 +176,34 @@ class _Stages:
             self.on_stage(self.events[-1])
 
 
+def store_scan_files(conn, scan_id: int, root: Path) -> None:
+    base = Path(root).resolve()
+    rows = []
+    for p in Ctx.walk(root):
+        try:
+            rel = p.relative_to(base).as_posix()
+        except ValueError:
+            rel = p.name
+        name_lower = p.name.lower()
+        if any(name_lower.endswith(ext) for ext in (".key", ".p12", ".jks", ".der", ".crt", ".pem", ".cer")):
+            rows.append((scan_id, rel, None, 1))
+            continue
+        try:
+            txt = p.read_text(encoding="utf-8")
+            if "PRIVATE KEY" in txt:
+                rows.append((scan_id, rel, None, 1))
+            else:
+                rows.append((scan_id, rel, txt, 0))
+        except Exception:
+            rows.append((scan_id, rel, None, 1))
+    if rows:
+        conn.executemany("INSERT OR REPLACE INTO scan_files(scan_id, path, content, is_binary) VALUES(?,?,?,?)", rows)
+
+
 def scan(target: str | Path, probe: str | None = None, probes: list[str] | None = None, conn=None,
          settings: dict | None = None, overrides: dict | None = None, on_stage=None,
          planes: set[str] | None = None, on_progress=None, project_id: int | None = None,
-         tls_authorized: bool = False) -> dict:
+         tls_authorized: bool = False, source_ref: str | None = None) -> dict:
     """Scan `target`, persist scan + findings + stage events, return a summary dict. Read-only on `target`.
     on_stage(event): fired as each pipeline stage completes. on_progress(snapshot): per-plane Detect progress.
     planes: file planes to run (default all six); tls runs only when `probe`/`probes` is given.
@@ -238,11 +262,12 @@ def scan(target: str | Path, probe: str | None = None, probes: list[str] | None 
     verify = sum(f.confidence == "low" for f in findings)
     cur = conn.execute(
         "INSERT INTO scans(target,probe,started_at,seconds,files_scanned,planes_hit,findings_count,probe_error,"
-        "planes_run,planes_off,project_id) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+        "planes_run,planes_off,project_id,source_ref) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
         (str(target), probe_col, started, seconds, ctx.files_scanned, json.dumps(planes), len(findings), probe_error,
-         json.dumps(planes_run), json.dumps(planes_off), project_id))
+         json.dumps(planes_run), json.dumps(planes_off), project_id, source_ref))
     scan_id = cur.lastrowid
     store_findings(conn, scan_id, findings)
+    store_scan_files(conn, scan_id, target)
     conn.commit()
     mark.last = time.perf_counter()  # DB write time is not part of the Correlate stage duration
     from .analyze import analyze

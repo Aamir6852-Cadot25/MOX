@@ -6,6 +6,7 @@ resolved here (that would itself be a quiet DNS lookup) — only a literal IP is
 hostname always needs authorisation, the conservative default.
 """
 import ipaddress
+import os
 
 
 def is_private_host(host: str) -> bool:
@@ -21,6 +22,10 @@ def is_private_host(host: str) -> bool:
 
 def check(host: str, authorized: bool) -> None:
     """Raise ValueError with a clear reason if `host` is not private and the scan was not authorised."""
+    is_hosted = bool(os.environ.get("PORT") or os.environ.get("MOX_HOSTED"))
+    if is_hosted and is_private_host(host):
+        raise ValueError(
+            f"Probing private/loopback host '{host}' is blocked on this hosted prototype.")
     if not is_private_host(host) and not authorized:
         raise ValueError(
             f'{host} is not "localhost" or a literal loopback / private (RFC 1918) address; probing it '

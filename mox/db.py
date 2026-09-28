@@ -28,6 +28,9 @@ CREATE TABLE IF NOT EXISTS asset_locations(
 CREATE TABLE IF NOT EXISTS fixes(
   id INTEGER PRIMARY KEY, finding_id INTEGER, file TEXT, status TEXT, diff TEXT, backup TEXT,
   created_at TEXT, data TEXT);
+CREATE TABLE IF NOT EXISTS scan_files(
+  scan_id INTEGER, path TEXT, content TEXT, is_binary INTEGER,
+  PRIMARY KEY(scan_id, path));
 CREATE TABLE IF NOT EXISTS audit(
   id INTEGER PRIMARY KEY, ts TEXT, actor TEXT, action TEXT, detail TEXT);
 CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT);
@@ -67,6 +70,8 @@ def connect(path=None, check_same_thread=True) -> sqlite3.Connection:
         conn.execute("ALTER TABLE scans ADD COLUMN project_id INTEGER")
         default_id = ensure_default_project(conn)
         conn.execute("UPDATE scans SET project_id=? WHERE project_id IS NULL", (default_id,))
+    if "source_ref" not in cols:
+        conn.execute("ALTER TABLE scans ADD COLUMN source_ref TEXT")
     override_cols = {r["name"] for r in conn.execute("PRAGMA table_info(overrides)")}
     for col, col_type in [("priority", "TEXT"), ("owner", "TEXT"), ("status", "TEXT"), ("notes", "TEXT")]:
         if col not in override_cols:

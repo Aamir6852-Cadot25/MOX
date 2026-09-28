@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { api } from "../api";
 import { X, Check } from "lucide-react";
 
-export default function SettingsModal({ isOpen, onClose, onSaved }) {
+export default function SettingsModal({ isOpen, onClose, onSaved, showToast }) {
   const [horizon, setHorizon] = useState(10);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -14,7 +14,9 @@ export default function SettingsModal({ isOpen, onClose, onSaved }) {
         .then((res) => {
           if (res && res.threat_horizon) setHorizon(res.threat_horizon);
         })
-        .catch(() => {})
+        .catch((err) => {
+          console.warn("Failed to load settings:", err);
+        })
         .finally(() => setLoading(false));
     }
   }, [isOpen]);
@@ -26,7 +28,8 @@ export default function SettingsModal({ isOpen, onClose, onSaved }) {
       if (onSaved) onSaved(Number(horizon));
       onClose();
     } catch (err) {
-      alert(err.message || "Failed to save settings");
+      if (showToast) showToast(err.message || "Failed to save settings");
+      else console.error("Failed to save settings:", err);
     } finally {
       setSaving(false);
     }

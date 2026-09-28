@@ -9,7 +9,6 @@ import SettingsModal from "./components/SettingsModal";
 import Scan from "./pages/Scan";
 import Dashboard from "./pages/Dashboard";
 import CodeEdit from "./pages/CodeEdit";
-import Monitoring from "./pages/Monitoring";
 import History from "./pages/History";
 import Cbom from "./pages/Cbom";
 import Remediation from "./pages/Remediation";
@@ -37,7 +36,7 @@ export default function App() {
     if (toastMessage) {
       const timer = setTimeout(() => {
         setToastMessage(null);
-      }, 2200);
+      }, 3000);
       return () => clearTimeout(timer);
     }
   }, [toastMessage]);
@@ -46,16 +45,16 @@ export default function App() {
   const loadScanDetails = useCallback(async (scanId) => {
     try {
       const [lat, asts, net] = await Promise.all([
-        api.latest(scanId).catch(() => null),
-        api.assets(scanId).catch(() => []),
-        api.netstat().catch(() => null),
+        api.latest(scanId).catch((err) => { console.warn("Failed to load latest scan:", err); return null; }),
+        api.assets(scanId).catch((err) => { console.warn("Failed to load assets:", err); return []; }),
+        api.netstat().catch((err) => { console.warn("Failed to load netstat:", err); return null; }),
       ]);
       setLatestScan(lat);
       if (Array.isArray(asts)) setAssets(asts);
       setNetstat(net);
       if (scanId) setSelectedScanId(scanId);
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error("loadScanDetails error:", err);
     }
   }, []);
 
@@ -63,7 +62,7 @@ export default function App() {
   const loadAllScans = useCallback(
     async (preferredScanId) => {
       try {
-        const hist = await api.history().catch(() => []);
+        const hist = await api.history().catch((err) => { console.warn("Failed to load history:", err); return []; });
         const scans = Array.isArray(hist) ? hist : [];
         setScansList(scans);
 
@@ -79,7 +78,8 @@ export default function App() {
         setSelectedScanId(activeId);
         await loadScanDetails(activeId);
         return activeId;
-      } catch {
+      } catch (err) {
+        console.error("loadAllScans error:", err);
         return null;
       }
     },
@@ -101,27 +101,24 @@ export default function App() {
     const pathname = window.location.pathname.toLowerCase();
 
     if (hash) {
-      if (["scan", "dash", "code", "mon", "hist", "cbom", "rem"].includes(hash)) {
+      if (["scan", "dash", "code", "hist", "cbom", "rem"].includes(hash)) {
         return hash;
       }
       if (hash === "dashboard") return "dash";
-      if (hash === "monitoring") return "mon";
       if (hash === "history" || hash === "reports") return "hist";
       if (hash === "remediation") return "rem";
     }
 
     if (pathname.includes("dash")) return "dash";
     if (pathname.includes("code") || pathname.includes("fix") || pathname.includes("asset")) return "code";
-    if (pathname.includes("mon")) return "mon";
     if (pathname.includes("hist") || pathname.includes("report") || pathname.includes("audit")) return "hist";
     if (pathname.includes("cbom")) return "cbom";
     if (pathname.includes("rem") || pathname.includes("roadmap")) return "rem";
-    if (pathname.includes("queue")) return "dash";
 
     return null;
   }, []);
 
-  // Startup: directly load scans and open app without authentication prompt
+  // Startup: directly load scans and open app; 4-second splash cycle
   useEffect(() => {
     const startTime = Date.now();
 
@@ -136,12 +133,12 @@ export default function App() {
       }
 
       const elapsed = Date.now() - startTime;
-      const remaining = Math.max(0, 800 - elapsed);
+      const remaining = Math.max(0, 4000 - elapsed);
       setTimeout(() => {
         setSplashState("fading");
         setTimeout(() => {
           setSplashState("hidden");
-        }, 350);
+        }, 400);
       }, remaining);
     });
   }, [determinePageFromLocation, loadAllScans]);
@@ -168,11 +165,11 @@ export default function App() {
   };
 
   const handleScanFinished = async (newScanId) => {
-    const active = await loadAllScans(newScanId);
+    await loadAllScans(newScanId);
     handleNavigate("dash");
   };
 
-  const handleScanDeleted = async (deletedId) => {
+  const handleScanDeleted = async () => {
     await loadAllScans();
   };
 
@@ -224,15 +221,6 @@ export default function App() {
           />
         )}
 
-        {currentPage === "mon" && (
-          <Monitoring
-            latestScan={latestScan}
-            assets={assets}
-            onNavigate={handleNavigate}
-            showToast={showToast}
-          />
-        )}
-
         {currentPage === "hist" && (
           <History
             selectedScanId={selectedScanId}
@@ -263,6 +251,7 @@ export default function App() {
       <SettingsModal
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
+        showToast={showToast}
         onSaved={() => {
           loadScanDetails(selectedScanId);
           showToast("Settings updated");

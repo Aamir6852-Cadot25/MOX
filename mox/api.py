@@ -220,6 +220,10 @@ def _summary(conn, scan, assets) -> dict:
 
 
 def create_app() -> FastAPI:
+    conn = db.connect()
+    db.ensure_default_project(conn)
+    conn.close()
+    attest.operator_key()
     netguard.install()  # count every socket connect this server makes; shown in the top bar
     app = FastAPI(title="MOX", docs_url=None, redoc_url=None, openapi_url=None)
 
@@ -523,8 +527,13 @@ def create_app() -> FastAPI:
 
         conn.execute("DELETE FROM findings WHERE scan_id=?", (scan_id,))
         conn.execute("DELETE FROM assets WHERE scan_id=?", (scan_id,))
+        conn.execute("DELETE FROM scan_files WHERE scan_id=?", (scan_id,))
         conn.execute("DELETE FROM scans WHERE id=?", (scan_id,))
         conn.commit()
+        cache_dir = db.data_dir() / "scan_cache" / str(scan_id)
+        if cache_dir.exists():
+            import shutil
+            shutil.rmtree(cache_dir, ignore_errors=True)
         auth.audit(conn, u["sub"], "scan-delete", f"Deleted scan #{scan_id} ({scan['target']})")
         return {"ok": True, "id": scan_id}
 
@@ -628,6 +637,24 @@ def create_app() -> FastAPI:
             _reanalyze(conn, scan["id"])
         return r
 
+    @app.get("/api/fixes/{fix_id}/download")
+    def fix_download(fix_id: int, u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
+        row = conn.execute("SELECT * FROM fixes WHERE id=?", (fix_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, "fix not found")
+        f = conn.execute("SELECT * FROM findings WHERE id=?", (row["finding_id"],)).fetchone()
+        filename = Path(row["file"]).name if row["file"] else "patched-file.txt"
+        content = None
+        if f:
+            sf = conn.execute("SELECT content FROM scan_files WHERE scan_id=? AND path=?", (f["scan_id"], row["file"])).fetchone()
+            if sf and sf["content"] is not None:
+                content = sf["content"]
+        if content is None:
+            d = json.loads(row["data"] or "{}")
+            content = d.get("patched_content") or d.get("new") or d.get("old") or ""
+        return Response(content, media_type="text/plain",
+                        headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
     def _cbom(conn, scan_id: int | None = None):
         scan = _latest(conn, scan_id)
         if not scan:
@@ -709,9 +736,12 @@ def create_app() -> FastAPI:
 
     @app.get("/api/scans/history")
     def scans_history(u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
-        rows = conn.execute("""
-            SELECT s.id, s.target, s.started_at, s.seconds, s.files_scanned, s.findings_count, s.planes_hit, s.project_id,
-                   COALESCE(p.name, 'Default project') AS project_name
+        scan_cols = {r["name"] for r in conn.execute("PRAGMA table_info(scans)")}
+        source_ref_col = "s.source_ref," if "source_ref" in scan_cols else "NULL AS source_ref,"
+        rows = conn.execute(f"""
+            SELECT s.id, s.target, {source_ref_col} s.started_at, s.seconds, s.files_scanned, s.findings_count, s.planes_hit, s.project_id,
+                   COALESCE(p.name, 'Default project') AS project_name,
+                   p.source_ref AS proj_source_ref
             FROM scans s
             LEFT JOIN projects p ON p.id = s.project_id
             ORDER BY s.id DESC LIMIT 50
@@ -719,6 +749,12 @@ def create_app() -> FastAPI:
         result = []
         for r in rows:
             d = dict(r)
+            target_str = d.get("target") or ""
+            ref = d.get("source_ref") or d.get("proj_source_ref")
+            if ref:
+                d["target"] = ref
+            elif "mox-scan-" in target_str or "temp" in target_str.lower() or "tmp" in target_str.lower():
+                d["target"] = d.get("project_name") or Path(target_str).name or "Uploaded project"
             asset_rows = conn.execute("SELECT data FROM assets WHERE scan_id=?", (r["id"],)).fetchall()
             d["assets_count"] = len(asset_rows)
             qv = 0
@@ -755,23 +791,55 @@ def create_app() -> FastAPI:
             p = p.resolve()
         if p != target and target not in p.parents:
             raise HTTPException(403, "path is outside scan target")
-        if not p.is_file():
-            raise HTTPException(404, "file not found")
-        if p.stat().st_size > 1_000_000:
-            raise HTTPException(400, "file too large to display")
-        try:
-            content = p.read_text(encoding="utf-8", errors="replace")
-        except Exception:
-            raise HTTPException(400, "cannot read file as text")
-        lines = content.splitlines()
-        return {
-            "path": path,
-            "resolved_path": str(p),
-            "line": line,
-            "lines": lines,
-            "total_lines": len(lines),
-            "content": content,
-        }
+        if p.is_file():
+            if p.stat().st_size > 1_000_000:
+                raise HTTPException(400, "file too large to display")
+            try:
+                content = p.read_text(encoding="utf-8")
+                lines = content.splitlines()
+                return {
+                    "path": path,
+                    "resolved_path": str(p),
+                    "line": line,
+                    "lines": lines,
+                    "total_lines": len(lines),
+                    "content": content,
+                    "is_binary": False,
+                }
+            except Exception:
+                return {
+                    "path": path,
+                    "resolved_path": str(p),
+                    "line": line,
+                    "lines": [],
+                    "total_lines": 0,
+                    "content": "",
+                    "is_binary": True,
+                }
+        row = conn.execute("SELECT content, is_binary FROM scan_files WHERE scan_id=? AND path=?", (scan["id"], path)).fetchone()
+        if row:
+            if row["is_binary"]:
+                return {
+                    "path": path,
+                    "resolved_path": path,
+                    "line": line,
+                    "lines": [],
+                    "total_lines": 0,
+                    "content": "",
+                    "is_binary": True,
+                }
+            content = row["content"] or ""
+            lines = content.splitlines()
+            return {
+                "path": path,
+                "resolved_path": path,
+                "line": line,
+                "lines": lines,
+                "total_lines": len(lines),
+                "content": content,
+                "is_binary": False,
+            }
+        raise HTTPException(404, "file not found")
 
     if DIST.is_dir():
         app.mount("/assets", StaticFiles(directory=DIST / "assets"), name="assets")
@@ -791,6 +859,10 @@ def create_app() -> FastAPI:
 app = create_app()
 
 
-def serve(host="127.0.0.1", port=8000):
-    import uvicorn
-    uvicorn.run("mox.api:app", host=host, port=port, log_level="warning")
+def serve(host=None, port=None):
+    import os, uvicorn
+    if port is None:
+        port = int(os.environ.get("PORT", 8000))
+    if host is None:
+        host = "0.0.0.0" if "PORT" in os.environ else "127.0.0.1"
+    uvicorn.run("mox.api:create_app", factory=True, host=host, port=port, log_level="warning")
