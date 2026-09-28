@@ -235,7 +235,17 @@ def score_asset(asset: dict, settings: dict | None = None, override: dict | None
     mosca = {"applies": applies, "x": x, "x_basis": x_basis, "y": y, "y_basis": f"CMCS {c['score']} / 2, rounded up",
              "z": z, "exposure": x + y - z if applies else None,
              "reason": None if applies else "no algorithm identified: only a library or package name was found"}
-    return {"score": r["score"], "tier": tier(r["score"]),
+    calculated_tier = tier(r["score"])
+    prio_override = ov.get("priority")
+    prio_map = {"P1": "Critical", "P2": "High", "P3": "Medium", "P4": "Low"}
+    final_tier = prio_map.get(prio_override, calculated_tier) if prio_override else calculated_tier
+
+    return {"score": r["score"], "tier": final_tier,
+            "priority_override": prio_override,
+            "owner": ov.get("owner"),
+            "status": ov.get("status"),
+            "notes": ov.get("notes"),
+            "edited": bool(ov.get("priority") or ov.get("owner") or ov.get("status") or ov.get("notes") or ov.get("x") is not None or ov.get("criticality") is not None),
             "breakdown": {"terms": r["terms"], "exact": r["exact"], "base_status": r["status"],
                           "quantum": r["quantum"], "quantum_vulnerable": r["quantum"] == "shor",
                           "evidence": r["evidence"], "evidence_label": EVIDENCE_LABEL[r["evidence"]],

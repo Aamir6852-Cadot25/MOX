@@ -19,9 +19,10 @@ def login(c, pw="correct-horse-1"):
     return c.post("/api/auth/login", json={"username": "admin", "password": pw})
 
 
-def test_requires_auth(client):
+def test_no_auth_needed(client):
     for u in ("/api/assets", "/api/scans/latest", "/api/settings", "/api/audit", "/api/auth/me"):
-        assert client.get(u).status_code == 401
+        assert client.get(u).status_code in (200, 404)
+    assert client.get("/api/auth/me").json()["username"] == "local-analyst"
 
 
 def test_no_public_registration_and_role_not_from_request(client):
@@ -43,7 +44,6 @@ def test_login_audited_and_cookie_httponly(client):
 
 
 def test_scan_assets_and_settings(client):
-    login(client)
     assert client.get("/api/scans/latest").json() == {"scan": None}
     s = client.post("/api/scans", json={"path": client.demo}).json()
     assert s["assets"] > 0
@@ -66,8 +66,6 @@ def test_scan_assets_and_settings(client):
 
 
 def test_browse_lists_subdirectories(client, tmp_path):
-    assert client.get("/api/browse").status_code == 401  # unauthenticated
-    login(client)
     root = tmp_path / "browse-root"
     (root / "alpha").mkdir(parents=True)
     (root / "beta").mkdir()
@@ -87,7 +85,6 @@ def test_urgent_asset_has_algorithm_and_location(client):
     """Dashboard's "Most urgent: <algorithm> <file:line>" line reads these two fields off the
     highest-exposure overdue asset (or, if none is overdue, the highest score) - regression for a
     blank gap when an asset's location data was missing."""
-    login(client)
     client.post("/api/scans", json={"path": client.demo})
     assets = client.get("/api/assets").json()
     overdue = [a for a in assets if (a["breakdown"]["mosca"]["exposure"] or 0) > 0]
@@ -102,7 +99,6 @@ def test_urgent_asset_has_algorithm_and_location(client):
 
 def test_discover_type_counts_match_the_cbom(client):
     """Discover's artefact-type counts come from the CBOM classifier, so the two screens always agree."""
-    login(client)
     client.post("/api/scans", json={"path": client.demo})
     by_type = client.get("/api/scans/latest").json()["by_type"]
     comps = client.get("/api/cbom").json()["bom"]["components"]
@@ -116,20 +112,21 @@ def test_discover_type_counts_match_the_cbom(client):
 
 
 def test_history_and_reference_endpoints(client):
-    login(client)
     client.post("/api/scans", json={"path": client.demo})
     history = client.get("/api/scans/history").json()
     assert len(history) >= 1
     assert history[0]["target"]
     assert history[0]["findings_count"] >= 1
+    assert "project_name" in history[0]
+    assert "assets_count" in history[0]
+    assert "qv_count" in history[0]
+    assert "critical_count" in history[0]
     ref = client.get("/api/reference").json()
     assert "algorithms" in ref
     assert "RSA" in ref["algorithms"]
 
 
 def test_file_view_endpoint(client):
-    assert client.get("/api/file?path=payments/Crypto.java").status_code == 401
-    login(client)
     # 404 if no scan yet
     assert client.get("/api/file?path=payments/Crypto.java").status_code == 404
     client.post("/api/scans", json={"path": client.demo})
@@ -145,3 +142,75 @@ def test_file_view_endpoint(client):
     assert client.get("/api/file?path=../../setup.py").status_code == 403
     # non-existent file
     assert client.get("/api/file?path=nonexistent.java").status_code == 404
+
+
+def test_scan_by_id_and_delete(client):
+    client.post("/api/scans", json={"path": client.demo})
+    scan_id = client.get("/api/scans/latest").json()["scan"]["id"]
+    res = client.get(f"/api/scans/{scan_id}")
+    assert res.status_code == 200
+    assert res.json()["scan"]["id"] == scan_id
+    assert client.get("/api/scans/999999").status_code == 404
+    del_res = client.delete(f"/api/scans/{scan_id}")
+    assert del_res.status_code == 200
+    assert del_res.json()["ok"] is True
+    assert client.get(f"/api/scans/{scan_id}").status_code == 404
+    assert client.delete(f"/api/scans/{scan_id}").status_code == 404
+
+
+def test_scan_compare(client):
+    client.post("/api/scans", json={"path": client.demo})
+    scan1_id = client.get("/api/scans/latest").json()["scan"]["id"]
+    client.post("/api/scans", json={"path": client.demo})
+    scan2_id = client.get("/api/scans/latest").json()["scan"]["id"]
+    comp = client.get(f"/api/scans/compare?scan_id={scan2_id}&compare_id={scan1_id}").json()
+    assert comp["current"]["id"] == scan2_id
+    assert comp["previous"]["id"] == scan1_id
+    assert comp["unchanged_count"] > 0
+    assert len(comp["new_assets"]) == 0
+
+
+def test_cbom_overrides_and_validation(client):
+    client.post("/api/scans", json={"path": client.demo})
+    assets = client.get("/api/assets").json()
+    assert len(assets) > 0
+    target_asset = assets[0]
+    aid = target_asset["id"]
+    ov = client.put(f"/api/assets/{aid}/override", json={
+        "priority": "P1",
+        "owner": "Security Team",
+        "status": "In progress",
+        "notes": "Prioritized due to compliance",
+        "criticality": 3,
+        "x": 10
+    }).json()
+    assert ov["tier"] == "Critical"
+    assert ov["priority_override"] == "P1"
+    assert ov["owner"] == "Security Team"
+    assert ov["status"] == "In progress"
+    assert ov["notes"] == "Prioritized due to compliance"
+    assert ov["edited"] is True
+    cbom_data = client.get("/api/cbom").json()
+    assert cbom_data["valid"] is True
+    comp = next(c for c in cbom_data["bom"]["components"] if c["bom-ref"] == f"mox-asset-{aid}")
+    prop_map = {p["name"]: p["value"] for p in comp["properties"]}
+    assert prop_map.get("mox:priorityOverride") == "P1"
+    assert prop_map.get("mox:owner") == "Security Team"
+    assert prop_map.get("mox:status") == "In progress"
+    assert prop_map.get("mox:note") == "Prioritized due to compliance"
+    reset = client.delete(f"/api/assets/{aid}/override").json()
+    assert reset["edited"] is False
+    assert reset["priority_override"] is None
+
+
+def test_scan_id_query_param(client):
+    client.post("/api/scans", json={"path": client.demo})
+    scan1_id = client.get("/api/scans/latest").json()["scan"]["id"]
+    client.post("/api/scans", json={"path": client.demo})
+    scan2_id = client.get("/api/scans/latest").json()["scan"]["id"]
+    assert scan1_id != scan2_id
+    assert client.get(f"/api/scans/latest?scan_id={scan1_id}").json()["scan"]["id"] == scan1_id
+    assert len(client.get(f"/api/assets?scan_id={scan1_id}").json()) > 0
+    assert client.get(f"/api/cbom?scan_id={scan1_id}").json()["valid"] is True
+    assert len(client.get(f"/api/roadmap?scan_id={scan1_id}").json()) > 0
+    assert client.get(f"/api/report?scan_id={scan1_id}").status_code == 200

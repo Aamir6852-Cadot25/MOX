@@ -1,21 +1,29 @@
 import React from "react";
-import { Settings, LogOut } from "lucide-react";
+import { Settings } from "lucide-react";
 
-export default function Header({ latestScan, netstat, onOpenSettings, onSignOut }) {
-  const scanTime = latestScan?.scan?.started_at
-    ? new Date(latestScan.scan.started_at).toLocaleString("en-GB", {
+export default function Header({
+  scans = [],
+  selectedScanId,
+  onSelectScan,
+  netstat,
+  onOpenSettings,
+}) {
+  const outbound = netstat?.outbound || 0;
+
+  const formatDate = (isoStr) => {
+    if (!isoStr) return "";
+    try {
+      const d = new Date(isoStr);
+      return d.toLocaleDateString("en-GB", {
         day: "numeric",
         month: "short",
         hour: "2-digit",
         minute: "2-digit",
-      })
-    : "No scans yet";
-
-  const targetName = latestScan?.scan?.target
-    ? latestScan.scan.target.split(/[\\/]/).pop()
-    : "demo_target";
-
-  const outbound = netstat?.outbound || 0;
+      });
+    } catch {
+      return isoStr.slice(0, 16).replace("T", " ");
+    }
+  };
 
   return (
     <header>
@@ -25,16 +33,33 @@ export default function Header({ latestScan, netstat, onOpenSettings, onSignOut 
         <div className="s">Cryptographic discovery &amp; PQC readiness</div>
       </div>
 
+      {scans.length > 0 && (
+        <div className="hdr-scan-selector" style={{ marginLeft: "20px" }}>
+          <select
+            className="hdr-select"
+            value={selectedScanId || (scans[0] ? scans[0].id : "")}
+            onChange={(e) => onSelectScan(Number(e.target.value))}
+            title="Switch active project scan"
+          >
+            {scans.map((s) => {
+              const pName = s.project_name || s.target?.split(/[\\/]/).pop() || "Project";
+              const date = formatDate(s.started_at);
+              return (
+                <option key={s.id} value={s.id}>
+                  {pName} · scan #{s.id} · {date}
+                </option>
+              );
+            })}
+          </select>
+        </div>
+      )}
+
       <div className="r">
         <span>
-          Last scan: <b>{scanTime}</b> · Offline · {outbound} outbound connection{outbound === 1 ? "" : "s"}
+          Offline · {outbound} outbound connection{outbound === 1 ? "" : "s"}
         </span>
-        <span className="demo">Preview · {targetName} data</span>
         <button className="ib" title="Settings" onClick={onOpenSettings}>
           <Settings size={17} />
-        </button>
-        <button className="ib" title="Sign out" onClick={onSignOut}>
-          <LogOut size={17} />
         </button>
       </div>
     </header>

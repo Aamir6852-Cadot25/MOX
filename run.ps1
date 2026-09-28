@@ -18,13 +18,6 @@ if ($LASTEXITCODE) { throw "web build failed" }
 
 if (-not (Test-Path demo_target)) { & $py -m mox make-demo }
 
-$users = & $py -c "from mox import db; print(db.connect().execute('SELECT COUNT(*) FROM users').fetchone()[0])"
-if ($users -eq "0") {
-    Write-Host "No users yet - create the admin account:"
-    & $py -m mox create-admin
-    if ($LASTEXITCODE) { throw "create-admin failed" }
-}
-
 & $py -m mox scan demo_target
 & $py -m mox demo-attestations
 

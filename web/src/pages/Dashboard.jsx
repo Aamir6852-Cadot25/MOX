@@ -12,7 +12,7 @@ const PRIORITY_MAP = {
 export default function Dashboard({ latestScan, assets = [], onNavigate, onOpenAsset }) {
   const [filter, setFilter] = useState("ALL");
 
-  if (!latestScan || !latestScan.scan || assets.length === 0) {
+  if (!latestScan || !latestScan.scan) {
     return (
       <section className="page on" id="p-dash">
         <div className="ph">
@@ -75,8 +75,8 @@ export default function Dashboard({ latestScan, assets = [], onNavigate, onOpenA
         <div>
           <h1>Discovery Dashboard</h1>
           <p>
-            Project <b style={{ color: "#0B7C99" }}>{targetName}</b> ·{" "}
-            <span className="pill cyp">folder</span> · scan #{scan.id} · {filesCount} files ·{" "}
+            Project <b style={{ color: "#0B7C99" }}>{scan.project_name || targetName}</b> ·{" "}
+            <span className="pill cyp">{scan.source || "folder"}</span> · scan #{scan.id} · {filesCount} files ·{" "}
             {planesCount} planes · {scanSeconds} s
           </p>
         </div>

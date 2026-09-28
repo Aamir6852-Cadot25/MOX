@@ -54,8 +54,6 @@ def test_api_attest_sectors_audit(demo_dir):
     auth.create_user(conn, "admin", "correct-horse-1", "admin")
     conn.close()
     c = TestClient(create_app())
-    assert c.get("/api/attest").status_code == 401
-    c.post("/api/auth/login", json={"username": "admin", "password": "correct-horse-1"})
     assert c.get("/api/attest").status_code == 404  # no scan yet
     assert c.post("/api/scans", json={"path": str(demo_dir)}).status_code == 200
     p = c.get("/api/attest").json()

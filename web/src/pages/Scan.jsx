@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { api } from "../api";
 import { Folder, GitBranch, Upload, Shield, Play } from "lucide-react";
 import BrowseModal from "../components/BrowseModal";
@@ -30,11 +30,15 @@ export default function Scan({ onScanComplete, showToast }) {
   const [tlsEndpoint, setTlsEndpoint] = useState("127.0.0.1:8443");
   const [tlsAuthorized, setTlsAuthorized] = useState(false);
 
-  // App details
+  // Projects
+  const [existingProjects, setExistingProjects] = useState([]);
+  const [projectMode, setProjectMode] = useState("new"); // 'new' | 'existing'
+  const [selectedProjectId, setSelectedProjectId] = useState("");
   const [projectName, setProjectName] = useState("demo_target");
   const [systemType, setSystemType] = useState("Web service / API");
   const [sector, setSector] = useState("Government");
   const [criticality, setCriticality] = useState(3);
+  const [shelfLifeYears, setShelfLifeYears] = useState(5);
 
   // Scan planes selection
   const [selectedPlanes, setSelectedPlanes] = useState(
@@ -45,8 +49,28 @@ export default function Scan({ onScanComplete, showToast }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [showBrowse, setShowBrowse] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
-  const [planeStates, setPlaneStates] = useState({}); // { [planeId]: 'run' | 'done' | 'skip' }
+  const [planeStates, setPlaneStates] = useState({});
   const [scanProgressText, setScanProgressText] = useState("7 available · TLS needs an authorised endpoint");
+
+  useEffect(() => {
+    api.projects().then((res) => {
+      if (Array.isArray(res) && res.length > 0) {
+        setExistingProjects(res);
+      }
+    }).catch(() => {});
+  }, []);
+
+  const handleSelectExistingProject = (projId) => {
+    setSelectedProjectId(projId);
+    const p = existingProjects.find((x) => String(x.id) === String(projId));
+    if (p) {
+      setProjectName(p.name || "");
+      if (p.sector) setSector(p.sector);
+      if (p.system_type) setSystemType(p.system_type);
+      if (p.criticality) setCriticality(p.criticality);
+      if (p.shelf_life_years) setShelfLifeYears(p.shelf_life_years);
+    }
+  };
 
   const togglePlane = (id) => {
     if (isScanning) return;
@@ -61,7 +85,6 @@ export default function Scan({ onScanComplete, showToast }) {
     setIsScanning(true);
     setScanProgressText("Initialising scanner…");
 
-    // Initialize plane states
     const states = {};
     PLANES_CONFIG.forEach((p) => {
       states[p.id] = selectedPlanes.has(p.id) ? "pending" : "off";
@@ -70,11 +93,16 @@ export default function Scan({ onScanComplete, showToast }) {
 
     try {
       let jobRes;
+      const projId = projectMode === "existing" && selectedProjectId ? Number(selectedProjectId) : undefined;
+      const projName = projectName.trim() || undefined;
+
       if (source === "zip" && uploadedFiles.length > 0) {
         const formData = new FormData();
         formData.append("source", "upload");
         formData.append("planes", Array.from(selectedPlanes).join(","));
         formData.append("tls_authorized", tlsAuthorized ? "true" : "false");
+        if (projId) formData.append("project_id", String(projId));
+        if (projName) formData.append("project_name", projName);
         for (const file of uploadedFiles) {
           formData.append("files", file);
         }
@@ -88,6 +116,12 @@ export default function Scan({ onScanComplete, showToast }) {
           tls_authorized: tlsAuthorized,
           git_remote: source === "git" ? gitUrl : undefined,
           git_authorized: gitAuthorized,
+          project_id: projId,
+          project_name: projName,
+          sector,
+          system_type: systemType,
+          criticality: Number(criticality),
+          shelf_life_years: Number(shelfLifeYears),
         };
         jobRes = await api.scanStart(req);
       }
@@ -118,13 +152,12 @@ export default function Scan({ onScanComplete, showToast }) {
             finishScan(jobId, data);
           }
         } catch {
-          // ignore parse issues
+          // ignore
         }
       };
 
       evSource.onerror = async () => {
         evSource.close();
-        // Fallback: poll job status
         checkJobStatus(jobId);
       };
     } catch (err) {
@@ -149,7 +182,6 @@ export default function Scan({ onScanComplete, showToast }) {
   };
 
   const finishScan = async (jobId, data) => {
-    // Mark all enabled planes as done
     setPlaneStates((prev) => {
       const allDone = { ...prev };
       selectedPlanes.forEach((p) => {
@@ -158,18 +190,32 @@ export default function Scan({ onScanComplete, showToast }) {
       return allDone;
     });
 
-    const seconds = data?.seconds ? data.seconds.toFixed(3) : "0.099";
-    const files = data?.files_scanned || data?.files || 23;
-    const findings = data?.findings_count || data?.findings || 35;
-    const assets = data?.assets || 25;
+    let finalData = data;
+    try {
+      const s = await api.scanStatus(jobId);
+      if (s) finalData = s;
+    } catch {
+      // ignore
+    }
 
-    setScanProgressText(`✓ ${files} files · ${findings} findings → ${assets} assets · ${seconds} s`);
+    const files = finalData?.files_scanned ?? finalData?.files;
+    const findings = finalData?.findings_count ?? finalData?.findings;
+    const assets = finalData?.assets;
+    const seconds = finalData?.seconds !== undefined ? Number(finalData.seconds).toFixed(3) : "";
+    const scanId = finalData?.scan_id || finalData?.id || data?.scan_id || data?.id;
+
+    if (files !== undefined && findings !== undefined) {
+      setScanProgressText(`✓ ${files} files · ${findings} findings → ${assets || 0} assets · ${seconds} s`);
+    } else {
+      setScanProgressText("✓ Scan completed");
+    }
+
     if (showToast) showToast("Scan completed successfully");
 
     setTimeout(() => {
       setIsScanning(false);
-      if (onScanComplete) onScanComplete();
-    }, 900);
+      if (onScanComplete) onScanComplete(scanId);
+    }, 800);
   };
 
   const currentSourceInfo = SOURCES.find((s) => s.id === source);
@@ -203,18 +249,68 @@ export default function Scan({ onScanComplete, showToast }) {
 
       {/* Application Details Card */}
       <div className="card">
-        <h3>
-          Application details <span className="rt">Used for Mosca shelf-life and criticality</span>
-        </h3>
+        <div className="row" style={{ marginBottom: "12px", justifyContent: "space-between" }}>
+          <h3 style={{ margin: 0 }}>
+            Application details <span className="rt">Used for Mosca shelf-life and criticality</span>
+          </h3>
+          <div className="row" style={{ gap: "14px", fontSize: "13px" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+              <input
+                type="radio"
+                name="projMode"
+                checked={projectMode === "new"}
+                onChange={() => setProjectMode("new")}
+                disabled={isScanning}
+              />
+              New project
+            </label>
+            {existingProjects.length > 0 && (
+              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                <input
+                  type="radio"
+                  name="projMode"
+                  checked={projectMode === "existing"}
+                  onChange={() => {
+                    setProjectMode("existing");
+                    if (!selectedProjectId && existingProjects[0]) {
+                      handleSelectExistingProject(existingProjects[0].id);
+                    }
+                  }}
+                  disabled={isScanning}
+                />
+                Existing project
+              </label>
+            )}
+          </div>
+        </div>
+
         <div className="grid g4">
           <div>
-            <label className="f">Project name</label>
-            <input
-              className="in"
-              value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
-              disabled={isScanning}
-            />
+            <label className="f">
+              {projectMode === "existing" ? "Select Project" : "Project Name"}
+            </label>
+            {projectMode === "existing" ? (
+              <select
+                className="in"
+                value={selectedProjectId}
+                onChange={(e) => handleSelectExistingProject(e.target.value)}
+                disabled={isScanning}
+              >
+                {existingProjects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                className="in"
+                value={projectName}
+                placeholder="e.g. Core Banking Gateway"
+                onChange={(e) => setProjectName(e.target.value)}
+                disabled={isScanning}
+              />
+            )}
           </div>
           <div>
             <label className="f">System type</label>
@@ -228,6 +324,7 @@ export default function Scan({ onScanComplete, showToast }) {
               <option>Mobile backend</option>
               <option>Firmware / HSM</option>
               <option>Library</option>
+              <option>Batch processing</option>
             </select>
           </div>
           <div>
@@ -244,6 +341,8 @@ export default function Scan({ onScanComplete, showToast }) {
               <option>Power &amp; energy</option>
               <option>Transport</option>
               <option>Healthcare</option>
+              <option>Defence</option>
+              <option>Other</option>
             </select>
           </div>
           <div>
@@ -254,9 +353,9 @@ export default function Scan({ onScanComplete, showToast }) {
               onChange={(e) => setCriticality(Number(e.target.value))}
               disabled={isScanning}
             >
-              <option value={3}>3 — High (customer-facing)</option>
-              <option value={2}>2 — Medium</option>
-              <option value={1}>1 — Low</option>
+              <option value={3}>3 — High (customer-facing / critical)</option>
+              <option value={2}>2 — Medium (internal operations)</option>
+              <option value={1}>1 — Low (auxiliary)</option>
             </select>
           </div>
         </div>
@@ -458,12 +557,18 @@ export default function Scan({ onScanComplete, showToast }) {
               </button>
             </div>
             <p style={{ color: "var(--mut)", fontSize: "13px", margin: "6px 0 16px" }}>
-              Check the source and planes before starting.
+              Check the project, source and planes before starting.
             </p>
             <table>
               <tbody>
                 <tr>
-                  <td style={{ color: "var(--mut)", width: "110px" }}>Source</td>
+                  <td style={{ color: "var(--mut)", width: "110px" }}>Project</td>
+                  <td>
+                    <b>{projectName || "Default project"}</b> ({systemType} · {sector})
+                  </td>
+                </tr>
+                <tr>
+                  <td style={{ color: "var(--mut)" }}>Source</td>
                   <td>
                     <b>{currentSourceInfo?.label}</b>
                   </td>
@@ -494,7 +599,7 @@ export default function Scan({ onScanComplete, showToast }) {
                 </tr>
               </tbody>
             </table>
-            <div className="row" style={{ justifyContent: "flex-end", marginTop: "18px" }}>
+            <div className="row" style={{ justifyContent: "flex-end", marginTop: "18px", gap: "8px" }}>
               <button className="btn" onClick={() => setShowConfirm(false)}>
                 Cancel
               </button>

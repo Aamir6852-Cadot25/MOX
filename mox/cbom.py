@@ -62,6 +62,14 @@ def _component(a) -> dict:
     props = {"nist_now": f["nist_now"], "nist_2030": f["nist_2030"], "nist_2035": f["nist_2035"], "score": a["score"],
              "tier": a["tier"], "verdict": a["verdict"], "wave": a["wave"], "confidence": b["confidence"], "evidence": b["evidence"],
              "locations": len(a["findings"])}
+    if a.get("priority_override"):
+        props["priorityOverride"] = a["priority_override"]
+    if a.get("owner"):
+        props["owner"] = a["owner"]
+    if a.get("status"):
+        props["status"] = a["status"]
+    if a.get("notes"):
+        props["note"] = a["notes"]
     return {"type": "cryptographic-asset", "bom-ref": f"mox-asset-{a['id']}", "name": a["label"],
             "cryptoProperties": _crypto(a),
             "properties": [{"name": f"mox:{k}", "value": str(v)} for k, v in props.items()]}

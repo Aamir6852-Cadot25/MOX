@@ -6,7 +6,6 @@ import Splash from "./components/Splash";
 import Toast from "./components/Toast";
 import SettingsModal from "./components/SettingsModal";
 
-import Login from "./pages/Login";
 import Scan from "./pages/Scan";
 import Dashboard from "./pages/Dashboard";
 import CodeEdit from "./pages/CodeEdit";
@@ -17,12 +16,16 @@ import Remediation from "./pages/Remediation";
 
 export default function App() {
   const [splashState, setSplashState] = useState("visible"); // 'visible' | 'fading' | 'hidden'
-  const [user, setUser] = useState(null);
   const [currentPage, setCurrentPage] = useState("scan");
   const [selectedAssetId, setSelectedAssetId] = useState(null);
+
+  // Global Scans State
+  const [scansList, setScansList] = useState([]);
+  const [selectedScanId, setSelectedScanId] = useState(null);
   const [latestScan, setLatestScan] = useState(null);
   const [assets, setAssets] = useState([]);
   const [netstat, setNetstat] = useState(null);
+
   const [showSettings, setShowSettings] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
 
@@ -39,21 +42,58 @@ export default function App() {
     }
   }, [toastMessage]);
 
-  // Load app data
-  const loadScanData = useCallback(async () => {
+  // Load details for a given scan ID
+  const loadScanDetails = useCallback(async (scanId) => {
     try {
       const [lat, asts, net] = await Promise.all([
-        api.latest().catch(() => null),
-        api.assets().catch(() => []),
+        api.latest(scanId).catch(() => null),
+        api.assets(scanId).catch(() => []),
         api.netstat().catch(() => null),
       ]);
       setLatestScan(lat);
       if (Array.isArray(asts)) setAssets(asts);
       setNetstat(net);
+      if (scanId) setSelectedScanId(scanId);
     } catch {
       // ignore
     }
   }, []);
+
+  // Load all scans and select active scan
+  const loadAllScans = useCallback(
+    async (preferredScanId) => {
+      try {
+        const hist = await api.history().catch(() => []);
+        const scans = Array.isArray(hist) ? hist : [];
+        setScansList(scans);
+
+        let activeId = null;
+        if (preferredScanId && scans.some((s) => s.id === preferredScanId)) {
+          activeId = preferredScanId;
+        } else if (selectedScanId && scans.some((s) => s.id === selectedScanId)) {
+          activeId = selectedScanId;
+        } else if (scans.length > 0) {
+          activeId = scans[0].id;
+        }
+
+        setSelectedScanId(activeId);
+        await loadScanDetails(activeId);
+        return activeId;
+      } catch {
+        return null;
+      }
+    },
+    [selectedScanId, loadScanDetails]
+  );
+
+  // Switch active scan across all pages
+  const handleSelectScan = useCallback(
+    async (scanId) => {
+      setSelectedScanId(scanId);
+      await loadScanDetails(scanId);
+    },
+    [loadScanDetails]
+  );
 
   // Determine initial page from URL
   const determinePageFromLocation = useCallback(() => {
@@ -81,41 +121,30 @@ export default function App() {
     return null;
   }, []);
 
-  // Startup: verify session & fade splash
+  // Startup: directly load scans and open app without authentication prompt
   useEffect(() => {
     const startTime = Date.now();
 
-    api
-      .me()
-      .then((me) => {
-        setUser(me);
-        loadScanData().then(() => {
-          const page = determinePageFromLocation();
-          if (page) {
-            setCurrentPage(page);
-          } else {
-            // If scan exists, go to dash; else scan
-            api.latest().then((res) => {
-              if (res && res.scan) setCurrentPage("dash");
-              else setCurrentPage("scan");
-            }).catch(() => setCurrentPage("scan"));
-          }
-        });
-      })
-      .catch(() => {
-        setUser(null);
-      })
-      .finally(() => {
-        const elapsed = Date.now() - startTime;
-        const remaining = Math.max(0, 1000 - elapsed);
+    loadAllScans().then((activeId) => {
+      const page = determinePageFromLocation();
+      if (page) {
+        setCurrentPage(page);
+      } else if (activeId) {
+        setCurrentPage("dash");
+      } else {
+        setCurrentPage("scan");
+      }
+
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, 800 - elapsed);
+      setTimeout(() => {
+        setSplashState("fading");
         setTimeout(() => {
-          setSplashState("fading");
-          setTimeout(() => {
-            setSplashState("hidden");
-          }, 400);
-        }, remaining);
-      });
-  }, [determinePageFromLocation, loadScanData]);
+          setSplashState("hidden");
+        }, 350);
+      }, remaining);
+    });
+  }, [determinePageFromLocation, loadAllScans]);
 
   // Sync hash changes
   useEffect(() => {
@@ -138,44 +167,27 @@ export default function App() {
     handleNavigate("code");
   };
 
-  const handleLogout = async () => {
-    try {
-      await api.logout();
-    } catch {
-      // ok
-    }
-    setUser(null);
-    window.location.hash = "";
+  const handleScanFinished = async (newScanId) => {
+    const active = await loadAllScans(newScanId);
+    handleNavigate("dash");
   };
 
-  const handleScanFinished = async () => {
-    await loadScanData();
-    handleNavigate("dash");
+  const handleScanDeleted = async (deletedId) => {
+    await loadAllScans();
   };
 
   if (splashState !== "hidden") {
     return <Splash fading={splashState === "fading"} />;
   }
 
-  if (!user) {
-    return (
-      <Login
-        onLoginSuccess={(userData) => {
-          setUser(userData);
-          loadScanData();
-          handleNavigate("scan");
-        }}
-      />
-    );
-  }
-
   return (
     <>
       <Header
-        latestScan={latestScan}
+        scans={scansList}
+        selectedScanId={selectedScanId}
+        onSelectScan={handleSelectScan}
         netstat={netstat}
         onOpenSettings={() => setShowSettings(true)}
-        onSignOut={handleLogout}
       />
 
       <Sidebar
@@ -206,7 +218,7 @@ export default function App() {
             assets={assets}
             selectedAssetId={selectedAssetId}
             latestScan={latestScan}
-            onTriggerRescan={loadScanData}
+            onTriggerRescan={() => loadScanDetails(selectedScanId)}
             showToast={showToast}
           />
         )}
@@ -222,6 +234,9 @@ export default function App() {
 
         {currentPage === "hist" && (
           <History
+            selectedScanId={selectedScanId}
+            onSelectScan={handleSelectScan}
+            onScanDeleted={handleScanDeleted}
             onNavigate={handleNavigate}
             showToast={showToast}
           />
@@ -229,7 +244,9 @@ export default function App() {
 
         {currentPage === "cbom" && (
           <Cbom
+            selectedScanId={selectedScanId}
             assets={assets}
+            onAssetUpdated={() => loadScanDetails(selectedScanId)}
             showToast={showToast}
           />
         )}
@@ -245,7 +262,7 @@ export default function App() {
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
         onSaved={() => {
-          loadScanData();
+          loadScanDetails(selectedScanId);
           showToast("Settings updated");
         }}
       />
