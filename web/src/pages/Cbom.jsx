@@ -210,7 +210,8 @@ export default function Cbom({ selectedScanId, assets = [], onAssetUpdated, show
               No cryptographic components identified in this scan.
             </div>
           ) : (
-            <table>
+            <div style={{ overflowX: "auto" }}>
+              <table>
               <thead>
                 <tr>
                   <th>Component</th>
@@ -306,7 +307,8 @@ export default function Cbom({ selectedScanId, assets = [], onAssetUpdated, show
                 })}
               </tbody>
             </table>
-          )}
+          </div>
+        )}
         </div>
 
         {/* JSON Preview Column */}

@@ -191,7 +191,8 @@ export default function History({
           </div>
         ) : (
           <>
-            <table className="tbl-fixed">
+            <div style={{ overflowX: "auto" }}>
+              <table className="tbl-fixed">
               <thead>
                 <tr>
                   <th style={{ width: "70px" }}>Scan</th>
@@ -296,7 +297,8 @@ export default function History({
                   })}
               </tbody>
             </table>
-            {Math.ceil(historyList.length / pageSize) > 1 && (
+          </div>
+          {Math.ceil(historyList.length / pageSize) > 1 && (
               <div className="pagination">
                 <span>
                   Showing {(Math.min(page, Math.ceil(historyList.length / pageSize)) - 1) * pageSize + 1}–{Math.min(Math.min(page, Math.ceil(historyList.length / pageSize)) * pageSize, historyList.length)} of {historyList.length} scans

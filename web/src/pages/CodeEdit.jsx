@@ -699,7 +699,7 @@ export default function CodeEdit({
         </div>
 
         {/* Right Column: Finding Details & PQC Replacement */}
-        <div className="card" style={{ padding: "16px", minWidth: 0, overflow: "hidden" }}>
+        <div className="card" style={{ padding: "16px", minWidth: 0, overflowY: "auto", maxHeight: "calc(100vh - 180px)" }}>
           <div className="row" style={{ marginBottom: "12px" }}>
             <b style={{ fontSize: "13px" }}>Finding details</b>
             <span

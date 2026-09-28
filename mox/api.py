@@ -134,6 +134,8 @@ def _reanalyze(conn, scan_id):
 def _asset(conn, row, full=False) -> dict:
     d = json.loads(row["data"])
     d["id"] = row["id"]
+    if not d.get("priority"):  # scans stored before priority existed: compute on read
+        assign_priority(d)
     d.pop("finding_ids", None)
     d.pop("hybrid_finding_ids", None)
     locs = d.get("locations") or []
@@ -868,4 +870,5 @@ def serve(host=None, port=None):
         port = int(os.environ.get("PORT", 8000))
     if host is None:
         host = "0.0.0.0" if "PORT" in os.environ else "127.0.0.1"
+    print(f"MOX running on http://{'127.0.0.1' if host == '127.0.0.1' else 'localhost'}:{port}  (Ctrl+C to stop)", flush=True)
     uvicorn.run("mox.api:create_app", factory=True, host=host, port=port, log_level="warning")
