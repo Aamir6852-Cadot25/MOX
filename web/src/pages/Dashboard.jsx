@@ -3,11 +3,13 @@ import { Plus, ShieldCheck } from "lucide-react";
 import Gauge from "../components/Gauge";
 
 const PRIORITY_MAP = {
-  Critical: { code: "P1", pill: "p1", color: "var(--p1)" },
-  High: { code: "P2", pill: "p2", color: "var(--p2)" },
-  Medium: { code: "P3", pill: "p3", color: "var(--p3)" },
-  Low: { code: "P4", pill: "p4", color: "var(--p4)" },
+  P1: { code: "P1", name: "Fix now", pill: "p1", color: "var(--p1)" },
+  P2: { code: "P2", name: "Quantum-exposed", pill: "p2", color: "var(--p2)" },
+  P3: { code: "P3", name: "Planned", pill: "p3", color: "var(--p3)" },
+  P4: { code: "P4", name: "Monitor", pill: "p4", color: "var(--p4)" },
 };
+
+const PRIORITY_ORDER = { P1: 1, P2: 2, P3: 3, P4: 4 };
 
 export default function Dashboard({ latestScan, assets = [], onNavigate, onOpenAsset }) {
   const [filter, setFilter] = useState("ALL");
@@ -46,14 +48,21 @@ export default function Dashboard({ latestScan, assets = [], onNavigate, onOpenA
   const scanSeconds = scan.seconds !== undefined ? Number(scan.seconds).toFixed(3) : "0.000";
   const findingsCount = scan.findings_count || assets.length;
 
-  const countByTier = (tier) => assets.filter((a) => a.tier === tier).length;
-  const qvAssets = assets.filter((a) => a.breakdown?.quantum_vulnerable || a.quantum_vulnerable);
-  const topAsset = assets[0] || {};
+  // Sort assets by priority (P1 < P2 < P3 < P4), then score (descending)
+  const sortedAssets = [...assets].sort((a, b) => {
+    const pa = PRIORITY_ORDER[a.priority] || 4;
+    const pb = PRIORITY_ORDER[b.priority] || 4;
+    if (pa !== pb) return pa - pb;
+    return (b.score || 0) - (a.score || 0);
+  });
+
+  const qvAssets = sortedAssets.filter((a) => a.breakdown?.quantum_vulnerable || a.quantum_vulnerable);
+  const topAsset = sortedAssets[0] || {};
   const topMosca = topAsset.breakdown?.mosca || {};
 
-  const filteredAssets = assets.filter((a) => {
+  const filteredAssets = sortedAssets.filter((a) => {
     if (filter === "ALL") return true;
-    return PRIORITY_MAP[a.tier]?.code === filter;
+    return (a.priority || "P4") === filter;
   });
 
   const getPrimaryLoc = (a) => {
@@ -67,9 +76,9 @@ export default function Dashboard({ latestScan, assets = [], onNavigate, onOpenA
     return { file: "—", line: "—" };
   };
 
-  const migrateCount = assets.filter((a) => a.verdict === "MIGRATE").length;
-  const containCount = assets.filter((a) => a.verdict === "CONTAIN").length;
-  const acceptCount = assets.filter((a) => a.verdict === "ACCEPT").length;
+  const migrateCount = sortedAssets.filter((a) => a.verdict === "MIGRATE").length;
+  const containCount = sortedAssets.filter((a) => a.verdict === "CONTAIN").length;
+  const acceptCount = sortedAssets.filter((a) => a.verdict === "ACCEPT").length;
 
   return (
     <section className="page on" id="p-dash">
@@ -120,22 +129,26 @@ export default function Dashboard({ latestScan, assets = [], onNavigate, onOpenA
               </div>
             </div>
 
-            {["Critical", "High", "Medium", "Low"].map((tier) => {
-              const cfg = PRIORITY_MAP[tier];
-              const cnt = countByTier(tier);
+            {[
+              { code: "P1", label: "P1 Fix now", color: "var(--p1)" },
+              { code: "P2", label: "P2 Quantum-exposed", color: "var(--p2)" },
+              { code: "P3", label: "P3 Planned", color: "var(--p3)" },
+              { code: "P4", label: "P4 Monitor", color: "var(--p4)" },
+            ].map((item) => {
+              const cnt = assets.filter((a) => (a.priority || "P4") === item.code).length;
               const pct = assets.length ? Math.round((cnt / assets.length) * 100) : 0;
               return (
-                <div key={tier} className="stat" style={{ minWidth: 0 }}>
+                <div key={item.code} className="stat" style={{ minWidth: 0 }}>
                   <div className="lb">
-                    <span className="dot" style={{ background: cfg.color }} />
-                    {cfg.code} — {tier}
+                    <span className="dot" style={{ background: item.color }} />
+                    {item.label}
                   </div>
-                  <div className="v" style={{ color: cfg.color }}>
+                  <div className="v" style={{ color: item.color }}>
                     {cnt}
                   </div>
-                  <div className="sub">{tier === "Critical" && cnt > 0 ? "fix now" : `${pct}% of assets`}</div>
+                  <div className="sub">{pct}% of assets</div>
                   <div className="bar">
-                    <i style={{ width: `${pct}%`, background: cfg.color }} />
+                    <i style={{ width: `${pct}%`, background: item.color }} />
                   </div>
                 </div>
               );
@@ -176,16 +189,17 @@ export default function Dashboard({ latestScan, assets = [], onNavigate, onOpenA
                     marginTop: "8px",
                   }}
                 >
-                  HIGHEST RISK
+                  HIGHEST PRIORITY
                 </div>
                 <div
                   style={{
                     fontWeight: 800,
-                    color: PRIORITY_MAP[topAsset.tier]?.color || "var(--p1)",
+                    color: PRIORITY_MAP[topAsset.priority || "P1"]?.color || "var(--p1)",
                     fontSize: "13px",
                   }}
+                  title={topAsset.priority_reason || ""}
                 >
-                  {topAsset.tier ? topAsset.tier.toUpperCase() : "CRITICAL"}
+                  {topAsset.priority || "P1"} · {PRIORITY_MAP[topAsset.priority || "P1"]?.name?.toUpperCase() || "FIX NOW"}
                 </div>
               </div>
 
@@ -215,8 +229,9 @@ export default function Dashboard({ latestScan, assets = [], onNavigate, onOpenA
                       ) : null}
                     </li>
                     <li>
-                      Found in {topAsset.findings_count || topAsset.locations?.length || 1} place(s) across
-                      certificates, code, configs or container images — counted once.
+                      Found in {topAsset.locations?.length || topAsset.locations_count || topAsset.findings_count || (topAsset.files ? topAsset.files.length : 1)} {
+                        (topAsset.locations?.length || topAsset.locations_count || topAsset.findings_count || (topAsset.files ? topAsset.files.length : 1)) === 1 ? "location" : "locations"
+                      }{topAsset.summary ? ` (${topAsset.summary})` : ""} across certificates, code, configs or container images — counted once.
                     </li>
                   </ul>
                 )}
@@ -320,7 +335,7 @@ export default function Dashboard({ latestScan, assets = [], onNavigate, onOpenA
                   </thead>
                   <tbody>
                     {filteredAssets.map((asset, idx) => {
-                      const cfg = PRIORITY_MAP[asset.tier] || { code: "P4", pill: "p4" };
+                      const cfg = PRIORITY_MAP[asset.priority || "P4"] || PRIORITY_MAP.P4;
                       const loc = getPrimaryLoc(asset);
                       const isQ = asset.breakdown?.quantum_vulnerable || asset.quantum_vulnerable;
                       const mosca = asset.breakdown?.mosca;
@@ -337,8 +352,11 @@ export default function Dashboard({ latestScan, assets = [], onNavigate, onOpenA
                           title="Click to open this finding in Code Edit"
                         >
                           <td>
-                            <span className={`pill ${cfg.pill}`}>
-                              {cfg.code} {asset.tier ? asset.tier.toUpperCase() : "LOW"}
+                            <span
+                              className={`pill ${cfg.pill}`}
+                              title={asset.priority_reason || ""}
+                            >
+                              {asset.priority || "P4"}
                             </span>
                           </td>
                           <td style={{ color: "#0B7C99", fontWeight: 700 }}>

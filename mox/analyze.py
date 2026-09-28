@@ -31,6 +31,54 @@ def _size_key_transport(conn, asset: dict) -> None:
                                                             n["source"], n["notes"], f["meta"], f["id"]))
 
 
+PRIORITY_ORDER = {"P1": 1, "P2": 2, "P3": 3, "P4": 4}
+
+
+def determine_priority(asset: dict) -> tuple[str, str]:
+    """Returns (priority, priority_reason) for an asset.
+
+    P1 if wave == 1;
+    P2 if mosca.exposure > 0 and breakdown.quantum_vulnerable;
+    P3 if verdict in (MIGRATE, CONTAIN);
+    P4 otherwise (ACCEPT or no identified algorithm).
+    A saved priority override wins.
+    """
+    override = asset.get("priority_override")
+    if override in ("P1", "P2", "P3", "P4"):
+        return override, f"Analyst override ({override})"
+
+    wave_val = asset.get("wave")
+    breakdown = asset.get("breakdown") or {}
+    mosca = breakdown.get("mosca") or {}
+    exp = mosca.get("exposure")
+    qv = bool(breakdown.get("quantum_vulnerable"))
+    verdict = asset.get("verdict")
+    status = breakdown.get("base_status", "")
+
+    if wave_val == 1:
+        if status == "disallowed":
+            return "P1", "Disallowed today (Wave 1)"
+        return "P1", "Wave 1: immediate remediation"
+    elif exp is not None and exp > 0 and qv:
+        sign = f"+{exp}" if exp > 0 else f"{exp}"
+        return "P2", f"Quantum-exposed: Mosca {sign} yrs"
+    elif verdict in ("MIGRATE", "CONTAIN"):
+        return "P3", f"Planned {verdict.lower()} (Wave {wave_val or 3})"
+    else:
+        # P4 otherwise (ACCEPT or no identified algorithm)
+        if not mosca.get("applies", True):
+            return "P4", "No identified algorithm: library or package name only"
+        if verdict == "ACCEPT":
+            return "P4", "Accepted risk / monitor next scan"
+        return "P4", "Low risk / monitor"
+
+
+def assign_priority(asset: dict) -> None:
+    prio, reason = determine_priority(asset)
+    asset["priority"] = prio
+    asset["priority_reason"] = reason
+
+
 def analyze(scan_id: int, conn=None, settings: dict | None = None, overrides: dict | None = None,
             mark=None) -> list[dict]:
     """overrides: {asset_key: {"x": years, "criticality": 1|2|3}} (asset_key = fingerprint or plane:file:line:alg).
@@ -60,6 +108,8 @@ def analyze(scan_id: int, conn=None, settings: dict | None = None, overrides: di
     for a in assets:
         a.update(decide(a, a))
     mark("Verdict", len(assets), _count(assets, "verdict", ("MIGRATE", "CONTAIN", "ACCEPT")))
+    for a in assets:
+        assign_priority(a)
     out = []
     for a in assets:
         a["verify_first"] = all(f["confidence"] == "low" for f in a["findings"])

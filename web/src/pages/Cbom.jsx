@@ -3,15 +3,25 @@ import { api } from "../api";
 import { Download, Sliders, RotateCcw, Check, X, ShieldCheck, AlertCircle } from "lucide-react";
 
 const PRIORITY_MAP = {
-  Critical: { code: "P1", pill: "p1" },
-  High: { code: "P2", pill: "p2" },
-  Medium: { code: "P3", pill: "p3" },
-  Low: { code: "P4", pill: "p4" },
+  P1: { code: "P1", pill: "p1" },
+  P2: { code: "P2", pill: "p2" },
+  P3: { code: "P3", pill: "p3" },
+  P4: { code: "P4", pill: "p4" },
 };
+
+const PRIORITY_ORDER = { P1: 1, P2: 2, P3: 3, P4: 4 };
 
 export default function Cbom({ selectedScanId, assets = [], onAssetUpdated, showToast }) {
   const [cbomData, setCbomData] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Sort assets by priority then score descending
+  const sortedAssets = [...assets].sort((a, b) => {
+    const pa = PRIORITY_ORDER[a.priority] || 4;
+    const pb = PRIORITY_ORDER[b.priority] || 4;
+    if (pa !== pb) return pa - pb;
+    return (b.score || 0) - (a.score || 0);
+  });
 
   // Edit side panel state
   const [editingAsset, setEditingAsset] = useState(null);
@@ -204,7 +214,7 @@ export default function Cbom({ selectedScanId, assets = [], onAssetUpdated, show
               <thead>
                 <tr>
                   <th>Component</th>
-                  <th>Tier</th>
+                  <th>Priority</th>
                   <th>Owner</th>
                   <th>Status</th>
                   <th>Score</th>
@@ -213,7 +223,7 @@ export default function Cbom({ selectedScanId, assets = [], onAssetUpdated, show
                 </tr>
               </thead>
               <tbody>
-                {assets.map((a) => {
+                {sortedAssets.map((a) => {
                   const alg = a.algorithm || a.label?.split(" ")[0] || "RSA";
                   const keySize = a.key_size ? `-${a.key_size}` : "";
                   const locParts = (a.primary_location || a.files?.[0] || "—").split(":");
@@ -240,8 +250,11 @@ export default function Cbom({ selectedScanId, assets = [], onAssetUpdated, show
                       </td>
                       <td>
                         <div className="row" style={{ gap: "4px" }}>
-                          <span className={`pill ${PRIORITY_MAP[a.tier]?.pill || "p4"}`}>
-                            {PRIORITY_MAP[a.tier]?.code || "P4"} · {a.tier}
+                          <span
+                            className={`pill ${PRIORITY_MAP[a.priority || "P4"]?.pill || "p4"}`}
+                            title={a.priority_reason || ""}
+                          >
+                            {a.priority || "P4"}
                           </span>
                           {isEdited && (
                             <span

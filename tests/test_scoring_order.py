@@ -108,3 +108,59 @@ def test_short_shelf_life_des_in_a_test_file_is_migrated_not_accepted():
     assert a["breakdown"]["mosca"]["x"] == 1 and a["breakdown"]["mosca"]["exposure"] < 0
     d = decide(a, a)
     assert d["verdict"] == "MIGRATE" and "disallowed crypto is never accepted" in d["reason"]
+
+
+def test_priority_logic_rsa_p2_and_des_p1():
+    """An RSA-2048 asset with Mosca +6 must be P2; a DES asset with Mosca -5 must be P1 (disallowed)
+    and never below an exposed quantum-vulnerable asset unless it is wave 1."""
+    from mox.analyze import assign_priority, PRIORITY_ORDER
+    from mox.verdict import decide
+
+    # 1. RSA-2048 with Mosca +6:
+    # Approved today, quantum_vulnerable=1.
+    # With z=10, y=2, x=14 -> exposure = 14 + 2 - 10 = +6
+    a_rsa = asset(F(algorithm="RSA", key_size=2048, nist_now="approved", quantum_vulnerable=1, file="misc/app.py"))
+    a_rsa.update(score_asset(a_rsa, settings={"threat_horizon": 10}, override={"x": 14}))
+    a_rsa.update(decide(a_rsa, a_rsa))
+    assign_priority(a_rsa)
+
+    assert a_rsa["breakdown"]["mosca"]["exposure"] == 6
+    assert a_rsa["breakdown"]["quantum_vulnerable"] is True
+    assert a_rsa["wave"] == 2  # Wave 2 because Mosca exposure > 0
+    assert a_rsa["priority"] == "P2"
+    assert "Mosca +6 yrs" in a_rsa["priority_reason"]
+
+    # 2. DES asset with Mosca -5:
+    # Classically broken / disallowed today, quantum_vulnerable=0.
+    # With z=10, y=2, x=3 -> exposure = 3 + 2 - 10 = -5
+    a_des = asset(F(algorithm="DES", key_size=None, nist_now="disallowed", quantum_vulnerable=0, file="misc/old.py"))
+    a_des.update(score_asset(a_des, settings={"threat_horizon": 10}, override={"x": 3}))
+    a_des.update(decide(a_des, a_des))
+    assign_priority(a_des)
+
+    assert a_des["breakdown"]["mosca"]["exposure"] == -5
+    assert a_des["breakdown"]["base_status"] == "disallowed"
+    assert a_des["wave"] == 1  # Wave 1 because disallowed today
+    assert a_des["priority"] == "P1"
+    assert "Disallowed" in a_des["priority_reason"]
+
+    # 3. Ordering: DES (P1) is never below an exposed quantum-vulnerable asset (P2, Wave 2)
+    assets = [a_rsa, a_des]
+    sorted_assets = sorted(assets, key=lambda a: (PRIORITY_ORDER.get(a.get("priority", "P4"), 4), -float(a.get("score") or 0)))
+    assert sorted_assets[0] is a_des
+    assert sorted_assets[1] is a_rsa
+
+    # 4. An exposed quantum-vulnerable asset in wave 1 (e.g. RSA-1024 disallowed) is P1
+    a_rsa1024 = asset(F(algorithm="RSA", key_size=1024, nist_now="disallowed", quantum_vulnerable=1, file="misc/weak.py"))
+    a_rsa1024.update(score_asset(a_rsa1024, settings={"threat_horizon": 10}, override={"criticality": 3, "x": 14}))
+    a_rsa1024.update(decide(a_rsa1024, a_rsa1024))
+    assign_priority(a_rsa1024)
+    assert a_rsa1024["wave"] == 1
+    assert a_rsa1024["priority"] == "P1"
+
+    all_three = sorted([a_rsa, a_des, a_rsa1024], key=lambda a: (PRIORITY_ORDER.get(a.get("priority", "P4"), 4), -float(a.get("score") or 0)))
+    assert all_three[-1] is a_rsa  # RSA-2048 (P2) is at the bottom
+    assert all_three[0]["priority"] == "P1"
+    assert all_three[1]["priority"] == "P1"
+    assert {a["algorithm"] for a in all_three[:2]} == {"DES", "RSA"}
+

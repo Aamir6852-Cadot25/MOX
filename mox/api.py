@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from . import attest, auth, browse, cbom, coverage, db, extract, gitsource, jobs, netguard, nist, projects, report, scanner, source
 from .fixers import flow
-from .analyze import analyze
+from .analyze import analyze, assign_priority, PRIORITY_ORDER
 from .db import ROOT
 from .score import DEFAULTS, exposed
 
@@ -143,6 +143,10 @@ def _asset(conn, row, full=False) -> dict:
     # One real file:line for the queue/matrix row (Quantum Risk list); None when the location has no line.
     loc0 = locs[0] if locs else None
     d["primary_location"] = (f"{loc0['file']}:{loc0['line']}" if loc0 and loc0.get("line") else loc0["file"] if loc0 else None)
+    d["locations_count"] = len(locs)
+    d["findings_count"] = len(locs)
+    if "priority" not in d:
+        assign_priority(d)
     if full:
         for l in locs:
             l["fixable"] = l["finding_id"] in ok
@@ -346,8 +350,7 @@ def create_app() -> FastAPI:
                           conn: sqlite3.Connection = Depends(_conn)):
         """Archive / container image / artefacts (D1): the upload is placed or safely extracted into a
         fresh per-scan temp directory, then scanned exactly like a local folder (mox/source.py)."""
-        if kind in ("zip", "upload"):
-            kind = "archive"
+        # "zip"/"upload" are auto-detected in source.from_upload: one archive, one image .tar, or many loose files
         try:
             payload = [(f.filename or "upload", await f.read()) for f in files]
             resolved = source.from_upload(kind, payload)

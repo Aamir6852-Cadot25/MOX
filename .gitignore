@@ -6,5 +6,6 @@ __pycache__/
 data/*.db*
 data/.fuse*
 data/keys/
+data/scan_cache/
 demo_target/
 *.bak

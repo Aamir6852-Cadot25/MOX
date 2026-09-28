@@ -50,7 +50,16 @@ export default function App() {
         api.netstat().catch((err) => { console.warn("Failed to load netstat:", err); return null; }),
       ]);
       setLatestScan(lat);
-      if (Array.isArray(asts)) setAssets(asts);
+      if (Array.isArray(asts)) {
+        const PRIORITY_ORDER = { P1: 1, P2: 2, P3: 3, P4: 4 };
+        const sorted = [...asts].sort((a, b) => {
+          const pa = PRIORITY_ORDER[a.priority] || 4;
+          const pb = PRIORITY_ORDER[b.priority] || 4;
+          if (pa !== pb) return pa - pb;
+          return (b.score || 0) - (a.score || 0);
+        });
+        setAssets(sorted);
+      }
       setNetstat(net);
       if (scanId) setSelectedScanId(scanId);
     } catch (err) {

@@ -4,11 +4,13 @@ import { RotateCw, Eye, Check, Download, FileText, Key, Shield, AlertTriangle } 
 import { FAMILIES, familyFor } from "../data/pqc_alternatives";
 
 const PRIORITY_MAP = {
-  Critical: { code: "P1", pill: "p1", color: "var(--p1)" },
-  High: { code: "P2", pill: "p2", color: "var(--p2)" },
-  Medium: { code: "P3", pill: "p3", color: "var(--p3)" },
-  Low: { code: "P4", pill: "p4", color: "var(--p4)" },
+  P1: { code: "P1", pill: "p1", color: "var(--p1)" },
+  P2: { code: "P2", pill: "p2", color: "var(--p2)" },
+  P3: { code: "P3", pill: "p3", color: "var(--p3)" },
+  P4: { code: "P4", pill: "p4", color: "var(--p4)" },
 };
+
+const PRIORITY_ORDER = { P1: 1, P2: 2, P3: 3, P4: 4 };
 
 function getRecommendedPqc(asset) {
   const alg = asset.algorithm || asset.label?.split(" ")[0] || "RSA";
@@ -75,6 +77,14 @@ export default function CodeEdit({
   const [fullAsset, setFullAsset] = useState(null);
   const [filterQuery, setFilterQuery] = useState("");
 
+  // Sort assets by priority then score descending
+  const sortedAssets = [...assets].sort((a, b) => {
+    const pa = PRIORITY_ORDER[a.priority] || 4;
+    const pb = PRIORITY_ORDER[b.priority] || 4;
+    if (pa !== pb) return pa - pb;
+    return (b.score || 0) - (a.score || 0);
+  });
+
   // File loading
   const [fileData, setFileData] = useState(null);
   const [loadingFile, setLoadingFile] = useState(false);
@@ -89,11 +99,11 @@ export default function CodeEdit({
 
   const codeContainerRef = useRef(null);
 
-  // Select asset when selectedAssetId or assets list changes
+  // Select asset when selectedAssetId or sortedAssets list changes
   useEffect(() => {
-    if (assets.length > 0) {
+    if (sortedAssets.length > 0) {
       if (selectedAssetId) {
-        const found = assets.findIndex((a) => a.id === selectedAssetId);
+        const found = sortedAssets.findIndex((a) => a.id === selectedAssetId);
         if (found >= 0) {
           setCurrentIdx(found);
           setMode("view");
@@ -107,9 +117,9 @@ export default function CodeEdit({
       setPreviewData(null);
       setApplyResult(null);
     }
-  }, [selectedAssetId, assets]);
+  }, [selectedAssetId, sortedAssets.length]);
 
-  const currentAsset = assets[currentIdx] || assets[0] || {};
+  const currentAsset = sortedAssets[currentIdx] || sortedAssets[0] || {};
 
   // Fetch full asset data from /api/assets/{id}
   useEffect(() => {
@@ -191,7 +201,7 @@ export default function CodeEdit({
 
   // Build file tree from assets
   const fileToAssets = {};
-  assets.forEach((a, idx) => {
+  sortedAssets.forEach((a, idx) => {
     const f = (a.primary_location ? a.primary_location.split(":")[0] : a.files?.[0]) || "unknown";
     const cleanFile = f.split("!")[0];
     if (!fileToAssets[cleanFile]) fileToAssets[cleanFile] = [];
@@ -295,13 +305,13 @@ export default function CodeEdit({
   };
 
   const assetDetails = fullAsset || currentAsset;
-  const cfg = PRIORITY_MAP[assetDetails.tier] || { code: "P4", pill: "p4", color: "var(--p4)" };
+  const cfg = PRIORITY_MAP[assetDetails.priority || "P4"] || PRIORITY_MAP.P4;
   const recommendedPqc = getRecommendedPqc(assetDetails);
   const mosca = assetDetails.breakdown?.mosca || {};
   const targetLine = loc.line || 1;
   const firstFinding = assetDetails.findings?.[0] || {};
 
-  if (assets.length === 0) {
+  if (sortedAssets.length === 0) {
     return (
       <section className="page on" id="p-code">
         <div className="ph">
@@ -379,9 +389,15 @@ export default function CodeEdit({
                 </div>
                 {dirs[d].map((f) => {
                   const assetIdxs = fileToAssets[f] || [];
-                  const fileAssets = assetIdxs.map((i) => assets[i]);
-                  const topAssetForFile = fileAssets.sort((x, y) => (y.score || 0) - (x.score || 0))[0];
-                  const topCfg = PRIORITY_MAP[topAssetForFile?.tier] || { code: "P4", pill: "p4" };
+                  const fileAssets = assetIdxs.map((i) => sortedAssets[i]).filter(Boolean);
+                  const topAssetForFile = fileAssets.sort((x, y) => {
+                    const px = PRIORITY_ORDER[x.priority] || 4;
+                    const py = PRIORITY_ORDER[y.priority] || 4;
+                    if (px !== py) return px - py;
+                    return (y.score || 0) - (x.score || 0);
+                  })[0];
+                  const topPrio = topAssetForFile?.priority || "P4";
+                  const topCfg = PRIORITY_MAP[topPrio] || PRIORITY_MAP.P4;
                   const isCurrent = assetIdxs.includes(currentIdx);
 
                   return (
@@ -398,7 +414,7 @@ export default function CodeEdit({
                         paddingBottom: "5px",
                       }}
                       onClick={() => {
-                        const targetIndex = assets.indexOf(topAssetForFile);
+                        const targetIndex = sortedAssets.indexOf(topAssetForFile);
                         if (targetIndex >= 0) setCurrentIdx(targetIndex);
                         setMode("view");
                         setPreviewData(null);
@@ -418,7 +434,11 @@ export default function CodeEdit({
                       >
                         {f.split("/").pop()}
                       </span>
-                      <span className={`pill ${topCfg.pill}`} style={{ fontSize: "10.5px", whiteSpace: "nowrap" }}>
+                      <span
+                        className={`pill ${topCfg.pill}`}
+                        style={{ fontSize: "10.5px", whiteSpace: "nowrap" }}
+                        title={topAssetForFile?.priority_reason || ""}
+                      >
                         {topCfg.code} · {assetIdxs.length}
                       </span>
                     </div>
@@ -682,8 +702,12 @@ export default function CodeEdit({
         <div className="card" style={{ padding: "16px", minWidth: 0, overflow: "hidden" }}>
           <div className="row" style={{ marginBottom: "12px" }}>
             <b style={{ fontSize: "13px" }}>Finding details</b>
-            <span className={`pill ${cfg.pill}`} style={{ marginLeft: "auto", whiteSpace: "nowrap" }}>
-              {cfg.code} {assetDetails.tier || "High"}
+            <span
+              className={`pill ${cfg.pill}`}
+              style={{ marginLeft: "auto", whiteSpace: "nowrap" }}
+              title={assetDetails.priority_reason || ""}
+            >
+              {cfg.code}
             </span>
           </div>
 

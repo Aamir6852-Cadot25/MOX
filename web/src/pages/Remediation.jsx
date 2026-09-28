@@ -10,11 +10,13 @@ const WN = {
 };
 
 const PRIORITY_MAP = {
-  Critical: { code: "P1", pill: "p1" },
-  High: { code: "P2", pill: "p2" },
-  Medium: { code: "P3", pill: "p3" },
-  Low: { code: "P4", pill: "p4" },
+  P1: { code: "P1", pill: "p1" },
+  P2: { code: "P2", pill: "p2" },
+  P3: { code: "P3", pill: "p3" },
+  P4: { code: "P4", pill: "p4" },
 };
+
+const PRIORITY_ORDER = { P1: 1, P2: 2, P3: 3, P4: 4 };
 
 function repl(a) {
   if (a.replacement) return [a.replacement];
@@ -82,7 +84,14 @@ export default function Remediation({ assets = [], selectedScanId }) {
           </div>
         ) : (
           wavesOrder.map((w) => {
-            const waveAssets = assets.filter((a) => (a.wave || (a.verdict === "ACCEPT" ? 5 : 1)) === w);
+            const waveAssets = assets
+              .filter((a) => (a.wave || (a.verdict === "ACCEPT" ? 5 : 1)) === w)
+              .sort((a, b) => {
+                const pa = PRIORITY_ORDER[a.priority] || 4;
+                const pb = PRIORITY_ORDER[b.priority] || 4;
+                if (pa !== pb) return pa - pb;
+                return (b.score || 0) - (a.score || 0);
+              });
             if (waveAssets.length === 0) return null;
 
           return (
@@ -97,7 +106,7 @@ export default function Remediation({ assets = [], selectedScanId }) {
 
               <div>
                 {waveAssets.slice(0, 6).map((a, idx) => {
-                  const cfg = PRIORITY_MAP[a.tier] || { code: "P4", pill: "p4" };
+                  const cfg = PRIORITY_MAP[a.priority || "P4"] || PRIORITY_MAP.P4;
                   const alg = a.algorithm || a.label?.split(" ")[0] || "RSA";
                   const keySize = a.key_size ? `-${a.key_size}` : "";
                   const loc = (a.primary_location || a.files?.[0] || "—").split(":")[0];
@@ -105,7 +114,9 @@ export default function Remediation({ assets = [], selectedScanId }) {
 
                   return (
                     <div key={a.id || idx} className="ai">
-                      <span className={`pill ${cfg.pill}`}>{cfg.code}</span>
+                      <span className={`pill ${cfg.pill}`} title={a.priority_reason || ""}>
+                        {cfg.code}
+                      </span>
                       <b style={{ minWidth: "150px" }}>
                         {alg}
                         {keySize}
