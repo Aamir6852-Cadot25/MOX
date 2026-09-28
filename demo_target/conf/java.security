@@ -1,0 +1,3 @@
+# demo JVM security overrides
+jdk.tls.disabledAlgorithms=SSLv3, MD5withRSA
+jdk.tls.legacyAlgorithms=DES, DESede, RC4

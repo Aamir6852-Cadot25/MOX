@@ -10,3 +10,5 @@ services:
         value: 10000
       - key: MOX_HOSTED
         value: "1"
+      - key: MOX_SECRET
+        generateValue: true

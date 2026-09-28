@@ -12,6 +12,7 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 COPY mox/ ./mox/
+COPY data/rules.json data/nist_status.json ./data/
 COPY demo_target/ ./demo_target/
 COPY --from=builder /app/web/dist ./web/dist
 
