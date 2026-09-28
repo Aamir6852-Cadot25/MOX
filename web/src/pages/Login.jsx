@@ -1,29 +1,84 @@
-import { useState } from "react";
-import { api } from "../api.js";
+import React, { useState } from "react";
+import { api } from "../api";
 
-export default function Login({ onLogin }) {
-  const [u, setU] = useState("");
-  const [p, setP] = useState("");
-  const [err, setErr] = useState("");
-  const submit = async (e) => {
+export default function Login({ onLoginSuccess }) {
+  const [username, setUsername] = useState("admin");
+  const [password, setPassword] = useState("password123");
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(null);
+    setLoading(true);
     try {
-      onLogin(await api.login(u, p));
-    } catch (x) {
-      setErr(x.message);
+      const res = await api.login(username, password);
+      onLoginSuccess(res);
+    } catch (err) {
+      setError(err.message || "Invalid credentials");
+    } finally {
+      setLoading(false);
     }
   };
+
   return (
-    <div className="min-h-screen grid place-items-center">
-      <form onSubmit={submit} className="panel p-8 w-[360px] flex flex-col gap-3">
-        <div className="logo text-3xl">MOX</div>
-        <div className="dim mb-2">Offline scanner for quantum-vulnerable cryptography</div>
-        <input placeholder="Username" value={u} onChange={(e) => setU(e.target.value)} autoFocus />
-        <input placeholder="Password" type="password" value={p} onChange={(e) => setP(e.target.value)} />
-        {err && <div className="errbox">Sign-in failed: {err}. Check the username and password; accounts are created by an operator with <span className="mono">python -m mox create-admin</span>.</div>}
-        <button className="btn" type="submit">Sign in</button>
-        <div className="dim text-[11px]">Accounts are created by an operator with <span className="mono">python -m mox create-admin</span>.</div>
-      </form>
+    <div id="login">
+      <div className="lc">
+        <div className="row">
+          <div className="logo" style={{ color: "#fff" }}>
+            MX
+          </div>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: "17px" }}>M-O-X</div>
+            <div style={{ fontSize: "12px", color: "var(--mut)" }}>
+              Cryptographic discovery &amp; PQC readiness
+            </div>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ marginTop: "22px" }}>
+          <div style={{ marginBottom: "14px" }}>
+            <label className="f">Username</label>
+            <input
+              className="in"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              autoFocus
+            />
+          </div>
+
+          <div style={{ marginBottom: "20px" }}>
+            <label className="f">Password</label>
+            <input
+              className="in"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+
+          {error && (
+            <div style={{ color: "var(--p1)", fontSize: "12px", marginBottom: "14px" }}>
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            className="btn pri"
+            disabled={loading}
+            style={{ width: "100%", justifyContent: "center", padding: "11px" }}
+          >
+            {loading ? "Signing in…" : "Sign in"}
+          </button>
+
+          <p style={{ fontSize: "11.5px", color: "var(--mut)", textAlign: "center", margin: "14px 0 0" }}>
+            Accounts are created by an administrator.
+          </p>
+        </form>
+      </div>
     </div>
   );
 }

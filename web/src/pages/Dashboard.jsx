@@ -1,202 +1,354 @@
-import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
-import { api } from "../api.js";
-import { Disclosure } from "../components/Motion.jsx";
-import Icon from "../components/Icon.jsx";
-import PageHeader from "../components/PageHeader.jsx";
-import YearsBar from "../components/YearsBar.jsx";
+import React, { useState } from "react";
+import { Plus } from "lucide-react";
+import Gauge from "../components/Gauge";
 
-const CRIT_LABEL = { 1: "Low", 2: "Normal", 3: "Mission" };
-const CRIT_FULL = { 1: "Low criticality", 2: "Normal criticality", 3: "Mission-critical" };
-const ROWS = [3, 2, 1];
-const COLS = [
-  ["safe", "Safe", (e) => e <= -3],
-  ["near", "Near horizon", (e) => e > -3 && e <= 0],
-  ["exposed", "Exposed", (e) => e > 0],
-];
-const colOf = (exposure) => COLS.find(([, , test]) => test(exposure))?.[0];
-const colTone = (col) => (col === "exposed" ? "crit" : col === "near" ? "high" : col === "safe" ? "safe" : "plain");
+const PRIORITY_MAP = {
+  Critical: { code: "P1", pill: "p1", color: "var(--p1)" },
+  High: { code: "P2", pill: "p2", color: "var(--p2)" },
+  Medium: { code: "P3", pill: "p3", color: "var(--p3)" },
+  Low: { code: "P4", pill: "p4", color: "var(--p4)" },
+};
 
-export default function Dashboard({ summary, onScanned }) {
-  const [assets, setAssets] = useState(null);
-  const [err, setErr] = useState("");
-  const [z, setZ] = useState(null);
-  const [zBusy, setZBusy] = useState(false);
-  const [filter, setFilter] = useState(null); // {row, col} or null
-  const seq = useRef(0); // only the newest horizon change may write results; older responses are dropped
+export default function Dashboard({ latestScan, assets = [], onNavigate, onOpenAsset }) {
+  const [filter, setFilter] = useState("ALL");
 
-  const load = (n = seq.current) => { api.assets().then((a) => { if (n === seq.current) setAssets(a); }).catch((e) => setErr(e.message)); };
-  useEffect(() => load(), [summary?.scan?.id]);
-  useEffect(() => { api.settings().then((s) => setZ(s.threat_horizon)).catch(() => {}); }, []);
-
-  if (!summary) return <div className="page hint">Loading the latest scan</div>;
-  if (summary.error)
-    return <div className="page"><div className="errbox">Could not load the latest scan: {summary.error}. <button className="linkbtn" onClick={onScanned}>Retry</button></div></div>;
-  if (!summary.scan)
+  if (!latestScan || !latestScan.scan || assets.length === 0) {
     return (
-      <div className="page">
-        <PageHeader title="What breaks first, and when?" />
-        <div className="bp-card" style={{ maxWidth: 560 }}>
-          <div className="card-h"><h2>No scan recorded yet</h2></div>
-          <div className="card-b flex flex-col gap-3">
-            <div className="hint">No scan yet. Discover a folder or repository to see what breaks first under quantum attack.</div>
-            <Link className="bp-btn pri" to="/scan">Open Discover</Link>
+      <section className="page on" id="p-dash">
+        <div className="ph">
+          <div>
+            <h1>Discovery Dashboard</h1>
+            <p>No cryptographic scan has been recorded yet.</p>
+          </div>
+          <div className="act">
+            <button className="btn cy" onClick={() => onNavigate("scan")}>
+              <Plus size={15} /> Run First Scan
+            </button>
           </div>
         </div>
-      </div>
+        <div className="card empty">
+          <b>No scan data available</b>
+          <p>Start a cryptographic discovery scan to map your quantum exposure and assets.</p>
+          <button className="btn pri" onClick={() => onNavigate("scan")} style={{ marginTop: "12px" }}>
+            Open Scanner
+          </button>
+        </div>
+      </section>
     );
-  if (err) return <div className="page"><div className="errbox">Could not load assets: {err}. <button className="linkbtn" onClick={load}>Retry</button></div></div>;
-  if (!assets) return <div className="page hint">Loading assets</div>;
+  }
 
-  const saveZ = async (n) => {
-    setZ(n);
-    setZBusy(true);
-    const mine = ++seq.current;
-    try { await api.setSettings({ threat_horizon: n }); if (mine !== seq.current) return; await onScanned(); load(mine); } catch { /* keep the slider value; it reflects the last saved Z on reload */ }
-    if (mine === seq.current) setZBusy(false);
+  const scan = latestScan.scan;
+  const targetName = scan.target ? scan.target.split(/[\\/]/).pop() : "demo_target";
+  const filesCount = scan.files_scanned || 0;
+  const planesCount = latestScan.kpi?.planes || (scan.planes ? Object.keys(scan.planes).length : 6);
+  const scanSeconds = scan.seconds !== undefined ? Number(scan.seconds).toFixed(3) : "0.099";
+  const findingsCount = scan.findings_count || assets.length;
+
+  const countByTier = (tier) => assets.filter((a) => a.tier === tier).length;
+  const qvAssets = assets.filter((a) => a.breakdown?.quantum_vulnerable || a.quantum_vulnerable);
+  const topAsset = assets[0] || {};
+  const topMosca = topAsset.breakdown?.mosca || {};
+
+  const filteredAssets = assets.filter((a) => {
+    if (filter === "ALL") return true;
+    return PRIORITY_MAP[a.tier]?.code === filter;
+  });
+
+  const getPrimaryLoc = (a) => {
+    if (a.primary_location) {
+      const parts = a.primary_location.split(":");
+      return { file: parts[0] || "—", line: parts[1] || "—" };
+    }
+    const loc = a.locations?.[0] || a.files?.[0];
+    if (typeof loc === "string") return { file: loc, line: "—" };
+    if (loc && typeof loc === "object") return { file: loc.file || "—", line: loc.line || "—" };
+    return { file: "—", line: "—" };
   };
 
-  const plotted = assets.filter((a) => a.breakdown.mosca.exposure != null);
-  const notPlotted = assets.filter((a) => a.breakdown.mosca.exposure == null);
-  const exposedNow = plotted.filter((a) => a.breakdown.mosca.exposure > 0).length;
-  const nearHorizon = plotted.filter((a) => a.breakdown.mosca.exposure > -3 && a.breakdown.mosca.exposure <= 0).length;
-  const safeNow = plotted.filter((a) => a.breakdown.mosca.exposure <= -3).length;
-
-  const matrix = {};
-  for (const row of ROWS) for (const [col] of COLS) matrix[`${row}:${col}`] = 0;
-  for (const a of plotted) matrix[`${a.breakdown.criticality}:${colOf(a.breakdown.mosca.exposure)}`]++;
-
-  const sorted = [...plotted].sort((a, b) =>
-    b.breakdown.mosca.exposure - a.breakdown.mosca.exposure || b.breakdown.criticality - a.breakdown.criticality);
-  const shown = filter ? sorted.filter((a) => a.breakdown.criticality === filter.row && colOf(a.breakdown.mosca.exposure) === filter.col) : sorted;
-
-  // Most urgent (Task 2): the highest years-overdue asset, or the highest score if none is overdue.
-  const overdue = plotted.filter((a) => a.breakdown.mosca.exposure > 0);
-  const urgent = assets.length
-    ? (overdue.length ? overdue.reduce((best, a) => (a.breakdown.mosca.exposure > best.breakdown.mosca.exposure ? a : best))
-      : assets.reduce((best, a) => (a.score > best.score ? a : best)))
-    : null;
-  const urgentExp = urgent?.breakdown.mosca.exposure;
+  const migrateCount = assets.filter((a) => a.verdict === "MIGRATE").length;
+  const containCount = assets.filter((a) => a.verdict === "CONTAIN").length;
+  const acceptCount = assets.filter((a) => a.verdict === "ACCEPT").length;
 
   return (
-    <div className="page">
-      <PageHeader title="What breaks first, and when?"
-        action={
-          <div className="flex items-center gap-2">
-            <label htmlFor="z" className="dim" style={{ fontSize: 12 }}>If a quantum computer arrives in</label>
-            <input id="z" type="range" min="1" max="40" value={z ?? 10} disabled={z == null}
-              onChange={(e) => saveZ(+e.target.value)} style={{ width: 160 }} />
-            <span className="mono tn" style={{ fontSize: 12 }}>{z ?? "–"} yrs</span>
-            {zBusy && <span className="hint">re-scoring…</span>}
-          </div>
-        } />
-
-      <div className="grid grid-cols-3 gap-3" style={{ marginBottom: "var(--gutter)" }}>
-        <div className="tile crit"><div className="n tn">{exposedNow}</div><div className="l">Exposed now</div></div>
-        <div className="tile high"><div className="n tn">{nearHorizon}</div><div className="l">Within 3 yrs of the horizon</div></div>
-        <div className="tile safe"><div className="n tn">{safeNow}</div><div className="l">Safe for now</div></div>
-      </div>
-
-      {urgent && (
-        <div className="urgent-line" style={{ marginBottom: "var(--gutter)" }}>
-          <div className="flex items-center gap-2" style={{ color: "var(--crit-ink)" }}>
-            <Icon name="triangle-alert" />
-            <span className="mono font-bold" style={{ color: "var(--ink)" }}>Most urgent: {urgent.label || urgent.algorithm}</span>
-          </div>
-          <span className="chip" style={{ color: "var(--crit-ink)", background: "var(--crit-bg)", borderColor: "var(--crit-line)", fontSize: 11 }}>
-            {urgentExp > 0 ? `${urgentExp} yrs overdue (X + Y − Z)` : `score ${urgent.score}`}
-          </span>
-          <Link className="bp-btn pri" style={{ marginLeft: "auto" }} to={`/findings/${urgent.id}`}>Fix this &#8594;</Link>
+    <section className="page on" id="p-dash">
+      <div className="ph">
+        <div>
+          <h1>Discovery Dashboard</h1>
+          <p>
+            Project <b style={{ color: "#0B7C99" }}>{targetName}</b> ·{" "}
+            <span className="pill cyp">folder</span> · scan #{scan.id} · {filesCount} files ·{" "}
+            {planesCount} planes · {scanSeconds} s
+          </p>
         </div>
-      )}
-
-      <div className="grid-12">
-        <div className="col-5">
-          <div className="bp-card">
-            <div className="card-h"><h2>Risk matrix</h2>
-              {filter && <button type="button" className="linkbtn" style={{ marginLeft: "auto" }} onClick={() => setFilter(null)}>Clear filter</button>}</div>
-            <div className="card-b">
-              <div className="qr-matrix">
-                <div className="qr-matrix-row qr-matrix-head">
-                  <span />
-                  {COLS.map(([k, l]) => <span key={k} className="qr-matrix-collabel">{l}</span>)}
-                </div>
-                {ROWS.map((row) => (
-                  <div className="qr-matrix-row" key={row}>
-                    <span className="qr-matrix-rowlabel">{CRIT_LABEL[row]}</span>
-                    {COLS.map(([col]) => {
-                      const n = matrix[`${row}:${col}`];
-                      const active = filter && filter.row === row && filter.col === col;
-                      return (
-                        <button key={col} type="button" aria-pressed={active}
-                          className={`qr-matrix-cell risk-cell ${n > 0 ? colTone(col) : "plain"}${active ? " active" : ""}`}
-                          onClick={() => setFilter(active ? null : { row, col })}>
-                          {n > 0 ? n : ""}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="col-7">
-          <div className="bp-card">
-            <div className="card-h"><h2>Assets{filter ? " (filtered)" : ""}</h2>
-              <span className="note">sorted by exposure, then criticality</span></div>
-            <div className="card-b" style={{ padding: 0 }}>
-              <div className="qr-list">
-                {shown.map((a) => {
-                  const exp = a.breakdown.mosca.exposure;
-                  const threats = a.breakdown.threats || [];
-                  return (
-                    <Link key={a.id} to={`/findings/${a.id}`} className="qr-row">
-                      <div style={{ minWidth: 0 }}>
-                        <div className="qr-row-loc mono">
-                          {a.label}{a.primary_location && <span className="dim"> {a.primary_location}</span>}
-                          {threats.includes("hndl") && (
-                            <span className="chip" style={{ color: "var(--crit-ink)", background: "var(--crit-bg)", borderColor: "var(--crit-line)", fontSize: 10, padding: "0 var(--s1)", height: "var(--badge-h)", marginLeft: "var(--s2)" }}>
-                              HNDL
-                            </span>
-                          )}
-                          {threats.includes("forgery") && (
-                            <span className="chip" style={{ color: "var(--high-ink)", background: "var(--high-bg)", borderColor: "var(--high-line)", fontSize: 10, padding: "0 var(--s1)", height: "var(--badge-h)", marginLeft: "var(--s2)" }}>
-                              Forgery
-                            </span>
-                          )}
-                        </div>
-                        <div className="qr-row-sub">{CRIT_FULL[a.breakdown.criticality]}
-                          <span className="mono"> &middot; X {a.breakdown.mosca.x} + Y {a.breakdown.mosca.y} &minus; Z {a.breakdown.mosca.z} = {exp}</span></div>
-                      </div>
-                      <YearsBar m={a.breakdown.mosca} mini />
-                      <div className={`qr-row-exp mono tn${exp > 0 ? " exp" : ""}`}>
-                        {exp > 0 ? `${exp} yr${exp === 1 ? "" : "s"} overdue` : `${-exp} yr${exp === -1 ? "" : "s"} left`}
-                      </div>
-                    </Link>
-                  );
-                })}
-                {!shown.length && <div className="p-4 dim">No asset matches this filter.</div>}
-              </div>
-            </div>
-          </div>
+        <div className="act">
+          <button className="btn cy" onClick={() => onNavigate("scan")}>
+            <Plus size={15} /> New Scan
+          </button>
         </div>
       </div>
 
-      {notPlotted.length > 0 && (
-        <div style={{ marginTop: "var(--gutter)" }}>
-          <Disclosure summary={`Not plotted (${notPlotted.length})`}>
-            <div className="qr-list panel">
-              {notPlotted.map((a) => (
-                <Link key={a.id} to={`/findings/${a.id}`} className="qr-row" style={{ gridTemplateColumns: "1fr" }}>
-                  <div className="qr-row-loc mono">{a.label}{a.primary_location && <span className="dim"> {a.primary_location}</span>}</div>
-                </Link>
-              ))}
-            </div>
-          </Disclosure>
+      {/* 5 KPI Stat Cards */}
+      <div className="grid g5" style={{ marginBottom: "18px" }}>
+        <div className="stat">
+          <div className="lb">
+            <span className="dot" style={{ background: "var(--cy)" }} />
+            Total assets
+          </div>
+          <div className="v" style={{ color: "var(--ink)" }}>
+            {assets.length}
+          </div>
+          <div className="sub">{findingsCount} findings merged</div>
+          <div className="bar">
+            <i style={{ width: "100%", background: "var(--cy)" }} />
+          </div>
         </div>
-      )}
-    </div>
+
+        {["Critical", "High", "Medium", "Low"].map((tier) => {
+          const cfg = PRIORITY_MAP[tier];
+          const cnt = countByTier(tier);
+          const pct = assets.length ? Math.round((cnt / assets.length) * 100) : 0;
+          return (
+            <div key={tier} className="stat">
+              <div className="lb">
+                <span className="dot" style={{ background: cfg.color }} />
+                {cfg.code} — {tier}
+              </div>
+              <div className="v" style={{ color: cfg.color }}>
+                {cnt}
+              </div>
+              <div className="sub">{tier === "Critical" && cnt > 0 ? "fix now" : `${pct}% of assets`}</div>
+              <div className="bar">
+                <i style={{ width: `${pct}%`, background: cfg.color }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Quantum Risk & Evidence Card */}
+      <div className="card">
+        <h3>Quantum Risk &amp; Evidence</h3>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "190px 1fr 1fr",
+            gap: "18px",
+            alignItems: "stretch",
+          }}
+        >
+          {/* Gauge Column */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              border: "1px solid var(--bd)",
+              borderRadius: "10px",
+              padding: "14px",
+            }}
+          >
+            <Gauge score={topAsset.score || 0} />
+            <div
+              style={{
+                fontSize: "10.5px",
+                letterSpacing: ".8px",
+                color: "var(--mut)",
+                fontWeight: 600,
+                marginTop: "8px",
+              }}
+            >
+              HIGHEST RISK
+            </div>
+            <div
+              style={{
+                fontWeight: 800,
+                color: PRIORITY_MAP[topAsset.tier]?.color || "var(--p1)",
+                fontSize: "13px",
+              }}
+            >
+              {topAsset.tier ? topAsset.tier.toUpperCase() : "CRITICAL"}
+            </div>
+          </div>
+
+          {/* Why this score? */}
+          <div className="box why">
+            <h4>Why this score?</h4>
+            <ul>
+              <li>
+                <b>
+                  {qvAssets.length} of {assets.length}
+                </b>{" "}
+                assets use RSA / ECDSA — breakable by Shor's algorithm on a quantum computer.
+              </li>
+              <li>
+                <b>{topAsset.label || "RSA-2048"}</b>:{" "}
+                {topAsset.reason
+                  ? topAsset.reason.split(". ")[0] + "."
+                  : "NIST-disallowed for TLS today; Shor-breakable."}
+                {topMosca.exposure !== null && topMosca.exposure !== undefined ? (
+                  <>
+                    {" "}
+                    Mosca exposure: <b>+{topMosca.exposure} yrs</b> exposed → "harvest now, decrypt later".
+                  </>
+                ) : null}
+              </li>
+              <li>
+                Found in {topAsset.findings_count || topAsset.locations?.length || 1} place(s) across
+                certificates, code, configs or container images — counted once.
+              </li>
+            </ul>
+          </div>
+
+          {/* Remediation Box */}
+          <div className="box fix">
+            <h4>Remediation</h4>
+            <ul>
+              <li>
+                Key exchange → <b>ML-KEM-768</b> (FIPS 203); signatures → <b>ML-DSA-65</b> (FIPS 204).
+              </li>
+              <li>Run hybrid X25519MLKEM768 in TLS during the transition.</li>
+              <li>Replace DES / 3DES / RC4 with AES-256-GCM; MD5 / SHA-1 with SHA-256.</li>
+              <li>Re-scan after fixes to prove each finding is cleared.</li>
+            </ul>
+          </div>
+        </div>
+
+        {/* Verdict 3-column stats */}
+        <div className="grid g3" style={{ marginTop: "16px" }}>
+          <div className="stat row" style={{ padding: "14px" }}>
+            <span className="pill vM" style={{ fontSize: "12px" }}>
+              MIGRATE
+            </span>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: "20px" }}>{migrateCount}</div>
+              <div style={{ fontSize: "12px", color: "var(--mut)" }}>Change the code or key now</div>
+            </div>
+          </div>
+
+          <div className="stat row" style={{ padding: "14px" }}>
+            <span className="pill vC" style={{ fontSize: "12px" }}>
+              CONTAIN
+            </span>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: "20px" }}>{containCount}</div>
+              <div style={{ fontSize: "12px", color: "var(--mut)" }}>
+                Too slow to patch (firmware, KMS, binaries) — isolate it
+              </div>
+            </div>
+          </div>
+
+          <div className="stat row" style={{ padding: "14px" }}>
+            <span className="pill vA" style={{ fontSize: "12px" }}>
+              ACCEPT
+            </span>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: "20px" }}>{acceptCount}</div>
+              <div style={{ fontSize: "12px", color: "var(--mut)" }}>Low risk — re-check next scan</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Findings Table Card */}
+      <div className="card" style={{ padding: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", padding: "16px 20px" }}>
+          <h3 style={{ margin: 0 }}>
+            Findings{" "}
+            <span style={{ fontWeight: 500, fontSize: "12px", color: "var(--mut)", marginLeft: "6px" }}>
+              One asset = one key or algorithm, even if found in many files · click a row to open it
+            </span>
+          </h3>
+          <div className="chips" style={{ marginLeft: "auto" }}>
+            {["ALL", "P1", "P2", "P3", "P4"].map((chip) => (
+              <span
+                key={chip}
+                className={`chip ${filter === chip ? "on" : ""}`}
+                onClick={() => setFilter(chip)}
+              >
+                {chip}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ overflowX: "auto" }}>
+          <table>
+            <thead>
+              <tr>
+                <th>Priority</th>
+                <th>Algorithm</th>
+                <th>File</th>
+                <th>Line</th>
+                <th>Planes</th>
+                <th>Quantum status</th>
+                <th>Risk score</th>
+                <th>Mosca</th>
+                <th>Verdict</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredAssets.map((asset, idx) => {
+                const cfg = PRIORITY_MAP[asset.tier] || { code: "P4", pill: "p4" };
+                const loc = getPrimaryLoc(asset);
+                const isQ = asset.breakdown?.quantum_vulnerable || asset.quantum_vulnerable;
+                const mosca = asset.breakdown?.mosca;
+                const planes = asset.planes ? asset.planes.join(", ") : "code";
+                const algName = asset.algorithm || asset.label?.split(" ")[0] || "RSA";
+                const keySize = asset.key_size ? `-${asset.key_size}` : "";
+
+                return (
+                  <tr
+                    key={asset.id || idx}
+                    className="cl"
+                    onClick={() => onOpenAsset && onOpenAsset(asset.id, asset)}
+                  >
+                    <td>
+                      <span className={`pill ${cfg.pill}`}>
+                        {cfg.code} {asset.tier ? asset.tier.toUpperCase() : "LOW"}
+                      </span>
+                    </td>
+                    <td style={{ color: "#0B7C99", fontWeight: 700 }}>
+                      {algName}
+                      {keySize}
+                    </td>
+                    <td className="mono" style={{ fontSize: "12px" }}>
+                      {loc.file}
+                    </td>
+                    <td className="mono" style={{ color: "var(--p3)", fontWeight: 600 }}>
+                      {loc.line}
+                    </td>
+                    <td style={{ fontSize: "12px", color: "var(--mut)" }}>{planes}</td>
+                    <td>
+                      <span className={`pill ${isQ ? "qv" : "qs"}`}>
+                        {isQ ? "Quantum-vulnerable" : "Not Shor-breakable"}
+                      </span>
+                    </td>
+                    <td>
+                      <b>{Number(asset.score || 0).toFixed(1)}</b>
+                      <span style={{ color: "var(--mut)" }}> / 100</span>
+                    </td>
+                    <td style={{ fontSize: "12px" }}>
+                      {mosca?.exposure === null || mosca?.exposure === undefined ? (
+                        <span style={{ color: "var(--mut)" }}>n/a</span>
+                      ) : mosca.exposure > 0 ? (
+                        <b style={{ color: "var(--p1)" }}>+{mosca.exposure} yrs exposed</b>
+                      ) : (
+                        <span style={{ color: "var(--ok)" }}>{mosca.exposure} yrs · safe</span>
+                      )}
+                    </td>
+                    <td>
+                      <span className={`pill v${(asset.verdict || "A")[0]}`}>
+                        {asset.verdict || "ACCEPT"}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
   );
 }

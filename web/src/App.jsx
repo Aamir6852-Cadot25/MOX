@@ -1,130 +1,256 @@
-import { useEffect, useState } from "react";
-import { NavLink, Navigate, Route, Routes, useLocation, useNavigate, useParams } from "react-router-dom";
-import { api } from "./api.js";
-import Login from "./pages/Login.jsx";
-import Dashboard from "./pages/Dashboard.jsx";
-import Correlate from "./pages/Correlate.jsx";
-import Remediate from "./pages/Remediate.jsx";
-import Queue from "./pages/Queue.jsx";
-import Asset from "./pages/Asset.jsx";
-import Fix from "./pages/Fix.jsx";
-import Reports from "./pages/Reports.jsx";
-import NewScan from "./pages/NewScan.jsx";
-import AirGapPill from "./components/AirGapPill.jsx";
-import EvalBanner from "./components/EvalBanner.jsx";
-import Icon from "./components/Icon.jsx";
-import Mark from "./components/Mark.jsx";
-import Splash from "./components/Splash.jsx";
-import { RouteStage } from "./components/Motion.jsx";
+import React, { useState, useEffect, useCallback } from "react";
+import { api } from "./api";
+import Header from "./components/Header";
+import Sidebar from "./components/Sidebar";
+import Splash from "./components/Splash";
+import Toast from "./components/Toast";
+import SettingsModal from "./components/SettingsModal";
 
-/** D1: every old route redirects to its new home with the same entity selected, preserving any query/hash. */
-function OldRoute({ to }) {
-  const params = useParams();
-  const loc = useLocation();
-  return <Navigate to={`${to(params)}${loc.search}${loc.hash}`} replace />;
-}
-
-const SPLASH_KEY = "mox_splash_seen";
-// Storage can be blocked (private window, policy): then the splash simply plays, and nothing breaks.
-const splashSeen = () => { try { return sessionStorage.getItem(SPLASH_KEY) === "1"; } catch { return false; } };
-const markSplashSeen = () => { try { sessionStorage.setItem(SPLASH_KEY, "1"); } catch { /* storage blocked: harmless */ } };
-
-/** Post-login landing always opens 1 Discover; never jump straight to Quantum Risk. */
-function Landing({ summary }) {
-  if (!summary) return null;
-  return <Navigate to="/scan" replace />;
-}
+import Login from "./pages/Login";
+import Scan from "./pages/Scan";
+import Dashboard from "./pages/Dashboard";
+import CodeEdit from "./pages/CodeEdit";
+import Monitoring from "./pages/Monitoring";
+import History from "./pages/History";
+import Cbom from "./pages/Cbom";
+import Remediation from "./pages/Remediation";
 
 export default function App() {
-  const [user, setUser] = useState(undefined);
-  const [summary, setSummary] = useState(null);
-  const [showSplash, setShowSplash] = useState(() => !splashSeen());
-  const nav = useNavigate();
+  const [splashState, setSplashState] = useState("visible"); // 'visible' | 'fading' | 'hidden'
+  const [user, setUser] = useState(null);
+  const [currentPage, setCurrentPage] = useState("scan");
+  const [selectedAssetId, setSelectedAssetId] = useState(null);
+  const [latestScan, setLatestScan] = useState(null);
+  const [assets, setAssets] = useState([]);
+  const [netstat, setNetstat] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [toastMessage, setToastMessage] = useState(null);
 
-  // A failed load is not "no scan": keep the error so no screen claims the database is empty.
-  const refresh = () => api.latest().then(setSummary).catch((e) => setSummary({ scan: null, error: e.message }));
-  useEffect(() => {
-    api.me().then(setUser).catch(() => setUser(null));
+  const showToast = useCallback((msg) => {
+    setToastMessage(msg);
   }, []);
+
   useEffect(() => {
-    if (user) refresh();
-  }, [user]);
+    if (toastMessage) {
+      const timer = setTimeout(() => {
+        setToastMessage(null);
+      }, 2200);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
 
-  // The splash leaves only once the real boot requests have answered (session, then the latest scan if signed in).
-  const splash = showSplash
-    ? <Splash ready={user !== undefined && (user === null || summary !== null)}
-        onDone={() => { markSplashSeen(); setShowSplash(false); }} />
-    : null;
+  // Load app data
+  const loadScanData = useCallback(async () => {
+    try {
+      const [lat, asts, net] = await Promise.all([
+        api.latest().catch(() => null),
+        api.assets().catch(() => []),
+        api.netstat().catch(() => null),
+      ]);
+      setLatestScan(lat);
+      if (Array.isArray(asts)) setAssets(asts);
+      setNetstat(net);
+    } catch {
+      // ignore
+    }
+  }, []);
 
-  if (user === undefined) return <>{splash}</>; // same tree position as below, so the splash is not remounted
-  if (!user)
+  // Determine initial page from URL
+  const determinePageFromLocation = useCallback(() => {
+    const hash = window.location.hash.replace("#", "").toLowerCase();
+    const pathname = window.location.pathname.toLowerCase();
+
+    if (hash) {
+      if (["scan", "dash", "code", "mon", "hist", "cbom", "rem"].includes(hash)) {
+        return hash;
+      }
+      if (hash === "dashboard") return "dash";
+      if (hash === "monitoring") return "mon";
+      if (hash === "history" || hash === "reports") return "hist";
+      if (hash === "remediation") return "rem";
+    }
+
+    if (pathname.includes("dash")) return "dash";
+    if (pathname.includes("code") || pathname.includes("fix") || pathname.includes("asset")) return "code";
+    if (pathname.includes("mon")) return "mon";
+    if (pathname.includes("hist") || pathname.includes("report") || pathname.includes("audit")) return "hist";
+    if (pathname.includes("cbom")) return "cbom";
+    if (pathname.includes("rem") || pathname.includes("roadmap")) return "rem";
+    if (pathname.includes("queue")) return "dash";
+
+    return null;
+  }, []);
+
+  // Startup: verify session & fade splash
+  useEffect(() => {
+    const startTime = Date.now();
+
+    api
+      .me()
+      .then((me) => {
+        setUser(me);
+        loadScanData().then(() => {
+          const page = determinePageFromLocation();
+          if (page) {
+            setCurrentPage(page);
+          } else {
+            // If scan exists, go to dash; else scan
+            api.latest().then((res) => {
+              if (res && res.scan) setCurrentPage("dash");
+              else setCurrentPage("scan");
+            }).catch(() => setCurrentPage("scan"));
+          }
+        });
+      })
+      .catch(() => {
+        setUser(null);
+      })
+      .finally(() => {
+        const elapsed = Date.now() - startTime;
+        const remaining = Math.max(0, 1000 - elapsed);
+        setTimeout(() => {
+          setSplashState("fading");
+          setTimeout(() => {
+            setSplashState("hidden");
+          }, 400);
+        }, remaining);
+      });
+  }, [determinePageFromLocation, loadScanData]);
+
+  // Sync hash changes
+  useEffect(() => {
+    const handleHash = () => {
+      const page = determinePageFromLocation();
+      if (page) setCurrentPage(page);
+    };
+    window.addEventListener("hashchange", handleHash);
+    return () => window.removeEventListener("hashchange", handleHash);
+  }, [determinePageFromLocation]);
+
+  const handleNavigate = (page) => {
+    setCurrentPage(page);
+    window.location.hash = page;
+    window.scrollTo(0, 0);
+  };
+
+  const handleOpenAsset = (assetId) => {
+    setSelectedAssetId(assetId);
+    handleNavigate("code");
+  };
+
+  const handleLogout = async () => {
+    try {
+      await api.logout();
+    } catch {
+      // ok
+    }
+    setUser(null);
+    window.location.hash = "";
+  };
+
+  const handleScanFinished = async () => {
+    await loadScanData();
+    handleNavigate("dash");
+  };
+
+  if (splashState !== "hidden") {
+    return <Splash fading={splashState === "fading"} />;
+  }
+
+  if (!user) {
     return (
-      <>
-        {splash}
-        <EvalBanner />
-        <Routes>
-          <Route path="*" element={<Login onLogin={(u) => { setUser(u); nav("/"); }} />} />
-        </Routes>
-      </>
+      <Login
+        onLoginSuccess={(userData) => {
+          setUser(userData);
+          loadScanData();
+          handleNavigate("scan");
+        }}
+      />
     );
+  }
 
-  const scan = summary?.scan;
-  const work = [["/scan", "Discover", "scan-search"], ["/dashboard", "Quantum Risk", "layout-dashboard"], ["/correlate", "Correlate", "network"], ["/remediate", "Remediate", "list-checks"], ["/report", "Report & Attest", "file-text"]];
-  const navRow = (to, l, icon) => (
-    <NavLink key={l} to={to} className={({ isActive }) => "nav" + (isActive ? " on" : "")}><Icon name={icon} size="nav" />{l}</NavLink>
-  );
   return (
     <>
-      {splash}
-      <EvalBanner />
-      <div className="shell">
-      <aside className="side">
-        <div className="logo"><Mark />MOX</div>
-        {work.map(([to, l, icon]) => navRow(to, l, icon))}
-      </aside>
-      <div className="main">
-        <div className="topbar">
-          <div className="dim target">{scan ? <>Target <b className="mono" style={{ color: "var(--ink)" }} title={scan.target}>{scan.target}</b></>
-            : summary?.error ? <>Could not load the latest scan ({summary.error}). <button className="linkbtn" onClick={refresh}>Retry</button></>
-            : summary ? "No scan yet" : "Loading latest scan"}</div>
-          <div className="sp" />
-          {scan && <div className="chip"><span className="mono">{scan.files_scanned}</span> files, <span className="mono">{summary.kpi.planes}</span> planes, <span className="mono">{scan.seconds}</span> s</div>}
-          <AirGapPill />
-          <span className="dim" style={{ fontSize: 11 }} title={user.username}>Signed in as CISO</span>
-          <button className="bp-btn" onClick={() => api.logout().then(() => setUser(null))}><Icon name="log-out" />Sign out</button>
-        </div>
-      <RouteStage>{(loc) => (
-      <Routes location={loc}>
-        <Route path="/" element={<Landing summary={summary} />} />
-        <Route path="/scan" element={<NewScan summary={summary} onScanned={refresh} />} />
-        <Route path="/correlate" element={<Correlate summary={summary} />} />
-        <Route path="/remediate" element={<Remediate summary={summary} onChanged={refresh} />} />
-        <Route path="/report" element={<Navigate to="/report/attestation" replace />} />
-        <Route path="/report/:tab" element={<Reports summary={summary} />} />
-        <Route path="/dashboard" element={<Dashboard summary={summary} onScanned={refresh} />} />
-        <Route path="/findings" element={<Queue summary={summary} />} />
-        <Route path="/findings/:id" element={<Asset onChanged={refresh} summary={summary} />} />
-        <Route path="/code" element={<Fix onChanged={refresh} summary={summary} />} />
-        <Route path="/code/:findingId" element={<Fix onChanged={refresh} />} />
-        <Route path="/reports" element={<Navigate to="/reports/attestation" replace />} />
-        <Route path="/reports/:tab" element={<Reports summary={summary} />} />
-        {/* old routes (D1): redirect to the new home, entity preserved */}
-        <Route path="/queue" element={<OldRoute to={() => "/findings"} />} />
-        <Route path="/asset/:id" element={<OldRoute to={(p) => `/findings/${p.id}`} />} />
-        <Route path="/fix" element={<OldRoute to={() => "/code"} />} />
-        <Route path="/fix/:findingId" element={<OldRoute to={(p) => `/code/${p.findingId}`} />} />
-        <Route path="/cbom" element={<OldRoute to={() => "/reports/cbom"} />} />
-        <Route path="/roadmap" element={<OldRoute to={() => "/reports/roadmap"} />} />
-        <Route path="/report" element={<OldRoute to={() => "/reports/compliance"} />} />
-        <Route path="/attest" element={<OldRoute to={() => "/reports/attestation"} />} />
-        <Route path="/audit" element={<OldRoute to={() => "/reports/audit"} />} />
-        <Route path="/sector" element={<OldRoute to={() => "/reports/national"} />} />
-        <Route path="/settings" element={<OldRoute to={() => "/dashboard"} />} />
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
-      )}</RouteStage>
-      </div>
-      </div>
+      <Header
+        latestScan={latestScan}
+        netstat={netstat}
+        onOpenSettings={() => setShowSettings(true)}
+        onSignOut={handleLogout}
+      />
+
+      <Sidebar
+        currentPage={currentPage}
+        onNavigate={handleNavigate}
+        latestScan={latestScan}
+      />
+
+      <main>
+        {currentPage === "scan" && (
+          <Scan
+            onScanComplete={handleScanFinished}
+            showToast={showToast}
+          />
+        )}
+
+        {currentPage === "dash" && (
+          <Dashboard
+            latestScan={latestScan}
+            assets={assets}
+            onNavigate={handleNavigate}
+            onOpenAsset={handleOpenAsset}
+          />
+        )}
+
+        {currentPage === "code" && (
+          <CodeEdit
+            assets={assets}
+            selectedAssetId={selectedAssetId}
+            latestScan={latestScan}
+            onTriggerRescan={loadScanData}
+            showToast={showToast}
+          />
+        )}
+
+        {currentPage === "mon" && (
+          <Monitoring
+            latestScan={latestScan}
+            assets={assets}
+            onNavigate={handleNavigate}
+            showToast={showToast}
+          />
+        )}
+
+        {currentPage === "hist" && (
+          <History
+            onNavigate={handleNavigate}
+            showToast={showToast}
+          />
+        )}
+
+        {currentPage === "cbom" && (
+          <Cbom
+            assets={assets}
+            showToast={showToast}
+          />
+        )}
+
+        {currentPage === "rem" && (
+          <Remediation
+            assets={assets}
+          />
+        )}
+      </main>
+
+      <SettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        onSaved={() => {
+          loadScanData();
+          showToast("Settings updated");
+        }}
+      />
+
+      <Toast message={toastMessage} />
     </>
   );
 }

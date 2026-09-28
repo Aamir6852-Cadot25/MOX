@@ -3,7 +3,8 @@ node_modules/
 web/dist/
 __pycache__/
 .pytest_cache/
-data/mox.db
+data/*.db*
+data/.fuse*
 data/keys/
 demo_target/
 *.bak

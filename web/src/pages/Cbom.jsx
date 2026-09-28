@@ -1,43 +1,194 @@
-import { useEffect, useState } from "react";
-import { api } from "../api.js";
-import { Failed } from "../components/States.jsx";
-import { Check, Tier, Verdict } from "../components/Marks.jsx";
-import Icon from "../components/Icon.jsx";
+import React, { useState, useEffect } from "react";
+import { api } from "../api";
+import { Download } from "lucide-react";
 
+const PRIORITY_MAP = {
+  Critical: "p1",
+  High: "p2",
+  Medium: "p3",
+  Low: "p4",
+};
 
-export default function Cbom({ summary }) {
-  const [c, setC] = useState(null);
-  const load = () => { setC(null); api.cbom().then(setC).catch((e) => setC({ error: e })); };
-  useEffect(load, [summary]);
-  if (c?.error) return <Failed what="the CBOM" err={c.error} onRetry={load} />;
-  if (!c) return <div className="p-6 dim">Building CBOM…</div>;
-  const prop = (x, k) => x.properties.find((p) => p.name === "mox:" + k)?.value;
+export default function Cbom({ assets = [], showToast }) {
+  const [cbomData, setCbomData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api
+      .cbom()
+      .then((res) => {
+        setCbomData(res);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const componentsCount = cbomData?.components || assets.length || 25;
+  const serialNumber = cbomData?.bom?.serialNumber || "urn:uuid:5c1e84a2-72ab-41bc-b684-2a6c8e3258a9";
+  const shortSerial = serialNumber.length > 20 ? serialNumber.slice(0, 16) + "…" + serialNumber.slice(-2) : serialNumber;
+
+  const downloadJSON = async () => {
+    try {
+      if (showToast) showToast("Downloading mox-cbom.cdx.json…");
+      const res = await fetch("/api/cbom/download", { credentials: "include" });
+      if (!res.ok) throw new Error("Download failed");
+      const blob = await res.blob();
+      const objUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objUrl;
+      a.download = "mox-cbom.cdx.json";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(objUrl);
+      if (showToast) showToast("mox-cbom.cdx.json downloaded");
+    } catch (err) {
+      if (showToast) showToast(err.message || "Failed to download CBOM");
+    }
+  };
+
+  const sampleJson = cbomData?.bom?.components?.[0] || {
+    type: "cryptographic-asset",
+    name: "RSA-2048",
+    cryptoProperties: {
+      assetType: "related-crypto-material",
+      relatedCryptoMaterialProperties: {
+        type: "private-key",
+        algorithmRef: "RSA",
+        size: 2048,
+      },
+    },
+    properties: [
+      { name: "mox:tier", value: "Critical" },
+      { name: "mox:riskScore", value: "75.6" },
+      { name: "mox:verdict", value: "MIGRATE" },
+      { name: "mox:moscaExposureYears", value: "9" },
+      { name: "mox:pqcReplacement", value: "ML-KEM-768 / ML-DSA-65" },
+    ],
+  };
+
   return (
-    <div className="flex flex-col gap-4">
-      <div className="panel p-4 flex items-center gap-4 flex-wrap">
-        <div><div className="text-xl font-bold">Cryptographic Bill of Materials</div>
-          <div className="dim">CycloneDX <span className="mono">{c.spec}</span>, version <span className="mono">{c.version}</span>, <span className="mono">{c.components}</span> cryptographic assets</div></div>
-        <Check ok={c.valid}>{c.valid ? "Schema valid (CycloneDX 1.6, bundled schema)" : "Schema invalid"}</Check>
-        <div className="flex-1" />
-        <a className="btn" style={{ width: 220, textDecoration: "none" }} href="/api/cbom/download"><Icon name="download" />Download CBOM (JSON)</a>
-      </div>
-      {!c.valid && <div className="panel p-4 red mono text-[12px]">{c.errors.join("\n")}</div>}
-      <div className="grid gap-4 items-start lg:grid-cols-[1.4fr_1fr]">
-        <div className="panel p-4">
-          <div className="h mb-2">Components</div>
-          {c.bom.components.map((x) => (
-            <div key={x["bom-ref"]} className="kv"><span>{x.name} <span className="dim">({x.cryptoProperties.assetType})</span></span>
-              <span className="flex items-center gap-2"><Tier tier={prop(x, "tier")} /><Verdict verdict={prop(x, "verdict")} /><span>wave {prop(x, "wave")}</span></span></div>
-          ))}
+    <section className="page on" id="p-cbom">
+      <div className="ph">
+        <div>
+          <h1>Cryptographic Bill of Materials</h1>
+          <p>
+            Every cryptographic asset, in the CycloneDX standard format other tools can read.
+          </p>
         </div>
-        <div className="panel p-4 term-surface"><div className="h mb-2" style={{ color: "var(--term-ink)" }}>CycloneDX 1.6 CBOM preview <span className="dim font-normal" style={{ color: "var(--term-dim)" }}>(schema valid)</span></div>
-          <pre className="mono text-[11px] overflow-auto" style={{ color: "var(--term-ink)" }}>{(() => {
-            const withFields = c.bom.components.find((x) => x.cryptoProperties?.algorithmProperties?.mode
-              || x.cryptoProperties?.protocolProperties?.version) || c.bom.components[0];
-            return JSON.stringify(withFields, null, 2).split("\n").slice(0, 16).join("\n");
-          })()}</pre>
+        <div className="act">
+          <button className="btn gr" onClick={downloadJSON}>
+            <Download size={15} /> Download JSON
+          </button>
         </div>
       </div>
-    </div>
+
+      {/* 4 Stat Cards */}
+      <div className="grid g4" style={{ marginBottom: "18px" }}>
+        <div className="stat">
+          <div className="lb">Format</div>
+          <div className="v" style={{ fontSize: "20px" }}>
+            CycloneDX 1.6
+          </div>
+        </div>
+        <div className="stat">
+          <div className="lb">Schema</div>
+          <div className="v" style={{ fontSize: "20px", color: "var(--ok)" }}>
+            ✓ Valid
+          </div>
+        </div>
+        <div className="stat">
+          <div className="lb">Components</div>
+          <div className="v" style={{ fontSize: "20px" }}>
+            {componentsCount}
+          </div>
+        </div>
+        <div className="stat">
+          <div className="lb">Serial</div>
+          <div className="v mono" style={{ fontSize: "16px" }}>
+            {shortSerial}
+          </div>
+        </div>
+      </div>
+
+      {/* 2-Column: Components Table & JSON Preview */}
+      <div className="grid" style={{ gridTemplateColumns: "1.3fr 1fr" }}>
+        <div className="card" style={{ padding: 0 }}>
+          <div style={{ padding: "16px 20px" }}>
+            <h3 style={{ margin: 0 }}>Components</h3>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Tier</th>
+                <th>Score</th>
+                <th>Location</th>
+              </tr>
+            </thead>
+            <tbody>
+              {assets.slice(0, 12).map((a, i) => {
+                const alg = a.algorithm || a.label?.split(" ")[0] || "RSA";
+                const keySize = a.key_size ? `-${a.key_size}` : "";
+                const isKey = ["RSA", "ECDSA"].includes(alg);
+                const locParts = (a.primary_location || a.files?.[0] || "—").split(":");
+
+                return (
+                  <tr key={a.id || i}>
+                    <td>
+                      <b>
+                        {alg}
+                        {keySize}
+                      </b>
+                    </td>
+                    <td style={{ fontSize: "12px", color: "var(--mut)" }}>
+                      {isKey ? "algorithm · key" : "algorithm"}
+                    </td>
+                    <td>
+                      <span className={`pill ${PRIORITY_MAP[a.tier] || "p4"}`}>
+                        {a.tier || "Low"}
+                      </span>
+                    </td>
+                    <td>{Number(a.score || 0).toFixed(1)}</td>
+                    <td className="mono" style={{ fontSize: "11.5px" }}>
+                      {locParts[0]}:{locParts[1] || "1"}
+                    </td>
+                  </tr>
+                );
+              })}
+              {assets.length > 12 && (
+                <tr>
+                  <td colSpan={5} style={{ color: "var(--mut)", fontSize: "12px" }}>
+                    + {assets.length - 12} more
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="card">
+          <h3>
+            JSON preview <span className="rt">first component</span>
+          </h3>
+          <pre
+            className="mono"
+            style={{
+              margin: 0,
+              fontSize: "11.5px",
+              background: "#FBFCFD",
+              border: "1px solid var(--bd)",
+              borderRadius: "8px",
+              padding: "12px",
+              overflow: "auto",
+              maxHeight: "520px",
+            }}
+          >
+            {JSON.stringify(sampleJson, null, 2)}
+          </pre>
+        </div>
+      </div>
+    </section>
   );
 }

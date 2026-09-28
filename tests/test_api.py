@@ -125,3 +125,23 @@ def test_history_and_reference_endpoints(client):
     ref = client.get("/api/reference").json()
     assert "algorithms" in ref
     assert "RSA" in ref["algorithms"]
+
+
+def test_file_view_endpoint(client):
+    assert client.get("/api/file?path=payments/Crypto.java").status_code == 401
+    login(client)
+    # 404 if no scan yet
+    assert client.get("/api/file?path=payments/Crypto.java").status_code == 404
+    client.post("/api/scans", json={"path": client.demo})
+    # valid file inside demo_dir
+    r = client.get("/api/file?path=payments/Crypto.java&line=16")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["line"] == 16
+    assert data["total_lines"] > 0
+    assert "public class Crypto" in data["content"]
+    assert any("DES/CBC/PKCS5Padding" in l for l in data["lines"])
+    # path traversal attempt should be 403
+    assert client.get("/api/file?path=../../setup.py").status_code == 403
+    # non-existent file
+    assert client.get("/api/file?path=nonexistent.java").status_code == 404

@@ -1,12 +1,20 @@
 async function call(method, url, body) {
-  const r = await fetch(url, {
-    method,
-    credentials: "same-origin",
-    headers: body ? { "Content-Type": "application/json" } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let r;
+  try {
+    r = await fetch(url, {
+      method,
+      credentials: "include",
+      headers: body ? { "Content-Type": "application/json" } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch (err) {
+    const e = new Error("Can't reach the MOX server");
+    e.network = true;
+    throw e;
+  }
   if (!r.ok) {
-    const e = new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+    const data = await r.json().catch(() => ({}));
+    const e = new Error(data.detail || r.statusText || "Request failed");
     e.status = r.status;
     throw e;
   }
@@ -14,9 +22,17 @@ async function call(method, url, body) {
 }
 
 async function callForm(url, form) {
-  const r = await fetch(url, { method: "POST", credentials: "same-origin", body: form });
+  let r;
+  try {
+    r = await fetch(url, { method: "POST", credentials: "include", body: form });
+  } catch (err) {
+    const e = new Error("Can't reach the MOX server");
+    e.network = true;
+    throw e;
+  }
   if (!r.ok) {
-    const e = new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+    const data = await r.json().catch(() => ({}));
+    const e = new Error(data.detail || r.statusText || "Upload failed");
     e.status = r.status;
     throw e;
   }
@@ -37,22 +53,22 @@ export const api = {
   assets: () => call("GET", "/api/assets"),
   asset: (id) => call("GET", `/api/assets/${id}`),
   override: (id, body) => call("PUT", `/api/assets/${id}/override`, body),
+  file: (path, line) => call("GET", `/api/file?path=${encodeURIComponent(path)}&line=${line || 1}`),
   settings: () => call("GET", "/api/settings"),
+  setSettings: (body) => call("PUT", "/api/settings", body),
   fixes: () => call("GET", "/api/fixes"),
   fixPreview: (finding_id) => call("POST", "/api/fixes/preview", { finding_id }),
-  fixApply: (id, note) => call("POST", `/api/fixes/${id}/apply`, { note }),
+  fixApply: (id, note) => call("POST", `/api/fixes/${id}/apply`, { note: note || "" }),
   cbom: () => call("GET", "/api/cbom"),
   roadmap: () => call("GET", "/api/roadmap"),
-  attest: (sector) => call("GET", `/api/attest?sector=${sector}`),
+  attest: (sector) => call("GET", `/api/attest?sector=${sector || "government"}`),
   sectors: () => call("GET", "/api/sectors"),
   audit: () => call("GET", "/api/audit"),
   history: () => call("GET", "/api/scans/history"),
   reference: () => call("GET", "/api/reference"),
   report: () => call("GET", "/api/report"),
-  setSettings: (body) => call("PUT", "/api/settings", body),
   projectsMeta: () => call("GET", "/api/projects/meta"),
   projects: () => call("GET", "/api/projects"),
   createProject: (body) => call("POST", "/api/projects", body),
   updateProject: (id, body) => call("PUT", `/api/projects/${id}`, body),
 };
-

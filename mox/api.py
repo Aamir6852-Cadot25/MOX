@@ -1,5 +1,6 @@
 """FastAPI app: /api/* (SPEC section 13) + serves web/dist. Offline; no outbound calls."""
 import json
+from pathlib import Path
 import sqlite3
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
@@ -491,6 +492,37 @@ def create_app() -> FastAPI:
     @app.get("/api/reference")
     def nist_reference(u=Depends(_user)):
         return nist.table()
+
+    @app.get("/api/file")
+    def file_view(path: str, line: int = 1, u=Depends(_user), conn: sqlite3.Connection = Depends(_conn)):
+        scan = _latest(conn)
+        if not scan:
+            raise HTTPException(404, "no scan yet")
+        target = Path(scan["target"]).resolve()
+        p = Path(path)
+        if not p.is_absolute():
+            p = (target / p).resolve()
+        else:
+            p = p.resolve()
+        if p != target and target not in p.parents:
+            raise HTTPException(403, "path is outside scan target")
+        if not p.is_file():
+            raise HTTPException(404, "file not found")
+        if p.stat().st_size > 1_000_000:
+            raise HTTPException(400, "file too large to display")
+        try:
+            content = p.read_text(encoding="utf-8", errors="replace")
+        except Exception:
+            raise HTTPException(400, "cannot read file as text")
+        lines = content.splitlines()
+        return {
+            "path": path,
+            "resolved_path": str(p),
+            "line": line,
+            "lines": lines,
+            "total_lines": len(lines),
+            "content": content,
+        }
 
     if DIST.is_dir():
         app.mount("/assets", StaticFiles(directory=DIST / "assets"), name="assets")
