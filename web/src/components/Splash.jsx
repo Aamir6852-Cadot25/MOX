@@ -33,8 +33,8 @@ export default function Splash({ fading = false }) {
         <div style={{ marginTop: "14px" }}>
           <img src="/mox-wordmark.svg" alt="MOX" height="48" />
         </div>
-        <div className="sb" style={{ height: "4px", background: "rgba(255,255,255,0.1)", borderRadius: "2px", overflow: "hidden", margin: "18px 0" }}>
-          <i style={{ display: "block", height: "100%", width: `${progressPct}%`, background: "var(--cy)", transition: "width 0.8s ease" }} />
+        <div className="sb">
+          <i style={{ width: `${progressPct}%` }} />
         </div>
         <div style={{ fontSize: "13px", color: "var(--mut)", height: "20px", fontStyle: "normal" }}>
           {SPLASH_LINES[lineIdx]}

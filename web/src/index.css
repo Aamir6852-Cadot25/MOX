@@ -911,24 +911,50 @@ label.f {
 }
 
 #splash .sb {
-  width: 220px;
-  height: 3px;
+  width: 240px;
+  height: 6px;
   background: #E6EEF4;
-  border-radius: 3px;
+  border-radius: 999px;
   overflow: hidden;
-  margin: 18px auto 10px;
+  margin: 18px auto 12px;
+  position: relative;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.06);
 }
 
 #splash .sb i {
   display: block;
   height: 100%;
-  width: 0;
-  background: var(--cy);
-  animation: ld 1.3s ease forwards;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #0EA5C9 0%, #38BDF8 50%, #0EA5C9 100%);
+  background-size: 200% 100%;
+  animation: splashPulse 1.6s ease-in-out infinite;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
 }
 
-@keyframes ld {
-  to { width: 100%; }
+#splash .sb i::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.5) 50%,
+    transparent 100%
+  );
+  animation: splashShimmer 1.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes splashPulse {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes splashShimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
 /* Login */
