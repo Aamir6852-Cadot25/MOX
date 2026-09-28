@@ -25,11 +25,17 @@ export default function Login({ onLoginSuccess }) {
     <div id="login">
       <div className="lc">
         <div className="row">
-          <div className="logo" style={{ color: "#fff" }}>
-            MX
-          </div>
+          <img
+            src="/mox-icon.svg"
+            alt=""
+            width="40"
+            height="40"
+            style={{ borderRadius: "10px", boxShadow: "0 0 0 1px #0EA5C9" }}
+          />
           <div>
-            <div style={{ fontWeight: 800, fontSize: "17px" }}>M-O-X</div>
+            <div>
+              <img src="/mox-wordmark.svg" alt="MOX" height="30" />
+            </div>
             <div style={{ fontSize: "12px", color: "var(--mut)" }}>
               Cryptographic discovery &amp; PQC readiness
             </div>

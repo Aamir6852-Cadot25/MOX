@@ -27,9 +27,17 @@ export default function Header({
 
   return (
     <header>
-      <div className="logo">MX</div>
+      <img
+        src="/mox-icon.svg"
+        alt=""
+        width="40"
+        height="40"
+        style={{ borderRadius: "10px", boxShadow: "0 0 0 1px #0EA5C9" }}
+      />
       <div>
-        <div className="t">M-O-X</div>
+        <div className="t">
+          <img src="/mox-wordmark.svg" alt="MOX" height="30" />
+        </div>
         <div className="s">Cryptographic discovery &amp; PQC readiness</div>
       </div>
 
