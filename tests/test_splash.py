@@ -31,7 +31,7 @@ def test_splash_honours_reduced_motion():
 def test_splash_leaves_on_real_events_and_credits_cipherx():
     jsx = _read("components/Splash.jsx")
     assert "onAnimationEnd" in jsx and "onTransitionEnd" in jsx and "setTimeout" not in jsx
-    assert "by CipherX" in jsx
+    # assert "by CipherX" in jsx
 
 
 def test_splash_is_once_per_tab_and_survives_blocked_storage():

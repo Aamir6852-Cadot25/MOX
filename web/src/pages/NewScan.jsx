@@ -108,7 +108,7 @@ export default function NewScan({ summary, onScanned }) {
                 <div className="lbl">Path to Scan</div>
                 <div style={{ display: "flex", gap: "var(--s2)" }}>
                   <input className="bp-input" style={{ flex: 1 }} value={path} onChange={(e) => setPath(e.target.value)} disabled={run?.state === "running"} />
-                  {source === "folder" && <button type="button" className="bp-btn" onClick={() => setBrowsing(true)} disabled={run?.state === "running"}><Icon name="search" />Browse</button>}
+                  {source === "folder" && <button type="button" className="bp-btn" onClick={() => setBrowsing(true)} disabled={run?.state === "running"}>Browse</button>}
                 </div>
               </div>
               <div>

@@ -24,3 +24,16 @@ Five primary pages (docs/MOX_V2_BUILD_PLAN.md, D1), plus two secondary pages in 
   next action (Retry). None of them apologise.
 - **"No scan" (HTTP 404) and "could not load" (any other failure) are separate states.** A load failure is never
   presented as an empty database.
+
+
+
+* `/correlate`: What is the blast radius? (Correlate)
+
+* `/remediate`: How do we fix it? (Remediate)
+* `/report`: Can we prove it? (Report)
+* `/report/:tab`: Can we prove it? (Report tab)
+
+* `/correlate`: What is the blast radius? (Correlate)
+* `/remediate`: How do we fix it? (Remediate)
+* `/report`: Can we prove it? (Report)
+* `/report/:tab`: Can we prove it? (Report tab)
